@@ -28,17 +28,29 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
   useEffect(() => {
     fetch("/api/products")
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setProducts(data))
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          return res.json();
+        }
+        return [];
+      })
+      .then(data => setProducts(Array.isArray(data) ? data : []))
       .catch(err => console.error("Erro ao carregar produtos no modal:", err));
 
     // Fetch dynamic options lists
     fetch("/api/settings")
-      .then(res => res.ok ? res.json() : ({} as any))
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          return res.json();
+        }
+        return {} as any;
+      })
       .then((data: any) => {
-        if (data.etapas_contato) setEtapasList(data.etapas_contato);
-        if (data.status_funil) setStatusList(data.status_funil);
-        if (data.temperaturas) setTempsList(data.temperaturas);
+        if (data && data.etapas_contato) setEtapasList(data.etapas_contato);
+        if (data && data.status_funil) setStatusList(data.status_funil);
+        if (data && data.temperaturas) setTempsList(data.temperaturas);
       })
       .catch(err => console.error("Erro ao carregar listas dinâmicas no modal:", err));
   }, [leadId]);

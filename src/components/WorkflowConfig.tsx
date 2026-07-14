@@ -53,8 +53,14 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   // Load products
   useEffect(() => {
     fetch("/api/products")
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setProducts(data))
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          return res.json();
+        }
+        return [];
+      })
+      .then(data => setProducts(Array.isArray(data) ? data : []))
       .catch(err => console.error("Erro ao carregar produtos no workflow:", err));
   }, []);
 
@@ -79,8 +85,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
     if (!textarea) {
       if (elementId === "mensagem-template-textarea") {
         setMensagemTemplate(prev => prev + text);
-      } else {
+      } else if (elementId === "new-mensagem-template") {
         setNewMensagemTemplate(prev => prev + text);
+      } else if (elementId === "imagens-template-textarea") {
+        setImagensTemplate(prev => prev + text);
+      } else if (elementId === "new-imagens-template") {
+        setNewImagensTemplate(prev => prev + text);
       }
       return;
     }
@@ -94,6 +104,15 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
     if (elementId === "mensagem-template-textarea") {
       currentVal = mensagemTemplate;
       setValFunc = setMensagemTemplate;
+    } else if (elementId === "new-mensagem-template") {
+      currentVal = newMensagemTemplate;
+      setValFunc = setNewMensagemTemplate;
+    } else if (elementId === "imagens-template-textarea") {
+      currentVal = imagensTemplate;
+      setValFunc = setImagensTemplate;
+    } else if (elementId === "new-imagens-template") {
+      currentVal = newImagensTemplate;
+      setValFunc = setNewImagensTemplate;
     } else {
       currentVal = newMensagemTemplate;
       setValFunc = setNewMensagemTemplate;
@@ -857,6 +876,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                         <div className="bg-zinc-950 border border-t-0 border-zinc-800 p-4 space-y-2">
                           <label className="text-xs font-bold text-zinc-400 block">Lista de Imagens a Enviar (Opcional - Um disparo por imagem após o texto)</label>
                           <textarea
+                            id="imagens-template-textarea"
                             value={imagensTemplate}
                             onChange={(e) => setImagensTemplate(e.target.value)}
                             placeholder="Insira os links das imagens separados por vírgula ou por linha (ex: https://site.com/foto1.jpg, {imagem_vela_vidro})"
@@ -911,7 +931,20 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                   <div key={prod.id} className="bg-zinc-900/40 border border-zinc-850/60 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                       {prod.link_imagem && (
-                                        <img src={prod.link_imagem} alt="" className="w-8 h-8 object-cover rounded" referrerPolicy="no-referrer" />
+                                        <img
+                                          src={prod.link_imagem}
+                                          alt=""
+                                          className="w-8 h-8 object-cover rounded cursor-pointer hover:scale-110 active:scale-95 transition-all duration-150 border border-zinc-800 hover:border-amber-500"
+                                          referrerPolicy="no-referrer"
+                                          title="Clique para inserir esta imagem"
+                                          onClick={() => {
+                                            if (canal === "WHATSAPP") {
+                                              insertTextAtCursor(`{imagem_${prod.id}}`, "imagens-template-textarea");
+                                            } else {
+                                              insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
+                                            }
+                                          }}
+                                        />
                                       )}
                                       <div>
                                         <span className="text-xs font-bold text-zinc-300 block">{prod.descricao}</span>
@@ -930,7 +963,13 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                       <button
                                         type="button"
                                         title="Insere o link da imagem do produto"
-                                        onClick={() => insertTextAtCursor(`{imagem_${prod.id}}`)}
+                                        onClick={() => {
+                                          if (canal === "WHATSAPP") {
+                                            insertTextAtCursor(`{imagem_${prod.id}}`, "imagens-template-textarea");
+                                          } else {
+                                            insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
+                                          }
+                                        }}
                                         className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
                                       >
                                         Imagem ({"{"}imagem_{prod.id}{"}"})
@@ -1199,6 +1238,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       <div className="space-y-1.5 mt-3 text-left">
                         <label className="text-[11px] font-bold text-zinc-400 block">Lista de Imagens (Opcional - links separados por vírgula ou por linha)</label>
                         <textarea
+                          id="new-imagens-template"
                           value={newImagensTemplate}
                           onChange={(e) => setNewImagensTemplate(e.target.value)}
                           placeholder="Ex: https://site.com/vela.jpg, {imagem_vela_vidro}"

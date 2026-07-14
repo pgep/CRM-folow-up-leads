@@ -282,11 +282,15 @@ async function initPgDatabase() {
           temperatura VARCHAR(255),
           mensagem_template TEXT,
           assunto_template VARCHAR(255),
+          imagens_template TEXT,
           ordem INTEGER DEFAULT 0
         );
       `);
       await client.query(`
         ALTER TABLE workflow_config ADD COLUMN IF NOT EXISTS ordem INTEGER DEFAULT 0;
+      `);
+      await client.query(`
+        ALTER TABLE workflow_config ADD COLUMN IF NOT EXISTS imagens_template TEXT;
       `);
 
       // 3. Portal Config Table
@@ -630,8 +634,8 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
     try {
       for (const stage of configs) {
         await pgPool.query(`
-          INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, ordem)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (etapa) DO UPDATE SET
             descricao = EXCLUDED.descricao,
             canal = EXCLUDED.canal,
@@ -640,6 +644,7 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
             temperatura = EXCLUDED.temperatura,
             mensagem_template = EXCLUDED.mensagem_template,
             assunto_template = EXCLUDED.assunto_template,
+            imagens_template = EXCLUDED.imagens_template,
             ordem = EXCLUDED.ordem
         `, [
           stage.etapa,
@@ -650,6 +655,7 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
           stage.temperatura,
           stage.mensagem_template,
           stage.assunto_template,
+          stage.imagens_template,
           stage.ordem || 0
         ]);
       }
@@ -1351,13 +1357,26 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
   if (!template) return "";
   let text = template;
   
-  // Substituições básicas
+  const leadName = lead.nome || lead.name || "";
+  const leadLocal = lead.local || "sua região";
+  const leadServicos = lead.servicos || lead.services || "nossos produtos";
+  const leadConvidados = String(lead.convidados || lead.guests || "100");
+  const leadMes = lead.mes_casamento || lead.mesCasamento || lead.wedding_month || "breve";
+
+  // Substituições básicas (suporta tanto {variavel} quanto {{variavel}})
   text = text
-    .replace(/{nome}/g, lead.nome || "")
-    .replace(/{local}/g, lead.local || "sua região")
-    .replace(/{servicos}/g, lead.servicos || "nossos produtos")
-    .replace(/{convidados}/g, String(lead.convidados || "100"))
-    .replace(/{mes_casamento}/g, lead.mes_casamento || "breve");
+    .replace(/{{nome}}/g, leadName)
+    .replace(/{nome}/g, leadName)
+    .replace(/{{local}}/g, leadLocal)
+    .replace(/{local}/g, leadLocal)
+    .replace(/{{servicos}}/g, leadServicos)
+    .replace(/{servicos}/g, leadServicos)
+    .replace(/{{convidados}}/g, leadConvidados)
+    .replace(/{convidados}/g, leadConvidados)
+    .replace(/{{mes_casamento}}/g, leadMes)
+    .replace(/{mes_casamento}/g, leadMes)
+    .replace(/{{mesCasamento}}/g, leadMes)
+    .replace(/{mesCasamento}/g, leadMes);
 
   // Substituições de produtos do banco
   try {
@@ -1367,17 +1386,20 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
     for (const prod of products) {
       const id = prod.id;
       const totalCalculado = guests * (Number(prod.valor_unitario) || 0);
-      
-      const regexOrcamento = new RegExp(`{orcamento_${id}}`, "g");
-      const regexImagem = new RegExp(`{imagem_${id}}`, "g");
-      const regexPrecoUnit = new RegExp(`{preco_unitario_${id}}`, "g");
-      const regexDesc = new RegExp(`{descricao_${id}}`, "g");
+      const valTotal = formatarBRL(totalCalculado);
+      const valImg = prod.link_imagem || "";
+      const valPrecoUnit = formatarBRL(Number(prod.valor_unitario) || 0);
+      const valDesc = prod.descricao || "";
       
       text = text
-        .replace(regexOrcamento, formatarBRL(totalCalculado))
-        .replace(regexImagem, prod.link_imagem || "")
-        .replace(regexPrecoUnit, formatarBRL(Number(prod.valor_unitario) || 0))
-        .replace(regexDesc, prod.descricao || "");
+        .replace(new RegExp(`{{orcamento_${id}}}`, "g"), valTotal)
+        .replace(new RegExp(`{orcamento_${id}}`, "g"), valTotal)
+        .replace(new RegExp(`{{imagem_${id}}}`, "g"), valImg)
+        .replace(new RegExp(`{imagem_${id}}`, "g"), valImg)
+        .replace(new RegExp(`{{preco_unitario_${id}}}`, "g"), valPrecoUnit)
+        .replace(new RegExp(`{preco_unitario_${id}}`, "g"), valPrecoUnit)
+        .replace(new RegExp(`{{descricao_${id}}}`, "g"), valDesc)
+        .replace(new RegExp(`{descricao_${id}}`, "g"), valDesc);
     }
   } catch (err) {
     console.error("Erro ao processar variáveis de produtos no template:", err);
@@ -1385,10 +1407,15 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
 
   // Fallback para as variáveis legadas de soma
   text = text
+    .replace(/{{soma1}}/g, lead.soma1 || "")
     .replace(/{soma1}/g, lead.soma1 || "")
+    .replace(/{{soma2}}/g, lead.soma2 || "")
     .replace(/{soma2}/g, lead.soma2 || "")
+    .replace(/{{soma3}}/g, lead.soma3 || "")
     .replace(/{soma3}/g, lead.soma3 || "")
+    .replace(/{{soma4}}/g, lead.soma4 || "")
     .replace(/{soma4}/g, lead.soma4 || "")
+    .replace(/{{soma5}}/g, lead.soma5 || "")
     .replace(/{soma5}/g, lead.soma5 || "");
 
   return text;

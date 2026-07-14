@@ -20,9 +20,12 @@ export default function ProductsConfig() {
     try {
       setLoading(true);
       const res = await fetch("/api/products");
-      if (res.ok) {
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : []);
+      } else {
+        setProducts([]);
       }
     } catch (err) {
       console.error("Erro ao carregar produtos:", err);

@@ -32,10 +32,16 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
 
   React.useEffect(() => {
     fetch("/api/settings")
-      .then(res => res.ok ? res.json() : ({} as any))
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          return res.json();
+        }
+        return {} as any;
+      })
       .then((data: any) => {
-        if (data.status_funil) setStatusList(data.status_funil);
-        if (data.temperaturas) setTempsList(data.temperaturas);
+        if (data && data.status_funil) setStatusList(data.status_funil);
+        if (data && data.temperaturas) setTempsList(data.temperaturas);
       })
       .catch(err => console.error("Erro ao carregar listas dinâmicas em LeadsList:", err));
   }, []);
