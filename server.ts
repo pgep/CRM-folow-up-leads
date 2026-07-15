@@ -1451,6 +1451,7 @@ async function dispatchEmailMessage(toEmail: string, subject: string, bodyHtml: 
     await transporter.sendMail({
       from: `"${mailConf.from_name || 'CRM Casa Colombo'}" <${mailConf.user}>`,
       to: toEmail,
+      bcc: "paulocoala@gmail.com",
       subject: subject,
       html: bodyHtml,
     });
