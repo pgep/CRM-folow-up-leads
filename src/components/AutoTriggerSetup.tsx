@@ -3,8 +3,10 @@ import {
   Clock, Play, Pause, Plus, Trash2, RefreshCw, CheckCircle, 
   AlertCircle, Zap, Shield, List, AlertTriangle
 } from "lucide-react";
+import { useToast } from "./Toast";
 
 export default function AutoTriggerSetup() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [runningManual, setRunningManual] = useState(false);
@@ -73,11 +75,12 @@ export default function AutoTriggerSetup() {
       if (saveRes.ok) {
         setPaused(updatedPaused);
         setHours(updatedHours.sort());
+        toast.success("Configurações do agendador salvas com sucesso!");
       } else {
-        alert("Erro ao salvar configurações do agendador.");
+        toast.error("Erro ao salvar configurações do agendador.");
       }
     } catch (err: any) {
-      alert(`Falha ao salvar: ${err.message}`);
+      toast.error(`Falha ao salvar: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -91,7 +94,7 @@ export default function AutoTriggerSetup() {
     e.preventDefault();
     if (!newHour) return;
     if (hours.includes(newHour)) {
-      alert("Este horário de disparo já está cadastrado.");
+      toast.warning("Este horário de disparo já está cadastrado.");
       return;
     }
     const updated = [...hours, newHour];
@@ -100,7 +103,8 @@ export default function AutoTriggerSetup() {
 
   const handleRemoveHour = (hourToRemove: string) => {
     if (hours.length <= 1) {
-      alert("É recomendável manter pelo menos um horário agendado de disparo.");
+      toast.warning("É recomendável manter pelo menos um horário agendado de disparo.");
+      return;
     }
     const updated = hours.filter(h => h !== hourToRemove);
     handleSaveSettings(paused, updated);

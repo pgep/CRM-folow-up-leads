@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Package, Trash2, Plus, Edit3, Image as ImageIcon, Sparkles, Check, HelpCircle, DollarSign, X, RefreshCw } from "lucide-react";
 import { Product } from "../types";
+import { useToast } from "./Toast";
 
 export default function ProductsConfig() {
+  const { toast, confirm } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -61,7 +63,8 @@ export default function ProductsConfig() {
   };
 
   const handleDelete = async (prodId: string) => {
-    if (!window.confirm(`Tem certeza que deseja remover o produto "${prodId}"?`)) {
+    const confirmed = await confirm(`Tem certeza que deseja remover o produto "${prodId}"?`);
+    if (!confirmed) {
       return;
     }
     try {
@@ -71,14 +74,17 @@ export default function ProductsConfig() {
       if (res.ok) {
         setProducts(prev => prev.filter(p => p.id !== prodId));
         setSuccess("Produto excluído com sucesso!");
+        toast.success("Produto excluído com sucesso!");
         setTimeout(() => setSuccess(null), 3000);
       } else {
         const errData = await res.json();
         setError(errData.error || "Erro ao excluir produto.");
+        toast.error(errData.error || "Erro ao excluir produto.");
       }
     } catch (err) {
       console.error("Erro ao deletar produto:", err);
       setError("Falha na rede ao tentar excluir produto.");
+      toast.error("Falha na rede ao tentar excluir produto.");
     }
   };
 

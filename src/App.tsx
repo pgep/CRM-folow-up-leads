@@ -14,10 +14,12 @@ import PortalsConfig from "./components/PortalsConfig";
 import SheetImporter from "./components/SheetImporter";
 import BroadcastManager from "./components/BroadcastManager";
 import ProductsConfig from "./components/ProductsConfig";
+import { useToast } from "./components/Toast";
 
 type TabType = "dashboard" | "leads" | "sheet_import" | "workflow" | "portals" | "broadcast" | "products";
 
 export default function App() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stages, setStages] = useState<WorkflowStage[]>([]);
@@ -189,12 +191,13 @@ export default function App() {
       if (res.ok) {
         setSelectedLeadId(null);
         await fetchData(); // Refresh leads list and stats
+        toast.success("Lead excluído com sucesso!");
       } else {
-        alert("Não foi possível excluir o lead.");
+        toast.error("Não foi possível excluir o lead.");
       }
     } catch (e) {
       console.error(e);
-      alert("Erro de rede ao excluir o lead.");
+      toast.error("Erro de rede ao excluir o lead.");
     }
   };
 

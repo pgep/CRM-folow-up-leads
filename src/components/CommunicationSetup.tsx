@@ -4,8 +4,10 @@ import {
   Lock, CheckCircle, AlertCircle, Play, Sliders, ToggleLeft, ToggleRight, HelpCircle,
   Users, Send
 } from "lucide-react";
+import { useToast } from "./Toast";
 
 export default function CommunicationSetup() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -23,7 +25,6 @@ export default function CommunicationSetup() {
   
   const [testWhatsappRecipient, setTestWhatsappRecipient] = useState("");
   const [testWhatsappBody, setTestWhatsappBody] = useState("Olá! Este é um teste real do canal de WhatsApp do CRM Casa Colombo.");
-  const [testWhatsappImages, setTestWhatsappImages] = useState("");
 
   const [workflowStages, setWorkflowStages] = useState<any[]>([]);
   const [selectedEmailTemplateStage, setSelectedEmailTemplateStage] = useState("");
@@ -142,12 +143,12 @@ export default function CommunicationSetup() {
       });
 
       if (res.ok) {
-        alert("Configurações de Comunicação salvas com sucesso!");
+        toast.success("Configurações de Comunicação salvas com sucesso!");
       } else {
-        alert("Erro ao salvar configurações.");
+        toast.error("Erro ao salvar configurações.");
       }
     } catch (err: any) {
-      alert(`Falha ao salvar: ${err.message}`);
+      toast.error(`Falha ao salvar: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -263,7 +264,6 @@ export default function CommunicationSetup() {
         lead_id: selectedLeadId,
         test_whatsapp_recipient: testWhatsappRecipient,
         test_whatsapp_body: testWhatsappBody,
-        test_whatsapp_images: testWhatsappImages,
         config: {
           waha_whatsapp: {
             api_url: wahaUrl,
@@ -786,7 +786,6 @@ export default function CommunicationSetup() {
                       const stg = workflowStages.find(s => s.etapa === stageName && s.canal === "WHATSAPP");
                       if (stg) {
                         setTestWhatsappBody(stg.mensagem_template || "");
-                        setTestWhatsappImages(stg.imagens_template || "");
                       }
                     }
                   }}
@@ -810,20 +809,6 @@ export default function CommunicationSetup() {
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-emerald-500 resize-none text-[11px]"
                   placeholder="Escreva a mensagem de texto do WhatsApp aqui..."
                 />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase block">Lista de Imagens a Enviar (Opcional - Um disparo por imagem após o texto)</label>
-                <textarea
-                  value={testWhatsappImages}
-                  onChange={(e) => setTestWhatsappImages(e.target.value)}
-                  placeholder="Insira os links das imagens separados por vírgula ou por linha (ex: https://site.com/foto1.jpg, {imagem_vela_vidro})"
-                  rows={2}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 font-mono text-xs text-white focus:outline-none focus:border-emerald-500 placeholder-zinc-700 resize-y text-[11px]"
-                />
-                <p className="text-[10px] text-zinc-500">
-                  Você pode usar links estáticos ou variáveis de imagem de produtos cadastrados, ex: <code className="text-amber-500 font-mono font-bold">{`{imagem_ID}`}</code>. O sistema fará download da imagem, convertendo e ajustando-a automaticamente para que o WhatsApp envie sem problemas!
-                </p>
               </div>
 
               <button

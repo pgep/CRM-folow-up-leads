@@ -552,28 +552,89 @@ async function deleteLeadById(id: string): Promise<boolean> {
   return db.leads.length < lengthBefore;
 }
 
-async function getWorkflowConfigs(): Promise<any[]> {
+async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
   if (usePg && pgPool) {
     try {
-      const res = await pgPool.query("SELECT * FROM workflow_config");
-      return res.rows;
+      await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
+      return;
     } catch (e: any) {
-      console.warn("PostgreSQL workflow config fetch failed:", e.message);
+      console.warn("PostgreSQL lead stage remapping failed:", e.message);
     }
   }
   if (useSupabase) {
     try {
+      await supabase.from("leads").update({ etapa_contato: newStage }).eq("etapa_contato", oldStage);
+      return;
+    } catch (e: any) {
+      console.warn("Supabase lead stage remapping failed:", e.message);
+    }
+  }
+  // Local JSON DB
+  try {
+    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    let updated = false;
+    if (db.leads && Array.isArray(db.leads)) {
+      db.leads = db.leads.map((l: any) => {
+        if (l.etapa_contato === oldStage) {
+          updated = true;
+          return { ...l, etapa_contato: newStage };
+        }
+        return l;
+      });
+    }
+    if (updated) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+    }
+  } catch (e: any) {
+    console.warn("Local DB lead stage remapping failed:", e.message);
+  }
+}
+
+async function getWorkflowConfigs(): Promise<any[]> {
+  let configs: any[] = [];
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query("SELECT * FROM workflow_config");
+      configs = res.rows;
+    } catch (e: any) {
+      console.warn("PostgreSQL workflow config fetch failed:", e.message);
+    }
+  } else if (useSupabase) {
+    try {
       const { data, error } = await supabase.from("workflow_config").select("*");
-      if (!error && data && data.length > 0) return data;
+      if (!error && data && data.length > 0) configs = data;
     } catch (e) {}
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return db.workflow_config;
+  
+  if (configs.length === 0) {
+    try {
+      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      configs = db.workflow_config || [];
+    } catch (e) {
+      configs = [];
+    }
+  }
+
+  // Ensure sorted strictly by ordem
+  configs.sort((a: any, b: any) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+
+  // Dynamically set proxima_etapa based exclusively on the sorted sequence
+  return configs.map((stage, idx) => {
+    const nextStage = configs[idx + 1];
+    return {
+      ...stage,
+      proxima_etapa: stage.etapa === "ENCERRADO" ? "ENCERRADO" : (nextStage ? nextStage.etapa : "ENCERRADO")
+    };
+  });
 }
 
 async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
   if (usePg && pgPool) {
     try {
+      const stageEtapas = configs.map(c => c.etapa);
+      if (stageEtapas.length > 0) {
+        await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
+      }
       for (const stage of configs) {
         await pgPool.query(`
           INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template)
@@ -604,6 +665,10 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
   }
   if (useSupabase) {
     try {
+      const stageEtapas = configs.map(c => c.etapa);
+      if (stageEtapas.length > 0) {
+        await supabase.from("workflow_config").delete().not("etapa", "in", `(${stageEtapas.join(",")})`);
+      }
       // Upsert in Supabase
       const { error } = await supabase.from("workflow_config").upsert(configs);
       if (!error) return true;
@@ -1143,7 +1208,31 @@ app.get("/api/workflow", async (req, res) => {
 // API - Update Workflow Stage
 app.put("/api/workflow", async (req, res) => {
   try {
-    const updatedStage = req.body; // Expects a complete WorkflowStage object
+    const payload = req.body;
+    if (Array.isArray(payload)) {
+      // 1. Fetch old configs to detect deletions
+      const oldConfigs = await getWorkflowConfigs();
+      
+      // 2. Perform remapping of leads from deleted stages
+      const newEtapas = new Set(payload.map((c: any) => c.etapa));
+      const deletedConfigs = oldConfigs.filter((c: any) => !newEtapas.has(c.etapa));
+      
+      for (const deleted of deletedConfigs) {
+        // Find the next stage in payload with the closest higher order
+        const candidates = payload
+          .filter((c: any) => (Number(c.ordem) || 0) > (Number(deleted.ordem) || 0))
+          .sort((a: any, b: any) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+        
+        const nextStageForLeads = candidates.length > 0 ? candidates[0].etapa : "ENCERRADO";
+        console.log(`[Remap Stage] Remapping leads in deleted stage "${deleted.etapa}" to next stage "${nextStageForLeads}"`);
+        await remapLeadsFromStage(deleted.etapa, nextStageForLeads);
+      }
+
+      await saveWorkflowConfigs(payload);
+      return res.json({ success: true, message: "Workflow configs updated successfully" });
+    }
+
+    const updatedStage = payload; // Expects a complete WorkflowStage object
     if (!updatedStage || !updatedStage.etapa) {
       return res.status(400).json({ error: "Etapa is required in the payload" });
     }

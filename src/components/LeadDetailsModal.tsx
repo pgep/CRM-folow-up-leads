@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Calendar, User, Mail, Phone, MapPin, Gift, Clipboard, Calculator, Tag, MessageSquare, Plus, Check, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { Lead, LeadStatus, LeadEtapa, LeadTemperatura, LeadHistory } from "../types";
+import { useToast } from "./Toast";
 
 interface LeadDetailsModalProps {
   leadId: string;
@@ -15,6 +16,7 @@ interface LeadDetailsModalProps {
 }
 
 export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDeleteLead }: LeadDetailsModalProps) {
+  const { toast, confirm } = useToast();
   const [lead, setLead] = useState<Lead | null>(null);
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +158,8 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
   const handleDelete = async () => {
     if (!lead || !onDeleteLead) return;
-    if (window.confirm(`Deseja realmente EXCLUIR o lead "${lead.nome}" permanentemente? Esta ação não pode ser desfeita.`)) {
+    const confirmed = await confirm(`Deseja realmente EXCLUIR o lead "${lead.nome}" permanentemente? Esta ação não pode ser desfeita.`);
+    if (confirmed) {
       setIsDeleting(true);
       try {
         await onDeleteLead(lead.id);

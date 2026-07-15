@@ -3,8 +3,10 @@ import {
   Plus, Trash2, Edit2, Check, X, RefreshCw, AlertCircle, Save, 
   HelpCircle, MessageSquare, ToggleLeft, ToggleRight, Info
 } from "lucide-react";
+import { useToast } from "./Toast";
 
 export default function OptionsListsSetup() {
+  const { toast, confirm } = useToast();
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,12 +63,15 @@ export default function OptionsListsSetup() {
       if (res.ok) {
         setSettings(updatedSettings);
         setSuccess("Alterações salvas com sucesso no banco de dados!");
+        toast.success("Alterações salvas com sucesso!");
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError("Erro ao salvar configurações no servidor.");
+        toast.error("Erro ao salvar configurações.");
       }
     } catch (err: any) {
       setError("Falha na rede ao salvar as alterações.");
+      toast.error("Falha na rede ao salvar as alterações.");
     } finally {
       setSaving(false);
     }
@@ -83,10 +88,11 @@ export default function OptionsListsSetup() {
     setNewEtapa("");
   };
 
-  const handleDeleteEtapa = (index: number) => {
+  const handleDeleteEtapa = async (index: number) => {
     if (!settings) return;
     const item = settings.etapas_contato[index];
-    if (window.confirm(`Tem certeza que deseja excluir a etapa "${item}"?`)) {
+    const confirmed = await confirm(`Tem certeza que deseja excluir a etapa "${item}"?`);
+    if (confirmed) {
       const updatedEtapas = [...settings.etapas_contato];
       updatedEtapas.splice(index, 1);
       const updated = {
@@ -126,10 +132,11 @@ export default function OptionsListsSetup() {
     setNewStatus("");
   };
 
-  const handleDeleteStatus = (index: number) => {
+  const handleDeleteStatus = async (index: number) => {
     if (!settings) return;
     const item = settings.status_funil[index];
-    if (window.confirm(`Tem certeza que deseja excluir o status "${item}"?`)) {
+    const confirmed = await confirm(`Tem certeza que deseja excluir o status "${item}"?`);
+    if (confirmed) {
       const updatedStatus = [...settings.status_funil];
       updatedStatus.splice(index, 1);
       const updated = {
@@ -169,10 +176,11 @@ export default function OptionsListsSetup() {
     setNewTemp("");
   };
 
-  const handleDeleteTemp = (index: number) => {
+  const handleDeleteTemp = async (index: number) => {
     if (!settings) return;
     const item = settings.temperaturas[index];
-    if (window.confirm(`Tem certeza que deseja excluir a temperatura "${item}"?`)) {
+    const confirmed = await confirm(`Tem certeza que deseja excluir a temperatura "${item}"?`);
+    if (confirmed) {
       const updatedTemps = [...settings.temperaturas];
       updatedTemps.splice(index, 1);
       const updated = {

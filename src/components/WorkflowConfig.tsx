@@ -14,6 +14,19 @@ import { WorkflowStage, LeadStatus, LeadEtapa, LeadTemperatura } from "../types"
 import CommunicationSetup from "./CommunicationSetup";
 import AutoTriggerSetup from "./AutoTriggerSetup";
 import OptionsListsSetup from "./OptionsListsSetup";
+import { useToast } from "./Toast";
+
+const generateIdFromFriendlyName = (name: string): string => {
+  return name
+    .trim()
+    .normalize("NFD") // Decomposes accented characters into base letters + accents
+    .replace(/[\u0300-\u036f]/g, "") // Removes accent markings
+    .toUpperCase()
+    .replace(/\s+/g, "_") // Replaces spaces with underscores
+    .replace(/[^A-Z0-9_]/g, "") // Removes any remaining non-alphanumeric/non-underscore characters
+    .replace(/_+/g, "_") // Collapses multiple consecutive underscores
+    .replace(/(^_|_$)/g, ""); // Trims leading/trailing underscores
+};
 
 interface WorkflowConfigProps {
   stages: WorkflowStage[];
@@ -22,6 +35,7 @@ interface WorkflowConfigProps {
 }
 
 export default function WorkflowConfig({ stages, onUpdateStage, onReset }: WorkflowConfigProps) {
+  const { toast, confirm } = useToast();
   // Tabs
   const [activeSubTab, setActiveSubTab] = useState<"followup" | "scheduler" | "general" | "lists">("followup");
 
@@ -42,7 +56,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   const [temperatura, setTemperatura] = useState<LeadTemperatura>("FRIA");
   const [mensagemTemplate, setMensagemTemplate] = useState("");
   const [assuntoTemplate, setAssuntoTemplate] = useState("");
-  const [imagensTemplate, setImagensTemplate] = useState("");
   const [ordem, setOrdem] = useState<number>(0);
 
   // Concurrency notifications and drag & drop states
@@ -74,7 +87,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
       setTemperatura(currentStage.temperatura || "FRIA");
       setMensagemTemplate(currentStage.mensagem_template || "");
       setAssuntoTemplate(currentStage.assunto_template || "");
-      setImagensTemplate(currentStage.imagens_template || "");
       setOrdem(currentStage.ordem || 0);
     }
   }, [selectedEtapa, stages]);
@@ -87,10 +99,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         setMensagemTemplate(prev => prev + text);
       } else if (elementId === "new-mensagem-template") {
         setNewMensagemTemplate(prev => prev + text);
-      } else if (elementId === "imagens-template-textarea") {
-        setImagensTemplate(prev => prev + text);
-      } else if (elementId === "new-imagens-template") {
-        setNewImagensTemplate(prev => prev + text);
       }
       return;
     }
@@ -107,12 +115,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
     } else if (elementId === "new-mensagem-template") {
       currentVal = newMensagemTemplate;
       setValFunc = setNewMensagemTemplate;
-    } else if (elementId === "imagens-template-textarea") {
-      currentVal = imagensTemplate;
-      setValFunc = setImagensTemplate;
-    } else if (elementId === "new-imagens-template") {
-      currentVal = newImagensTemplate;
-      setValFunc = setNewImagensTemplate;
     } else {
       currentVal = newMensagemTemplate;
       setValFunc = setNewMensagemTemplate;
@@ -296,11 +298,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
   const handleDeleteStep = async (etapaToDelete: string) => {
     if (etapaToDelete === "SEM_CONTATO" || etapaToDelete === "ENCERRADO") {
-      alert("As etapas 'SEM_CONTATO' e 'ENCERRADO' são essenciais para o funcionamento do CRM e não podem ser excluídas.");
+      toast.warning("As etapas 'SEM_CONTATO' e 'ENCERRADO' são essenciais para o funcionamento do CRM e não podem ser excluídas.");
       return;
     }
 
-    if (!confirm(`Tem certeza que deseja excluir a etapa "${etapaToDelete}"? Os leads nessa etapa continuarão com seus históricos, mas serão remanejados para a etapa seguinte do fluxo.`)) {
+    const confirmed = await confirm(`Tem certeza que deseja excluir a etapa "${etapaToDelete}"? Os leads nessa etapa continuarão com seus históricos, mas serão remanejados para a etapa seguinte do fluxo.`);
+    if (!confirmed) {
       return;
     }
 
@@ -309,6 +312,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
     await onUpdateStage(rebuilt);
     setSelectedEtapa("SEM_CONTATO");
+    toast.success("Etapa excluída com sucesso!");
   };
 
   // --- NEW STEP STATE ---
@@ -321,7 +325,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   const [newTemperatura, setNewTemperatura] = useState<LeadTemperatura>("MORNA");
   const [newMensagemTemplate, setNewMensagemTemplate] = useState("");
   const [newAssuntoTemplate, setNewAssuntoTemplate] = useState("");
-  const [newImagensTemplate, setNewImagensTemplate] = useState("");
   const [newOrdem, setNewOrdem] = useState<number>(1);
 
   // Sync default next ordem when adding step
@@ -331,21 +334,26 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
     }
   }, [isAddingStep, stages]);
 
+  // Sync default next ID when friendly name (newDescricao) changes
+  useEffect(() => {
+    setNewEtapaKey(generateIdFromFriendlyName(newDescricao));
+  }, [newDescricao]);
+
   const handleCreateStep = async (e: React.FormEvent) => {
     e.preventDefault();
-    const sanitizedKey = newEtapaKey.trim().toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
+    if (!newDescricao.trim()) {
+      toast.warning("Por favor, preencha o nome do passo (descrição).");
+      return;
+    }
+
+    const sanitizedKey = generateIdFromFriendlyName(newDescricao);
     if (!sanitizedKey) {
-      alert("Por favor, digite um identificador técnico para o passo (ex: WHATSAPP_FOLLOWUP_3).");
+      toast.warning("Por favor, digite uma descrição válida para gerar o identificador do passo.");
       return;
     }
 
     if (stages.some(s => s.etapa === sanitizedKey)) {
-      alert(`Um passo com o identificador "${sanitizedKey}" já existe.`);
-      return;
-    }
-
-    if (!newDescricao.trim()) {
-      alert("Por favor, preencha a descrição do passo.");
+      toast.warning(`Um passo com o identificador "${sanitizedKey}" (gerado a partir de "${newDescricao}") já existe.`);
       return;
     }
 
@@ -368,7 +376,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
       temperatura: newTemperatura,
       mensagem_template: newCanal ? newMensagemTemplate : null,
       assunto_template: newCanal === "EMAIL" ? newAssuntoTemplate : null,
-      imagens_template: newCanal === "WHATSAPP" ? newImagensTemplate : null,
+      imagens_template: null,
       ordem: resolved
     };
 
@@ -384,15 +392,34 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
     setNewDescricao("");
     setNewMensagemTemplate("");
     setNewAssuntoTemplate("");
-    setNewImagensTemplate("");
   };
 
   const handleSaveStage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentStage) return;
 
+    if (!descricao.trim()) {
+      toast.warning("Por favor, preencha o nome amigável (descrição) da etapa.");
+      return;
+    }
+
     setIsSavingStage(true);
     try {
+      const isSystemStage = currentStage.etapa === "SEM_CONTATO" || currentStage.etapa === "ENCERRADO";
+      const newEtapaId = isSystemStage ? currentStage.etapa : generateIdFromFriendlyName(descricao);
+
+      if (!newEtapaId) {
+        toast.warning("Por favor, digite uma descrição válida para gerar o identificador.");
+        setIsSavingStage(false);
+        return;
+      }
+
+      if (newEtapaId !== currentStage.etapa && stages.some(s => s.etapa === newEtapaId)) {
+        toast.warning(`Um passo com o identificador "${newEtapaId}" já existe.`);
+        setIsSavingStage(false);
+        return;
+      }
+
       // Resolve concomitancy
       const { resolved, hasConflict } = checkAndResolveConcurrency(Number(ordem), currentStage.etapa);
       if (hasConflict) {
@@ -403,14 +430,16 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
       const updatedStage: WorkflowStage = {
         ...currentStage,
-        descricao,
+        etapa: newEtapaId,
+        descricao: descricao.trim(),
         canal,
+        template_name: canal ? `${canal}_${newEtapaId}` : null,
         esperar_dias: Number(esperarDias),
         proximo_status: (proximoStatus === "" ? null : proximoStatus) as LeadStatus | null,
         temperatura,
         mensagem_template: canal ? mensagemTemplate : null,
         assunto_template: canal === "EMAIL" ? assuntoTemplate : null,
-        imagens_template: canal === "WHATSAPP" ? imagensTemplate : null,
+        imagens_template: null,
         ordem: resolved
       };
 
@@ -424,21 +453,27 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
       const rebuilt = rebuildSequencePointers(currentConfigs);
       await onUpdateStage(rebuilt);
+      setSelectedEtapa(newEtapaId);
+      toast.success("Etapa salva com sucesso!");
     } catch (e) {
       console.error(e);
+      toast.error("Erro ao salvar etapa.");
     } finally {
       setIsSavingStage(false);
     }
   };
 
   const handleReset = async () => {
-    if (!window.confirm("Deseja redefinir as configurações de templates e prazos para o padrão original da Casa Colombo? Suas alterações serão perdidas.")) return;
+    const confirmed = await confirm("Deseja redefinir as configurações de templates e prazos para o padrão original da Casa Colombo? Suas alterações serão perdidas.");
+    if (!confirmed) return;
     setIsResetting(true);
     try {
       await onReset();
       setSelectedEtapa("SEM_CONTATO");
+      toast.success("Configurações redefinidas para o padrão com sucesso!");
     } catch (e) {
       console.error(e);
+      toast.error("Erro ao redefinir configurações.");
     } finally {
       setIsResetting(false);
     }
@@ -872,23 +907,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                         className="w-full bg-zinc-950 border border-zinc-800 rounded-b-none p-3 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600 resize-y"
                       />
 
-                      {canal === "WHATSAPP" && (
-                        <div className="bg-zinc-950 border border-t-0 border-zinc-800 p-4 space-y-2">
-                          <label className="text-xs font-bold text-zinc-400 block">Lista de Imagens a Enviar (Opcional - Um disparo por imagem após o texto)</label>
-                          <textarea
-                            id="imagens-template-textarea"
-                            value={imagensTemplate}
-                            onChange={(e) => setImagensTemplate(e.target.value)}
-                            placeholder="Insira os links das imagens separados por vírgula ou por linha (ex: https://site.com/foto1.jpg, {imagem_vela_vidro})"
-                            rows={2}
-                            className="w-full bg-zinc-950/40 border border-zinc-800 rounded-lg p-3 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700 resize-y"
-                          />
-                          <p className="text-[10px] text-zinc-500">
-                            Você pode usar links estáticos ou variáveis de imagem de produtos cadastrados, ex: <code className="text-amber-500 font-mono font-bold">{`{imagem_ID}`}</code>. O sistema fará download da imagem, convertendo e ajustando-a automaticamente para que o WhatsApp envie sem problemas!
-                          </p>
-                        </div>
-                      )}
-
                       {/* Dynamic Variable Quick Insert Panel */}
                       <div className="bg-zinc-950 border border-t-0 border-zinc-800 rounded-b-lg p-4 space-y-4">
                         <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
@@ -938,11 +956,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                           referrerPolicy="no-referrer"
                                           title="Clique para inserir esta imagem"
                                           onClick={() => {
-                                            if (canal === "WHATSAPP") {
-                                              insertTextAtCursor(`{imagem_${prod.id}}`, "imagens-template-textarea");
-                                            } else {
-                                              insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
-                                            }
+                                            insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
                                           }}
                                         />
                                       )}
@@ -964,11 +978,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere o link da imagem do produto"
                                         onClick={() => {
-                                          if (canal === "WHATSAPP") {
-                                            insertTextAtCursor(`{imagem_${prod.id}}`, "imagens-template-textarea");
-                                          } else {
-                                            insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
-                                          }
+                                          insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
                                         }}
                                         className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
                                       >
@@ -1056,25 +1066,9 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
             {/* Modal Form */}
             <form onSubmit={handleCreateStep} className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {/* ID da Etapa (Nome Técnico) */}
-                <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Identificador do Passo (Chave Única)</label>
-                  <input
-                    type="text"
-                    required
-                    value={newEtapaKey}
-                    onChange={(e) => setNewEtapaKey(e.target.value)}
-                    placeholder="Ex: WHATSAPP_FOLLOWUP_3"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono placeholder-zinc-700 uppercase"
-                  />
-                  <span className="text-[10px] text-zinc-500 block">
-                    Utilizado internamente pelo sistema. Letras maiúsculas sem espaços.
-                  </span>
-                </div>
-
                 {/* Descrição / Nome Amigável */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Nome do Passo (Descrição)</label>
+                  <label className="text-xs font-semibold text-zinc-400">Nome do Passo (Nome Amigável / Descrição)</label>
                   <input
                     type="text"
                     required
@@ -1083,6 +1077,22 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                     placeholder="Ex: Terceiro WhatsApp de follow-up"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
                   />
+                </div>
+
+                {/* ID da Etapa (Nome Técnico) */}
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Identificador do Passo (Gerado Automaticamente)</label>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={newEtapaKey}
+                    placeholder="Gerado automaticamente com base no nome do passo..."
+                    className="w-full bg-zinc-950/50 border border-zinc-850 rounded-lg px-3 py-2 text-xs text-zinc-500 font-mono uppercase cursor-not-allowed"
+                  />
+                  <span className="text-[10px] text-zinc-500 block">
+                    ID único do sistema gerado automaticamente a partir do nome amigável.
+                  </span>
                 </div>
 
                 {/* Posição na Sequência (Ordem) */}
@@ -1233,20 +1243,6 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       placeholder="Escreva a mensagem..."
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-b-lg p-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-500"
                     />
-
-                    {newCanal === "WHATSAPP" && (
-                      <div className="space-y-1.5 mt-3 text-left">
-                        <label className="text-[11px] font-bold text-zinc-400 block">Lista de Imagens (Opcional - links separados por vírgula ou por linha)</label>
-                        <textarea
-                          id="new-imagens-template"
-                          value={newImagensTemplate}
-                          onChange={(e) => setNewImagensTemplate(e.target.value)}
-                          placeholder="Ex: https://site.com/vela.jpg, {imagem_vela_vidro}"
-                          rows={2}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700 resize-y"
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

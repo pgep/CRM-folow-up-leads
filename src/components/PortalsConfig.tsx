@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { Plus, Globe, Check, Power, PowerOff, ShieldCheck, Link, Trash2, Zap, Code, HelpCircle } from "lucide-react";
 import { PortalSource } from "../types";
+import { useToast } from "./Toast";
 
 interface PortalsConfigProps {
   portals: PortalSource[];
@@ -14,6 +15,7 @@ interface PortalsConfigProps {
 }
 
 export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfigProps) {
+  const { toast } = useToast();
   const [newPortalName, setNewPortalName] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -184,7 +186,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
                 onClick={() => {
                   const fullUrl = `${window.location.origin}/api/leads/n8n-webhook`;
                   navigator.clipboard.writeText(fullUrl);
-                  alert("URL de integração do n8n copiada com sucesso!");
+                  toast.success("URL de integração do n8n copiada com sucesso!");
                 }}
                 className="text-xs text-amber-400 hover:text-amber-300 font-medium transition"
               >
@@ -212,6 +214,9 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
   "local": "Espaço Quintal, São Paulo",
   "servicos": "Mini Velas Aromáticas & Home Sprays",
   "convidados": 150,
+  "status_funil": "Primeiro Contato",
+  "etapa_contato": "Orçamento Enviado",
+  "temperatura": "Fria",
   "observacoes": "Solitictou orçamento urgente para lembrancinhas aromáticas de casamento.",
   "origem_portal": "Zoho Mail - n8n"
 }, null, 2)}</pre>

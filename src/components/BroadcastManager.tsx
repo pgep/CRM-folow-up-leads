@@ -11,6 +11,7 @@ import {
   HelpCircle, Calendar, Clock, ChevronDown, ChevronUp
 } from "lucide-react";
 import { Lead, PortalSource } from "../types";
+import { useToast } from "./Toast";
 
 interface BroadcastManagerProps {
   leads: Lead[];
@@ -30,6 +31,7 @@ interface SpecialRule {
 }
 
 export default function BroadcastManager({ leads, portals, onRefresh }: BroadcastManagerProps) {
+  const { toast, confirm } = useToast();
   const [subTab, setSubTab] = useState<'special' | 'bulk'>('special');
   const [settings, setSettings] = useState<any>(null);
   const [rules, setRules] = useState<SpecialRule[]>([]);
@@ -143,10 +145,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
   // Delete special rule
   const handleDeleteRule = async (id: string) => {
-    if (!confirm("Tem certeza que deseja remover este follow-up especial?")) return;
+    const confirmed = await confirm("Tem certeza que deseja remover este follow-up especial?");
+    if (!confirmed) return;
     const updatedRules = rules.filter(r => r.id !== id);
     await saveRulesToSettings(updatedRules);
     if (expandedRuleId === id) setExpandedRuleId(null);
+    toast.success("Follow-up especial removido com sucesso!");
   };
 
   // Helper to parse wedding dates robustly
@@ -259,15 +263,15 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
       });
 
       if (res.ok) {
-        alert(`Mensagem especial "${rule.nome}" disparada com sucesso para ${lead.nome}!`);
+        toast.success(`Mensagem especial "${rule.nome}" disparada com sucesso para ${lead.nome}!`);
         await onRefresh();
       } else {
         const err = await res.json();
-        alert(`Erro ao disparar mensagem: ${err.error || "Erro desconhecido"}`);
+        toast.error(`Erro ao disparar mensagem: ${err.error || "Erro desconhecido"}`);
       }
     } catch (e) {
       console.error(e);
-      alert("Erro de conexão ao enviar follow-up especial.");
+      toast.error("Erro de conexão ao enviar follow-up especial.");
     } finally {
       setSendingLeadId(null);
     }
@@ -334,21 +338,22 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
   // Execute Bulk Broadcast Dispatch
   const handleStartBulkBroadcast = async () => {
     if (selectedLeads.length === 0) {
-      alert("Por favor, selecione pelo menos um lead para o disparo.");
+      toast.warning("Por favor, selecione pelo menos um lead para o disparo.");
       return;
     }
 
     if (!bulkMessage.trim()) {
-      alert("Por favor, preencha o texto da mensagem.");
+      toast.warning("Por favor, preencha o texto da mensagem.");
       return;
     }
 
     if (bulkCanal === "EMAIL" && !bulkSubject.trim()) {
-      alert("Por favor, preencha o assunto do e-mail.");
+      toast.warning("Por favor, preencha o assunto do e-mail.");
       return;
     }
 
-    if (!confirm(`Deseja iniciar o disparo em massa para os ${selectedLeads.length} leads selecionados?`)) {
+    const confirmed = await confirm(`Deseja iniciar o disparo em massa para os ${selectedLeads.length} leads selecionados?`);
+    if (!confirmed) {
       return;
     }
 
@@ -423,7 +428,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
       setBulkSubject(rule.assunto_template);
     }
     setBulkMessage(rule.mensagem_template);
-    alert(`Regra "${rule.nome}" carregada com sucesso na tela de disparo em massa.`);
+    toast.success(`Regra "${rule.nome}" carregada com sucesso na tela de disparo em massa!`);
   };
 
   return (

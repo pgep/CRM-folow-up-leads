@@ -609,29 +609,89 @@ async function deleteLeadById(id: string): Promise<boolean> {
   return db.leads.length < lengthBefore;
 }
 
-async function getWorkflowConfigs(): Promise<any[]> {
+async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
   if (usePg && pgPool) {
     try {
-      const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
-      return res.rows;
+      await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
+      return;
     } catch (e: any) {
-      console.warn("PostgreSQL workflow config fetch failed:", e.message);
+      console.warn("PostgreSQL lead stage remapping failed:", e.message);
     }
   }
   if (useSupabase) {
     try {
+      await supabase.from("leads").update({ etapa_contato: newStage }).eq("etapa_contato", oldStage);
+      return;
+    } catch (e: any) {
+      console.warn("Supabase lead stage remapping failed:", e.message);
+    }
+  }
+  // Local JSON DB
+  try {
+    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    let updated = false;
+    if (db.leads && Array.isArray(db.leads)) {
+      db.leads = db.leads.map((l: any) => {
+        if (l.etapa_contato === oldStage) {
+          updated = true;
+          return { ...l, etapa_contato: newStage };
+        }
+        return l;
+      });
+    }
+    if (updated) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+    }
+  } catch (e: any) {
+    console.warn("Local DB lead stage remapping failed:", e.message);
+  }
+}
+
+async function getWorkflowConfigs(): Promise<any[]> {
+  let configs: any[] = [];
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
+      configs = res.rows;
+    } catch (e: any) {
+      console.warn("PostgreSQL workflow config fetch failed:", e.message);
+    }
+  } else if (useSupabase) {
+    try {
       const { data, error } = await supabase.from("workflow_config").select("*").order("ordem", { ascending: true });
-      if (!error && data && data.length > 0) return data;
+      if (!error && data && data.length > 0) configs = data;
     } catch (e) {}
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  const configs = db.workflow_config || [];
-  return configs.sort((a: any, b: any) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+  
+  if (configs.length === 0) {
+    try {
+      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      configs = db.workflow_config || [];
+    } catch (e) {
+      configs = [];
+    }
+  }
+
+  // Ensure sorted strictly by ordem
+  configs.sort((a: any, b: any) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+
+  // Dynamically set proxima_etapa based exclusively on the sorted sequence
+  return configs.map((stage, idx) => {
+    const nextStage = configs[idx + 1];
+    return {
+      ...stage,
+      proxima_etapa: stage.etapa === "ENCERRADO" ? "ENCERRADO" : (nextStage ? nextStage.etapa : "ENCERRADO")
+    };
+  });
 }
 
 async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
   if (usePg && pgPool) {
     try {
+      const stageEtapas = configs.map(c => c.etapa);
+      if (stageEtapas.length > 0) {
+        await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
+      }
       for (const stage of configs) {
         await pgPool.query(`
           INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
@@ -666,6 +726,10 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
   }
   if (useSupabase) {
     try {
+      const stageEtapas = configs.map(c => c.etapa);
+      if (stageEtapas.length > 0) {
+        await supabase.from("workflow_config").delete().not("etapa", "in", `(${stageEtapas.join(",")})`);
+      }
       // Upsert in Supabase
       const { error } = await supabase.from("workflow_config").upsert(configs);
       if (!error) return true;
@@ -1142,140 +1206,6 @@ async function dispatchWhatsAppMessage(phone: string, message: string, customCon
   }
 }
 
-async function prepareImageForWaha(imageUrl: string): Promise<{ mimetype: string; filename: string; data: string } | null> {
-  try {
-    console.log(`[WAHA IMAGE PREP] Baixando imagem de: ${imageUrl}`);
-    const res = await fetch(imageUrl);
-    if (!res.ok) {
-      throw new Error(`Falha ao baixar imagem, HTTP status: ${res.status}`);
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Get content type from headers
-    let contentType = res.headers.get("content-type") || "";
-    console.log(`[WAHA IMAGE PREP] Content-Type original: ${contentType}`);
-
-    // Clean up content type (remove charsets, etc.)
-    contentType = contentType.split(";")[0].trim().toLowerCase();
-
-    // Determine filename
-    let ext = "jpg";
-    if (contentType === "image/png") ext = "png";
-    else if (contentType === "image/gif") ext = "gif";
-    else if (contentType === "image/webp") ext = "webp";
-    
-    // Extract filename from URL or build one
-    let filename = "image." + ext;
-    try {
-      const urlPath = new URL(imageUrl).pathname;
-      const base = urlPath.substring(urlPath.lastIndexOf("/") + 1);
-      if (base && base.includes(".")) {
-        filename = base;
-      }
-    } catch (_) {}
-
-    // Check if it's already a standard format that WAHA/WhatsApp accepts directly
-    if (contentType === "image/jpeg" || contentType === "image/jpg" || contentType === "image/png") {
-      console.log(`[WAHA IMAGE PREP] Imagem já em formato compatível (${contentType}). Convertendo para Base64 direto.`);
-      return {
-        mimetype: contentType === "image/jpg" ? "image/jpeg" : contentType,
-        filename,
-        data: buffer.toString("base64")
-      };
-    }
-
-    // Otherwise, convert it using Jimp to a clean image/jpeg
-    console.log(`[WAHA IMAGE PREP] Convertendo imagem via Jimp para image/jpeg...`);
-    const image = await Jimp.read(buffer);
-    const convertedBuffer = await image.getBuffer("image/jpeg");
-    
-    // Change filename extension to .jpg
-    const baseName = filename.substring(0, filename.lastIndexOf(".")) || "image";
-    filename = baseName + ".jpg";
-
-    return {
-      mimetype: "image/jpeg",
-      filename,
-      data: convertedBuffer.toString("base64")
-    };
-  } catch (err: any) {
-    console.error(`[WAHA IMAGE PREP] Erro ao preparar imagem ${imageUrl}:`, err.message);
-    return null;
-  }
-}
-
-async function dispatchWhatsAppImage(phone: string, imagePayload: { mimetype: string; filename: string; data: string }, caption?: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
-  try {
-    const settings = customConfig || await getGeneralSettings();
-    if (!settings || !settings.waha_whatsapp) {
-      return { success: false, log: "Configurações do WAHA não encontradas no banco." };
-    }
-
-    const wahaConf = settings.waha_whatsapp;
-    if (!wahaConf.api_url) {
-      return { success: false, log: "URL da API do WAHA não configurada." };
-    }
-
-    // Clean phone number
-    let cleanPhone = (phone || "").replace(/\D/g, "");
-    if (!cleanPhone) {
-      return { success: false, log: "Telefone do lead está vazio ou inválido." };
-    }
-
-    // Add Brazilian country code if missing
-    if (cleanPhone.length === 10 || cleanPhone.length === 11) {
-      cleanPhone = "55" + cleanPhone;
-    }
-
-    const chatId = `${cleanPhone}@c.us`;
-    const apiUrl = `${wahaConf.api_url}/api/sendFile`;
-    const session = wahaConf.session_name || "default";
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (wahaConf.api_key) {
-      headers["X-Api-Key"] = wahaConf.api_key;
-    }
-
-    const body = {
-      chatId,
-      file: {
-        mimetype: imagePayload.mimetype,
-        filename: imagePayload.filename,
-        data: imagePayload.data
-      },
-      caption: caption || "",
-      session
-    };
-
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      signal: (AbortSignal as any).timeout ? (AbortSignal as any).timeout(15000) : undefined
-    });
-
-    if (res.ok) {
-      return { 
-        success: true, 
-        log: `[SUCESSO WAHA FILE] Imagem de WhatsApp enviada com sucesso para ${chatId}!` 
-      };
-    } else {
-      const responseText = await res.text().catch(() => "");
-      return { 
-        success: false, 
-        log: `[FALHA WAHA FILE] O gateway WAHA retornou status HTTP ${res.status}. Detalhes: ${responseText || "Sem detalhes"}` 
-      };
-    }
-  } catch (err: any) {
-    console.error("Erro ao disparar imagem WAHA real:", err.message);
-    return { 
-      success: false, 
-      log: `[FALHA WAHA FILE] Erro ao conectar ao gateway em ${phone} para enviar imagem: ${err.message}` 
-    };
-  }
-}
-
 // -------------------------------------------------------------
 // Zoho Noivas Email parsing & automated calculations
 // -------------------------------------------------------------
@@ -1624,15 +1554,28 @@ function substituteVariables(template: string, lead: any): string {
     } catch (e) {}
   }
 
+  const leadMes = lead.mes_casamento || lead.mesCasamento || "breve";
+
   return text
+    .replace(/\{\{nome\}\}/gi, lead.nome || "")
     .replace(/\{nome\}/gi, lead.nome || "")
+    .replace(/\{\{email\}\}/gi, lead.email || "")
     .replace(/\{email\}/gi, lead.email || "")
+    .replace(/\{\{local\}\}/gi, lead.local || "")
     .replace(/\{local\}/gi, lead.local || "")
+    .replace(/\{\{data_casamento\}\}/gi, lead.data_casamento || "")
     .replace(/\{data_casamento\}/gi, lead.data_casamento || "")
-    .replace(/\{mes_casamento\}/gi, lead.mes_casamento || "")
+    .replace(/\{\{mes_casamento\}\}/gi, leadMes)
+    .replace(/\{mes_casamento\}/gi, leadMes)
+    .replace(/\{\{mesCasamento\}\}/gi, leadMes)
+    .replace(/\{mesCasamento\}/gi, leadMes)
+    .replace(/\{\{convidados\}\}/gi, String(lead.convidados || 0))
     .replace(/\{convidados\}/gi, String(lead.convidados || 0))
+    .replace(/\{\{status\}\}/gi, lead.status_funil || "")
     .replace(/\{status\}/gi, lead.status_funil || "")
+    .replace(/\{\{temperatura\}\}/gi, lead.temperatura || "")
     .replace(/\{temperatura\}/gi, lead.temperatura || "")
+    .replace(/\{\{dias_casamento\}\}/gi, diasRestantesStr)
     .replace(/\{dias_casamento\}/gi, diasRestantesStr);
 }
 
@@ -1707,6 +1650,24 @@ app.put("/api/workflow", async (req, res) => {
   try {
     const payload = req.body;
     if (Array.isArray(payload)) {
+      // 1. Fetch old configs to detect deletions
+      const oldConfigs = await getWorkflowConfigs();
+      
+      // 2. Perform remapping of leads from deleted stages
+      const newEtapas = new Set(payload.map((c: any) => c.etapa));
+      const deletedConfigs = oldConfigs.filter((c: any) => !newEtapas.has(c.etapa));
+      
+      for (const deleted of deletedConfigs) {
+        // Find the next stage in payload with the closest higher order
+        const candidates = payload
+          .filter((c: any) => (Number(c.ordem) || 0) > (Number(deleted.ordem) || 0))
+          .sort((a: any, b: any) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+        
+        const nextStageForLeads = candidates.length > 0 ? candidates[0].etapa : "ENCERRADO";
+        console.log(`[Remap Stage] Remapping leads in deleted stage "${deleted.etapa}" to next stage "${nextStageForLeads}"`);
+        await remapLeadsFromStage(deleted.etapa, nextStageForLeads);
+      }
+
       await saveWorkflowConfigs(payload);
       return res.json({ success: true, message: "Workflow configs updated successfully" });
     }
@@ -1838,44 +1799,15 @@ app.post("/api/settings/test-connection", async (req, res) => {
       }
 
       let compiledBody = test_whatsapp_body || "Mensagem de teste do CRM.";
-      let compiledImagesRaw = test_whatsapp_images || "";
 
       if (lead) {
         compiledBody = await compileTemplate(compiledBody, lead);
-        compiledImagesRaw = await compileTemplate(compiledImagesRaw, lead);
         log(`[TEST COMPILE] Texto compilado com sucesso.`);
       }
 
       const resWa = await dispatchWhatsAppMessage(test_whatsapp_recipient, compiledBody, config);
       log(`[WAHA TEST SEND] Resultado do envio de texto: ${resWa.log}`);
       let allSuccess = resWa.success;
-
-      // Send test images if present
-      if (compiledImagesRaw) {
-        const imageUrls = compiledImagesRaw
-          .split(/[\n,]+/)
-          .map((url: string) => url.trim())
-          .filter((url: string) => url.startsWith("http://") || url.startsWith("https://"));
-
-        if (imageUrls.length > 0) {
-          log(`[WAHA TEST SEND] Identificadas ${imageUrls.length} imagem(ns) para envio no WhatsApp.`);
-          for (const imgUrl of imageUrls) {
-            log(`[WAHA TEST SEND] Processando e convertendo imagem: ${imgUrl}`);
-            const preparedImg = await prepareImageForWaha(imgUrl);
-            if (preparedImg) {
-              log(`[WAHA TEST SEND] Enviando Imagem (${preparedImg.filename}) para ${test_whatsapp_recipient} no WhatsApp...`);
-              const imgResult = await dispatchWhatsAppImage(test_whatsapp_recipient, preparedImg, "", config);
-              log(`[WAHA TEST SEND] Resultado do Envio da Imagem: ${imgResult.log}`);
-              if (!imgResult.success) {
-                allSuccess = false;
-              }
-            } else {
-              log(`[WAHA TEST SEND] [ERRO] Não foi possível processar a imagem "${imgUrl}"`);
-              allSuccess = false;
-            }
-          }
-        }
-      }
 
       return res.json({ success: allSuccess, logs });
     }
@@ -2147,28 +2079,11 @@ async function runAutomationForNewWebhookLead(lead: any) {
 
       const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
 
-      let imagesHtml = "";
-      if (config.imagens_template) {
-        const compiledImagensRaw = await compileTemplate(config.imagens_template, lead);
-        const imageUrls = compiledImagensRaw
-          .split(/[\n,]+/)
-          .map((url: string) => url.trim())
-          .filter((url: string) => url.startsWith("http://") || url.startsWith("https://"));
-
-        for (const imgUrl of imageUrls) {
-          const preparedImg = await prepareImageForWaha(imgUrl);
-          if (preparedImg) {
-            await dispatchWhatsAppImage(lead.link_celular, preparedImg);
-            imagesHtml += `<br/><img src="${imgUrl}" alt="${preparedImg.filename}" style="max-width: 200px; border-radius: 8px; margin-top: 8px; border: 1px solid #3f3f46;" referrerPolicy="no-referrer" />`;
-          }
-        }
-      }
-
       await addHistoryEntry(lead.id, {
         canal: "WHATSAPP",
         tipo: "ENVIO",
         titulo: `WhatsApp [Sequência 1 - Auto]: ${config.template_name || "Boas-Vindas"}`,
-        detalhes: `${msgBody}${imagesHtml}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
+        detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
       });
     } else if (canal === "EMAIL") {
       updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
@@ -2203,11 +2118,11 @@ async function runAutomationForNewWebhookLead(lead: any) {
   }
 }
 
-// API - Webhook for Dynamic Leads Import (n8n or direct)
-app.post("/api/leads/webhook", async (req, res) => {
+// API - Webhook for Dynamic Leads Import (n8n or direct) - supports both POST and GET
+const webhookHandler = async (req: any, res: any) => {
   try {
     const { portal } = req.query;
-    const leadData = req.body;
+    const leadData = { ...req.body, ...req.query };
 
     const portalId = String(portal || "portal_noivas");
     const portalList = await getPortalConfigs();
@@ -2229,6 +2144,10 @@ app.post("/api/leads/webhook", async (req, res) => {
     const servicos = leadData.servicos || leadData.services;
     const convidados = Number(leadData.convidados || leadData.guests || 0);
 
+    const status_funil = leadData.status_funil || leadData.status || "Primeiro Contato";
+    const etapa_contato = leadData.etapa_contato || leadData.etapa || "Orçamento Enviado";
+    const temperatura = leadData.temperatura || leadData.temperature || "Fria";
+
     if (!email) {
       return res.status(400).json({ error: "E-mail do lead é obrigatório no payload" });
     }
@@ -2249,9 +2168,9 @@ app.post("/api/leads/webhook", async (req, res) => {
       servicos,
       convidados,
       ...orcamentos,
-      status_funil: "Primeiro Contato",
-      etapa_contato: "Orçamento Enviado",
-      temperatura: "Fria",
+      status_funil,
+      etapa_contato,
+      temperatura,
       tentativas_email: 0,
       tentativas_whatsapp: 0,
       observacoes: leadData.observacoes || leadData.notes || `Importado via Webhook ${nomePortal}`,
@@ -2275,12 +2194,15 @@ app.post("/api/leads/webhook", async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+};
+
+app.post("/api/leads/webhook", webhookHandler);
+app.get("/api/leads/webhook", webhookHandler);
 
 // API - Webhook para Integração com n8n (Leitura de Leads Zoho Mail)
 app.post("/api/leads/n8n-webhook", async (req, res) => {
   try {
-    const leadData = req.body;
+    const leadData = { ...req.body, ...req.query };
 
     // Mapeamento flexível de campos vindos do n8n (Suporta múltiplos formatos de chaves)
     const nome = leadData.nome || leadData.name || leadData.noiva || leadData.cliente || "Noiva - n8n";
@@ -2293,6 +2215,10 @@ app.post("/api/leads/n8n-webhook", async (req, res) => {
     const convidados = Number(leadData.convidados || leadData.guests || leadData.quantidade_convidados || leadData.num_convidados || 100);
     const observacoes = leadData.observacoes || leadData.notes || leadData.obs || leadData.comentarios || "Importado automaticamente via n8n Zoho Mail Integration";
     const origem_portal = leadData.origem_portal || leadData.portal || leadData.origem || "n8n Zoho Mail";
+
+    const status_funil = leadData.status_funil || leadData.status || "Primeiro Contato";
+    const etapa_contato = leadData.etapa_contato || leadData.etapa || "Orçamento Enviado";
+    const temperatura = leadData.temperatura || leadData.temperature || "Fria";
 
     if (!email) {
       return res.status(400).json({ 
@@ -2317,9 +2243,9 @@ app.post("/api/leads/n8n-webhook", async (req, res) => {
       servicos: servicos || "",
       convidados,
       ...orcamentos,
-      status_funil: "Primeiro Contato",
-      etapa_contato: "Orçamento Enviado",
-      temperatura: "Fria",
+      status_funil,
+      etapa_contato,
+      temperatura,
       tentativas_email: 0,
       tentativas_whatsapp: 0,
       observacoes,
@@ -2778,45 +2704,12 @@ async function runCRMAutomationLogic(force: boolean = false): Promise<{ success:
         
         const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
         log(`Resultado do Disparo: ${dispatchResult.log}`);
-
-        let imageDispatches: string[] = [];
-        let imagesHtml = "";
-
-        if (configEtapa.imagens_template) {
-          const compiledImagensRaw = await compileTemplate(configEtapa.imagens_template, lead);
-          const imageUrls = compiledImagensRaw
-            .split(/[\n,]+/)
-            .map(url => url.trim())
-            .filter(url => url.startsWith("http://") || url.startsWith("https://"));
-
-          if (imageUrls.length > 0) {
-            log(`Workflow: Identificadas ${imageUrls.length} imagem(ns) para envio no WhatsApp.`);
-            for (const imgUrl of imageUrls) {
-              log(`Processando e convertendo imagem: ${imgUrl}`);
-              const preparedImg = await prepareImageForWaha(imgUrl);
-              if (preparedImg) {
-                log(`Enviando Imagem (${preparedImg.filename}) para ${lead.nome} no WhatsApp...`);
-                const imgResult = await dispatchWhatsAppImage(lead.link_celular, preparedImg);
-                log(`Resultado do Disparo da Imagem: ${imgResult.log}`);
-                imageDispatches.push(`${preparedImg.filename}: ${imgResult.log}`);
-                imagesHtml += `<br/><img src="${imgUrl}" alt="${preparedImg.filename}" style="max-width: 200px; border-radius: 8px; margin-top: 8px; border: 1px solid #3f3f46;" referrerPolicy="no-referrer" />`;
-              } else {
-                log(`Erro: Não foi possível processar a imagem "${imgUrl}"`);
-                imageDispatches.push(`Falha no processamento da imagem: ${imgUrl}`);
-              }
-            }
-          }
-        }
-
-        const imagensLog = imageDispatches.length > 0 
-          ? `<br/><br/><b>Disparos de Imagens:</b><br/>${imageDispatches.join("<br/>")}` 
-          : "";
         
         await addHistoryEntry(lead.id, {
           canal: "WHATSAPP",
           tipo: "ENVIO",
           titulo: `WhatsApp Follow-up Enviado: ${templateName}`,
-          detalhes: `${msgBody}${imagesHtml}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}${imagensLog}</small>`
+          detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
         });
       } else if (canal === "EMAIL") {
         updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend } from "recharts";
 import { DashboardStats, Lead } from "../types";
 import { Users, TrendingUp, AlertCircle, Sparkles, Star, Calendar, RefreshCw, Play, Terminal, ShieldCheck, CheckCircle2, Clock, Mail, MessageSquare, Phone, X, Send, AlertTriangle } from "lucide-react";
+import { useToast } from "./Toast";
 
 interface DashboardProps {
   stats: DashboardStats | null;
@@ -15,6 +16,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ stats, onRunAutomation, onRefresh }: DashboardProps) {
+  const { toast, confirm } = useToast();
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [automationLogs, setAutomationLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
@@ -105,22 +107,22 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
     if (selectedCohort === "threeMonths") cohortLeads = stats.upcomingWeddings?.threeMonths || [];
     
     if (cohortLeads.length === 0) {
-      alert("Nenhum lead ativo encontrado neste lote para envio.");
+      toast.warning("Nenhum lead ativo encontrado neste lote para envio.");
       return;
     }
 
     if (!bulkMessage.trim()) {
-      alert("Por favor, digite o conteúdo da mensagem.");
+      toast.warning("Por favor, digite o conteúdo da mensagem.");
       return;
     }
 
     if (bulkCanal === "EMAIL" && !bulkSubject.trim()) {
-      alert("Por favor, digite o assunto do e-mail.");
+      toast.warning("Por favor, digite o assunto do e-mail.");
       return;
     }
 
-    const confirmMsg = `Deseja mesmo disparar esta mensagem em lote para os ${cohortLeads.length} leads deste lote?`;
-    if (!confirm(confirmMsg)) return;
+    const confirmed = await confirm(`Deseja mesmo disparar esta mensagem em lote para os ${cohortLeads.length} leads deste lote?`);
+    if (!confirmed) return;
 
     setIsSendingBulk(true);
     setBulkLogs([]);
@@ -645,9 +647,10 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
               </div>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (isSendingBulk) {
-                    if (!confirm("O envio em lote está em progresso. Deseja mesmo fechar?")) return;
+                    const confirmed = await confirm("O envio em lote está em progresso. Deseja mesmo fechar?");
+                    if (!confirmed) return;
                   }
                   setIsBulkModalOpen(false);
                 }}
