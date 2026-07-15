@@ -102,12 +102,18 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
     if (!selectedCohort || !stats) return;
     
     let cohortLeads: any[] = [];
-    if (selectedCohort === "oneMonth") cohortLeads = stats.upcomingWeddings?.oneMonth || [];
-    if (selectedCohort === "twoMonths") cohortLeads = stats.upcomingWeddings?.twoMonths || [];
-    if (selectedCohort === "threeMonths") cohortLeads = stats.upcomingWeddings?.threeMonths || [];
+    if (selectedCohort === "oneMonth") {
+      cohortLeads = (stats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m);
+    }
+    if (selectedCohort === "twoMonths") {
+      cohortLeads = (stats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m);
+    }
+    if (selectedCohort === "threeMonths") {
+      cohortLeads = (stats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m);
+    }
     
     if (cohortLeads.length === 0) {
-      toast.warning("Nenhum lead ativo encontrado neste lote para envio.");
+      toast.warning("Nenhum lead qualificado (que ainda não tenha recebido este follow-up) encontrado neste lote para envio.");
       return;
     }
 
@@ -121,7 +127,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
       return;
     }
 
-    const confirmed = await confirm(`Deseja mesmo disparar esta mensagem em lote para os ${cohortLeads.length} leads deste lote?`);
+    const confirmed = await confirm(`Deseja mesmo disparar esta mensagem em lote para os ${cohortLeads.length} leads qualificados deste lote?`);
     if (!confirmed) return;
 
     setIsSendingBulk(true);
@@ -151,7 +157,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
             canal: bulkCanal,
             mensagem: bulkMessage,
             assunto: bulkSubject,
-            titulo_historico: `Follow-up Especial Lote (${cohortLabel})`
+            titulo_historico: `Follow-up Especial Lote (${cohortLabel})`,
+            followup_cohort: selectedCohort
           })
         });
 
@@ -382,6 +389,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
                         <Users className="w-3 h-3 text-zinc-600" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
+                      {lead.followup_especial_1m && (
+                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
+                          F-up 1 Mês Enviado
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
@@ -454,6 +467,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
                         <Users className="w-3 h-3 text-zinc-600" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
+                      {lead.followup_especial_2m && (
+                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
+                          F-up 2 Meses Enviado
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
@@ -526,6 +545,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
                         <Users className="w-3 h-3 text-zinc-600" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
+                      {lead.followup_especial_3m && (
+                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
+                          F-up 3 Meses Enviado
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
@@ -668,9 +693,9 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
                 <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-zinc-800 text-amber-400 border border-zinc-750">
                   {(() => {
                     let count = 0;
-                    if (selectedCohort === "oneMonth") count = stats.upcomingWeddings?.oneMonth?.length || 0;
-                    if (selectedCohort === "twoMonths") count = stats.upcomingWeddings?.twoMonths?.length || 0;
-                    if (selectedCohort === "threeMonths") count = stats.upcomingWeddings?.threeMonths?.length || 0;
+                    if (selectedCohort === "oneMonth") count = (stats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m).length;
+                    if (selectedCohort === "twoMonths") count = (stats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m).length;
+                    if (selectedCohort === "threeMonths") count = (stats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m).length;
                     return count;
                   })()}{" "}
                   leads

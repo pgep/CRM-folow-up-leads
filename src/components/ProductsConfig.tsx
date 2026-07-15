@@ -310,13 +310,13 @@ export default function ProductsConfig() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {products.map((prod) => (
                 <div
                   key={prod.id}
-                  className="bg-zinc-950 border border-zinc-850 rounded-xl overflow-hidden flex flex-col justify-between hover:border-zinc-750 transition duration-200 group shadow-lg"
+                  className="bg-zinc-950 border border-zinc-850 rounded-xl overflow-hidden flex flex-col justify-between hover:border-zinc-750 transition duration-200 group shadow-md text-xs"
                 >
-                  <div className="relative h-44 bg-zinc-900 overflow-hidden">
+                  <div className="relative h-32 bg-zinc-900 overflow-hidden">
                     {prod.link_imagem ? (
                       <img
                         src={prod.link_imagem}
@@ -329,75 +329,75 @@ export default function ProductsConfig() {
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600">
-                        <ImageIcon className="w-8 h-8 mb-1" />
-                        <span className="text-[10px]">Sem imagem cadastrada</span>
+                        <ImageIcon className="w-6 h-6 mb-0.5" />
+                        <span className="text-[9px]">Sem imagem</span>
                       </div>
                     )}
-                    <div className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-sm border border-zinc-800 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold tracking-wide text-amber-500">
+                    <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wide text-amber-500">
                       ID: {prod.id}
                     </div>
                   </div>
 
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-zinc-200 line-clamp-2 leading-snug">
+                      <h4 className="text-xs font-bold text-zinc-200 line-clamp-2 leading-snug">
                         {prod.descricao}
                       </h4>
-                      <p className="text-lg font-extrabold text-amber-400 mt-1.5">
+                      <p className="text-sm font-extrabold text-amber-400 mt-1">
                         {prod.valor_unitario.toLocaleString("pt-BR", {
                           style: "currency",
                           currency: "BRL"
                         })}{" "}
-                        <span className="text-[10px] font-medium text-zinc-500">unitário</span>
+                        <span className="text-[9px] font-medium text-zinc-500">unitário</span>
                       </p>
                     </div>
 
-                    <div className="bg-zinc-900/60 border border-zinc-850/60 rounded-lg p-2.5 space-y-1.5">
-                      <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-semibold">
-                        Variáveis de Template Disponíveis:
+                    <div className="bg-zinc-900/60 border border-zinc-850/60 rounded-lg p-2 space-y-1">
+                      <div className="text-[8px] text-zinc-500 uppercase tracking-wider font-semibold">
+                        Gatilhos no Template:
                       </div>
-                      <div className="grid grid-cols-1 gap-1 text-[10px]">
+                      <div className="grid grid-cols-1 gap-1 text-[9px]">
                         <div className="flex items-center justify-between text-zinc-400">
-                          <span>Orçamento total:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 py-0.5 rounded text-[9px]">
+                          <span>Total:</span>
+                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}orcamento_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
-                          <span>Preço unitário:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 py-0.5 rounded text-[9px]">
+                          <span>Preço:</span>
+                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}preco_unitario_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
-                          <span>Descrição:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 py-0.5 rounded text-[9px]">
+                          <span>Nome:</span>
+                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}descricao_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
-                          <span>Link da imagem:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 py-0.5 rounded text-[9px]">
+                          <span>Imagem:</span>
+                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}imagem_{prod.id}{"}"}
                           </code>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-zinc-850/60 flex items-center justify-end gap-2 shrink-0">
+                    <div className="pt-1.5 border-t border-zinc-850/60 flex items-center justify-end gap-1.5 shrink-0">
                       <button
                         onClick={() => handleOpenEdit(prod)}
-                        className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition"
+                        className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition"
                         title="Editar produto"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(prod.id)}
-                        className="p-2 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 rounded-lg transition"
+                        className="p-1.5 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 rounded-lg transition"
                         title="Excluir produto"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

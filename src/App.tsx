@@ -231,7 +231,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/30 selection:text-white w-full">
+    <div className="min-h-screen md:h-screen md:overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/30 selection:text-white w-full">
       
       {/* Mobile Top Header */}
       <header className="md:hidden bg-zinc-900 border-b border-zinc-850 p-4 sticky top-0 z-40 flex items-center justify-between shrink-0 w-full">
@@ -468,7 +468,7 @@ export default function App() {
       </aside>
 
       {/* Main content body wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 md:h-screen md:overflow-y-auto">
         
         {/* Main Content Scroll container - expanded to 95% total width */}
         <main className="flex-1 max-w-[95%] w-full mx-auto p-4 md:p-8 overflow-y-auto flex flex-col justify-start">

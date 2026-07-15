@@ -47,6 +47,9 @@ export interface Lead {
   ultimo_whatsapp_em?: string;
   ultima_interacao_em: string;
   proxima_acao_em: string;
+  followup_especial_1m?: boolean;
+  followup_especial_2m?: boolean;
+  followup_especial_3m?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -273,9 +273,22 @@ async function initPgDatabase() {
           ultimo_whatsapp_em VARCHAR(255),
           ultima_interacao_em VARCHAR(255),
           proxima_acao_em VARCHAR(255),
+          followup_especial_1m BOOLEAN DEFAULT FALSE,
+          followup_especial_2m BOOLEAN DEFAULT FALSE,
+          followup_especial_3m BOOLEAN DEFAULT FALSE,
           created_at VARCHAR(255),
           updated_at VARCHAR(255)
         );
+      `);
+
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS followup_especial_1m BOOLEAN DEFAULT FALSE;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS followup_especial_2m BOOLEAN DEFAULT FALSE;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS followup_especial_3m BOOLEAN DEFAULT FALSE;
       `);
 
       // 2. Workflow Config Table
@@ -558,15 +571,15 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
             soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
             observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+            followup_especial_1m, followup_especial_2m, followup_especial_3m, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
           RETURNING *
         `;
         const values = [
           lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
           lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
           lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.created_at, lead.updated_at
+          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false, lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
         return res.rows[0];
@@ -577,7 +590,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
             status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
             observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
-            ultima_interacao_em = $26, proxima_acao_em = $27, updated_at = $28
+            ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30, updated_at = $31
           WHERE id = $1
           RETURNING *
         `;
@@ -586,7 +599,8 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.servicos, lead.convidados, lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5,
           lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
           lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
-          lead.ultima_interacao_em, lead.proxima_acao_em, lead.updated_at
+          lead.ultima_interacao_em, lead.proxima_acao_em,
+          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
         return res.rows[0];
@@ -1896,7 +1910,7 @@ function substituteVariables(template: string, lead: any): string {
 // API - Send custom / special follow-up or broadcast message to Lead
 app.post("/api/leads/:id/send-message", async (req, res) => {
   try {
-    const { canal, mensagem, assunto, titulo_historico } = req.body;
+    const { canal, mensagem, assunto, titulo_historico, followup_cohort } = req.body;
     if (!canal || !mensagem) {
       return res.status(400).json({ error: "canal and mensagem are required" });
     }
@@ -1909,6 +1923,16 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
     const finalBody = substituteVariables(mensagem, lead);
 
     let updatedLead = { ...lead };
+    
+    // Set followup special marks
+    if (followup_cohort === "oneMonth") {
+      updatedLead.followup_especial_1m = true;
+    } else if (followup_cohort === "twoMonths") {
+      updatedLead.followup_especial_2m = true;
+    } else if (followup_cohort === "threeMonths") {
+      updatedLead.followup_especial_3m = true;
+    }
+
     let dispatchStatus = "";
 
     if (canal === "WHATSAPP") {
