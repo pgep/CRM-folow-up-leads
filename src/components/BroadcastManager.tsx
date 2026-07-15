@@ -39,6 +39,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
   // New Rule Form State
   const [isAddingRule, setIsAddingRule] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleName, setRuleName] = useState("");
   const [ruleField, setRuleField] = useState<SpecialRule['campo_gatilho']>("dias_casamento");
   const [ruleOperator, setRuleOperator] = useState<SpecialRule['operador']>("<");
@@ -53,6 +54,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
   const [bulkFilterTemp, setBulkFilterTemp] = useState<string>("ALL");
   const [bulkFilterMonth, setBulkFilterMonth] = useState<string>("ALL");
   const [bulkFilterPortal, setBulkFilterPortal] = useState<string>("ALL");
+  const [bulkNameSearch, setBulkNameSearch] = useState("");
   const [bulkCanal, setBulkCanal] = useState<'WHATSAPP' | 'EMAIL'>('WHATSAPP');
   const [bulkSubject, setBulkSubject] = useState("Atualização Importante - Casa Colombo Artesanal");
   const [bulkMessage, setBulkMessage] = useState("Olá {nome}, tudo bem?\n\nPassando para avisar que as lembrancinhas de {local} já estão em produção.");
@@ -113,26 +115,61 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
     }
   };
 
-  // Add a new special rule
+  const startEditingRule = (rule: SpecialRule) => {
+    setEditingRuleId(rule.id);
+    setRuleName(rule.nome);
+    setRuleField(rule.campo_gatilho);
+    setRuleOperator(rule.operador);
+    setRuleValue(rule.valor_gatilho);
+    setRuleCanal(rule.canal);
+    setRuleSubject(rule.assunto_template || "");
+    setRuleMessage(rule.mensagem_template);
+    setIsAddingRule(true); // Open form panel
+    
+    // Scroll smoothly to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Add or Edit a special rule
   const handleAddRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ruleName.trim() || !ruleValue.trim() || !ruleMessage.trim()) return;
 
-    const newRule: SpecialRule = {
-      id: "sr_" + Date.now(),
-      nome: ruleName.trim(),
-      campo_gatilho: ruleField,
-      operador: ruleOperator,
-      valor_gatilho: ruleValue.trim(),
-      canal: ruleCanal,
-      assunto_template: ruleCanal === "EMAIL" ? ruleSubject.trim() : undefined,
-      mensagem_template: ruleMessage.trim()
-    };
+    let updatedRules: SpecialRule[];
 
-    const updatedRules = [...rules, newRule];
+    if (editingRuleId) {
+      // Edit existing rule
+      updatedRules = rules.map(r => r.id === editingRuleId ? {
+        ...r,
+        nome: ruleName.trim(),
+        campo_gatilho: ruleField,
+        operador: ruleOperator,
+        valor_gatilho: ruleValue.trim(),
+        canal: ruleCanal,
+        assunto_template: ruleCanal === "EMAIL" ? ruleSubject.trim() : undefined,
+        mensagem_template: ruleMessage.trim()
+      } : r);
+      toast.success("Regra especial atualizada com sucesso!");
+    } else {
+      // Create new rule
+      const newRule: SpecialRule = {
+        id: "sr_" + Date.now(),
+        nome: ruleName.trim(),
+        campo_gatilho: ruleField,
+        operador: ruleOperator,
+        valor_gatilho: ruleValue.trim(),
+        canal: ruleCanal,
+        assunto_template: ruleCanal === "EMAIL" ? ruleSubject.trim() : undefined,
+        mensagem_template: ruleMessage.trim()
+      };
+      updatedRules = [...rules, newRule];
+      toast.success("Regra especial cadastrada com sucesso!");
+    }
+
     await saveRulesToSettings(updatedRules);
 
     // Reset Form
+    setEditingRuleId(null);
     setRuleName("");
     setRuleField("dias_casamento");
     setRuleOperator("<");
@@ -315,6 +352,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
       const filterMes = bulkFilterMonth.trim().toUpperCase();
       if (!cleanMes.includes(filterMes) && !filterMes.includes(cleanMes)) return false;
     }
+
+    if (bulkNameSearch.trim()) {
+      const search = bulkNameSearch.toLowerCase().trim();
+      if (!lead.nome.toLowerCase().includes(search)) return false;
+    }
+
     return true;
   });
 
@@ -483,11 +526,26 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             </div>
             
             <button
-              onClick={() => setIsAddingRule(!isAddingRule)}
+              onClick={() => {
+                if (isAddingRule) {
+                  // Cancel adding/editing
+                  setEditingRuleId(null);
+                  setRuleName("");
+                  setRuleField("dias_casamento");
+                  setRuleOperator("<");
+                  setRuleValue("");
+                  setRuleCanal("WHATSAPP");
+                  setRuleSubject("");
+                  setRuleMessage("");
+                  setIsAddingRule(false);
+                } else {
+                  setIsAddingRule(true);
+                }
+              }}
               className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs font-semibold flex items-center gap-2 transition ml-auto"
             >
               <Plus className="w-4 h-4 text-amber-500" />
-              {isAddingRule ? "Cancelar Cadastro" : "Cadastrar Nova Regra"}
+              {isAddingRule ? (editingRuleId ? "Cancelar Edição" : "Cancelar Cadastro") : "Cadastrar Nova Regra"}
             </button>
           </div>
 
@@ -496,7 +554,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             <form onSubmit={handleAddRule} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 animate-fade-in">
               <h5 className="text-sm font-semibold text-amber-500 flex items-center gap-2">
                 <Settings className="w-4 h-4" />
-                Definição do Gatilho Especial
+                {editingRuleId ? "Editar Gatilho Especial" : "Definição do Gatilho Especial"}
               </h5>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -610,7 +668,17 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsAddingRule(false)}
+                  onClick={() => {
+                    setEditingRuleId(null);
+                    setRuleName("");
+                    setRuleField("dias_casamento");
+                    setRuleOperator("<");
+                    setRuleValue("");
+                    setRuleCanal("WHATSAPP");
+                    setRuleSubject("");
+                    setRuleMessage("");
+                    setIsAddingRule(false);
+                  }}
                   className="px-4 py-2 rounded-lg bg-transparent hover:bg-zinc-850 text-zinc-400 hover:text-white text-xs font-semibold transition"
                 >
                   Cancelar
@@ -619,7 +687,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs transition"
                 >
-                  Salvar Regra Especial
+                  {editingRuleId ? "Salvar Alterações" : "Salvar Regra Especial"}
                 </button>
               </div>
             </form>
@@ -680,6 +748,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                           className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded transition"
                         >
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+
+                        <button
+                          onClick={() => startEditingRule(rule)}
+                          className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-amber-500 rounded transition border border-transparent hover:border-zinc-700/50"
+                          title="Editar e visualizar esta regra"
+                        >
+                          <Edit3 className="w-4 h-4" />
                         </button>
 
                         <button
@@ -967,6 +1043,27 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 >
                   {selectedLeads.length === filteredLeadsForBulk.length ? "Desmarcar Todos" : "Marcar Todos"}
                 </button>
+              </div>
+
+              {/* Simple name filter */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Filtrar destinatários por nome..."
+                  value={bulkNameSearch}
+                  onChange={(e) => setBulkNameSearch(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                />
+                <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
+                {bulkNameSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setBulkNameSearch("")}
+                    className="text-[10px] text-zinc-400 hover:text-white absolute right-2.5 top-2.5"
+                  >
+                    Limpar
+                  </button>
+                )}
               </div>
 
               {filteredLeadsForBulk.length === 0 ? (

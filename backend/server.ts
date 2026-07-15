@@ -19,6 +19,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use("/assets", express.static(path.join(process.cwd(), "assets")));
 
 // Initialize Google GenAI
 let ai: GoogleGenAI | null = null;
@@ -182,7 +183,9 @@ function initLocalDatabase() {
       leads: [],
       workflow_config: defaultWorkflowConfig,
       portal_config: defaultPortalConfig,
-      lead_history: []
+      lead_history: [],
+      financial_contracts: [],
+      financial_installments: []
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
   } else {
@@ -194,6 +197,8 @@ function initLocalDatabase() {
       if (!data.workflow_config || data.workflow_config.length === 0) { data.workflow_config = defaultWorkflowConfig; updated = true; }
       if (!data.portal_config || data.portal_config.length === 0) { data.portal_config = defaultPortalConfig; updated = true; }
       if (!data.lead_history) { data.lead_history = []; updated = true; }
+      if (!data.financial_contracts) { data.financial_contracts = []; updated = true; }
+      if (!data.financial_installments) { data.financial_installments = []; updated = true; }
       if (updated) {
         fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
       }
@@ -203,7 +208,9 @@ function initLocalDatabase() {
         leads: [],
         workflow_config: defaultWorkflowConfig,
         portal_config: defaultPortalConfig,
-        lead_history: []
+        lead_history: [],
+        financial_contracts: [],
+        financial_installments: []
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
     }
@@ -295,6 +302,43 @@ async function initPgDatabase() {
         CREATE TABLE IF NOT EXISTS general_settings (
           id INTEGER PRIMARY KEY,
           settings JSONB
+        );
+      `);
+
+      // 6. Financial Contracts Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS financial_contracts (
+          id VARCHAR(255) PRIMARY KEY,
+          lead_id VARCHAR(255) REFERENCES leads(id) ON DELETE CASCADE,
+          contract_number VARCHAR(255),
+          contract_date VARCHAR(255),
+          total_value NUMERIC(10,2) DEFAULT 0.00,
+          payment_method VARCHAR(255),
+          installments_count INTEGER DEFAULT 1,
+          down_payment NUMERIC(10,2) DEFAULT 0.00,
+          status VARCHAR(255) DEFAULT 'active',
+          observations TEXT,
+          created_at VARCHAR(255),
+          updated_at VARCHAR(255)
+        );
+      `);
+
+      // 7. Financial Installments Table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS financial_installments (
+          id VARCHAR(255) PRIMARY KEY,
+          contract_id VARCHAR(255) REFERENCES financial_contracts(id) ON DELETE CASCADE,
+          installment_number INTEGER,
+          due_date VARCHAR(255),
+          value NUMERIC(10,2) DEFAULT 0.00,
+          status VARCHAR(255) DEFAULT 'pending',
+          paid_date VARCHAR(255),
+          paid_value NUMERIC(10,2) DEFAULT 0.00,
+          payment_method VARCHAR(255),
+          payment_observations TEXT,
+          receipt_number VARCHAR(255),
+          created_at VARCHAR(255),
+          updated_at VARCHAR(255)
         );
       `);
 
@@ -933,9 +977,675 @@ function calcularOrcamentos(convidados: number) {
   };
 }
 
+async function getFinancialContracts(): Promise<any[]> {
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
+      return res.rows.map(row => ({
+        ...row,
+        total_value: Number(row.total_value),
+        down_payment: Number(row.down_payment)
+      }));
+    } catch (e: any) {
+      console.warn("PostgreSQL contracts fetch failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { data, error } = await supabase.from("financial_contracts").select("*").order("created_at", { ascending: false });
+      if (!error && data) {
+        return data.map(c => ({
+          ...c,
+          total_value: Number(c.total_value),
+          down_payment: Number(c.down_payment)
+        }));
+      }
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  return (db.financial_contracts || []).map((c: any) => ({
+    ...c,
+    total_value: Number(c.total_value),
+    down_payment: Number(c.down_payment)
+  }));
+}
+
+async function saveFinancialContract(c: any): Promise<boolean> {
+  if (usePg && pgPool) {
+    try {
+      await pgPool.query(`
+        INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (id) DO UPDATE SET
+          lead_id = EXCLUDED.lead_id,
+          contract_number = EXCLUDED.contract_number,
+          contract_date = EXCLUDED.contract_date,
+          total_value = EXCLUDED.total_value,
+          payment_method = EXCLUDED.payment_method,
+          installments_count = EXCLUDED.installments_count,
+          down_payment = EXCLUDED.down_payment,
+          status = EXCLUDED.status,
+          observations = EXCLUDED.observations,
+          updated_at = EXCLUDED.updated_at
+      `, [
+        c.id,
+        c.lead_id,
+        c.contract_number,
+        c.contract_date,
+        c.total_value,
+        c.payment_method,
+        c.installments_count,
+        c.down_payment,
+        c.status || 'active',
+        c.observations || '',
+        c.created_at || new Date().toISOString(),
+        new Date().toISOString()
+      ]);
+      return true;
+    } catch (e: any) {
+      console.warn("PostgreSQL contract save failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { error } = await supabase.from("financial_contracts").upsert({
+        id: c.id,
+        lead_id: c.lead_id,
+        contract_number: c.contract_number,
+        contract_date: c.contract_date,
+        total_value: Number(c.total_value),
+        payment_method: c.payment_method,
+        installments_count: Number(c.installments_count),
+        down_payment: Number(c.down_payment),
+        status: c.status || 'active',
+        observations: c.observations || '',
+        created_at: c.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      if (!error) return true;
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  if (!db.financial_contracts) db.financial_contracts = [];
+  const idx = db.financial_contracts.findIndex((item: any) => item.id === c.id);
+  const now = new Date().toISOString();
+  const savedContract = {
+    ...c,
+    status: c.status || 'active',
+    observations: c.observations || '',
+    created_at: c.created_at || now,
+    updated_at: now
+  };
+  if (idx >= 0) {
+    db.financial_contracts[idx] = savedContract;
+  } else {
+    db.financial_contracts.push(savedContract);
+  }
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  return true;
+}
+
+async function deleteFinancialContract(id: string): Promise<boolean> {
+  if (usePg && pgPool) {
+    try {
+      await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
+      return true;
+    } catch (e: any) {
+      console.warn("PostgreSQL contract delete failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { error } = await supabase.from("financial_contracts").delete().eq("id", id);
+      if (!error) return true;
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  if (db.financial_contracts) {
+    db.financial_contracts = db.financial_contracts.filter((c: any) => c.id !== id);
+    if (db.financial_installments) {
+      db.financial_installments = db.financial_installments.filter((i: any) => i.contract_id !== id);
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  }
+  return true;
+}
+
+async function getFinancialInstallments(): Promise<any[]> {
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
+      return res.rows.map(row => ({
+        ...row,
+        installment_number: Number(row.installment_number),
+        value: Number(row.value),
+        paid_value: row.paid_value ? Number(row.paid_value) : null
+      }));
+    } catch (e: any) {
+      console.warn("PostgreSQL installments fetch failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { data, error } = await supabase.from("financial_installments").select("*").order("due_date", { ascending: true });
+      if (!error && data) {
+        return data.map(i => ({
+          ...i,
+          installment_number: Number(i.installment_number),
+          value: Number(i.value),
+          paid_value: i.paid_value ? Number(i.paid_value) : null
+        }));
+      }
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  return (db.financial_installments || []).map((i: any) => ({
+    ...i,
+    installment_number: Number(i.installment_number),
+    value: Number(i.value),
+    paid_value: i.paid_value ? Number(i.paid_value) : null
+  }));
+}
+
+async function saveFinancialInstallment(i: any): Promise<boolean> {
+  if (usePg && pgPool) {
+    try {
+      await pgPool.query(`
+        INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (id) DO UPDATE SET
+          contract_id = EXCLUDED.contract_id,
+          installment_number = EXCLUDED.installment_number,
+          due_date = EXCLUDED.due_date,
+          value = EXCLUDED.value,
+          status = EXCLUDED.status,
+          paid_date = EXCLUDED.paid_date,
+          paid_value = EXCLUDED.paid_value,
+          payment_method = EXCLUDED.payment_method,
+          payment_observations = EXCLUDED.payment_observations,
+          receipt_number = EXCLUDED.receipt_number,
+          updated_at = EXCLUDED.updated_at
+      `, [
+        i.id,
+        i.contract_id,
+        i.installment_number,
+        i.due_date,
+        i.value,
+        i.status || 'pending',
+        i.paid_date || null,
+        i.paid_value || null,
+        i.payment_method || null,
+        i.payment_observations || null,
+        i.receipt_number || null,
+        i.created_at || new Date().toISOString(),
+        new Date().toISOString()
+      ]);
+      return true;
+    } catch (e: any) {
+      console.warn("PostgreSQL installment save failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { error } = await supabase.from("financial_installments").upsert({
+        id: i.id,
+        contract_id: i.contract_id,
+        installment_number: Number(i.installment_number),
+        due_date: i.due_date,
+        value: Number(i.value),
+        status: i.status || 'pending',
+        paid_date: i.paid_date || null,
+        paid_value: i.paid_value !== undefined && i.paid_value !== null ? Number(i.paid_value) : null,
+        payment_method: i.payment_method || null,
+        payment_observations: i.payment_observations || null,
+        receipt_number: i.receipt_number || null,
+        created_at: i.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      if (!error) return true;
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  if (!db.financial_installments) db.financial_installments = [];
+  const idx = db.financial_installments.findIndex((item: any) => item.id === i.id);
+  const now = new Date().toISOString();
+  const savedInstallment = {
+    ...i,
+    status: i.status || 'pending',
+    created_at: i.created_at || now,
+    updated_at: now
+  };
+  if (idx >= 0) {
+    db.financial_installments[idx] = savedInstallment;
+  } else {
+    db.financial_installments.push(savedInstallment);
+  }
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  return true;
+}
+
+async function deleteFinancialInstallmentsByContract(contractId: string): Promise<boolean> {
+  if (usePg && pgPool) {
+    try {
+      await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
+      return true;
+    } catch (e: any) {
+      console.warn("PostgreSQL installments delete failed:", e.message);
+    }
+  }
+  if (useSupabase) {
+    try {
+      const { error } = await supabase.from("financial_installments").delete().eq("contract_id", contractId);
+      if (!error) return true;
+    } catch (e) {}
+  }
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  if (db.financial_installments) {
+    db.financial_installments = db.financial_installments.filter((i: any) => i.contract_id !== contractId);
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  }
+  return true;
+}
+
 // -------------------------------------------------------------
 // REST API ROUTES
 // -------------------------------------------------------------
+
+// Helper to add days to ISO string date
+function addDaysHelper(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+// API - Get Financial Contracts
+app.get("/api/financial/contracts", async (req, res) => {
+  try {
+    const contracts = await getFinancialContracts();
+    res.json(contracts);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Get Financial Installments
+app.get("/api/financial/installments", async (req, res) => {
+  try {
+    const installments = await getFinancialInstallments();
+    res.json(installments);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Create Financial Contract
+app.post("/api/financial/contracts", async (req, res) => {
+  try {
+    const {
+      lead_id,
+      contract_number,
+      contract_date,
+      total_value,
+      payment_method,
+      installments_count,
+      down_payment,
+      observations
+    } = req.body;
+
+    if (!lead_id || !contract_date || total_value === undefined || !payment_method) {
+      return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    }
+
+    // Verify duplicate contracts for active lead
+    const existingContracts = await getFinancialContracts();
+    const duplicate = existingContracts.find(
+      c => c.lead_id === lead_id && c.status === "active"
+    );
+    if (duplicate) {
+      return res.status(400).json({ error: "Este lead já possui um contrato ativo no sistema." });
+    }
+
+    const contractId = "con_" + Math.random().toString(36).substring(2, 11);
+    let nextContractNo = 201;
+    existingContracts.forEach(c => {
+      if (c.contract_number) {
+        const numStr = c.contract_number.replace(/\D/g, "");
+        if (numStr) {
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num >= nextContractNo) {
+            nextContractNo = num + 1;
+          }
+        }
+      }
+    });
+    const generatedContractNumber = contract_number || `CTR-${nextContractNo}`;
+
+    const newContract = {
+      id: contractId,
+      lead_id,
+      contract_number: generatedContractNumber,
+      contract_date,
+      total_value: Number(total_value),
+      payment_method,
+      installments_count: payment_method === "a_vista" ? 1 : Number(installments_count || 1),
+      down_payment: Number(down_payment || 0),
+      status: "active",
+      observations: observations || "",
+      created_at: new Date().toISOString()
+    };
+
+    await saveFinancialContract(newContract);
+
+    // Generate installments
+    if (payment_method === "a_vista") {
+      const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+      const installment = {
+        id: instId,
+        contract_id: contractId,
+        installment_number: 1,
+        due_date: addDaysHelper(contract_date, 30),
+        value: Number(total_value),
+        status: "pending",
+        paid_date: null,
+        paid_value: null,
+        payment_method: null,
+        payment_observations: null,
+        receipt_number: null,
+        created_at: new Date().toISOString()
+      };
+      await saveFinancialInstallment(installment);
+    } else {
+      // Parcelado
+      const installmentsNum = Number(installments_count || 2);
+      const downPaymentVal = Number(down_payment || 0);
+      const remainingValue = Number(total_value) - downPaymentVal;
+      const installmentVal = Number((remainingValue / installmentsNum).toFixed(2));
+
+      // 1. If there's down payment, create a paid installment number 0
+      if (downPaymentVal > 0) {
+        const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+        
+        // Let's generate a unique receipt number for the down payment immediately
+        const existingInstallments = await getFinancialInstallments();
+        const nextReceiptNo = Math.max(100, existingInstallments.reduce((max, inst) => {
+          if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
+            const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
+            if (!isNaN(num) && num > max) return num;
+          }
+          return max;
+        }, 0)) + 1;
+        const receipt_number = `REC-${String(nextReceiptNo).padStart(6, '0')}`;
+
+        const downInstallment = {
+          id: instId,
+          contract_id: contractId,
+          installment_number: 0,
+          due_date: contract_date,
+          value: downPaymentVal,
+          status: "paid",
+          paid_date: contract_date,
+          paid_value: downPaymentVal,
+          payment_method: "Pix", // Default entry payment method
+          payment_observations: "Entrada paga no ato do contrato",
+          receipt_number,
+          created_at: new Date().toISOString()
+        };
+        await saveFinancialInstallment(downInstallment);
+      }
+
+      // 2. Generate subsequent installments
+      for (let i = 1; i <= installmentsNum; i++) {
+        const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+        let currentVal = installmentVal;
+        
+        // Handle rounding difference on the last installment
+        if (i === installmentsNum) {
+          const checkSum = installmentVal * (installmentsNum - 1);
+          currentVal = Number((remainingValue - checkSum).toFixed(2));
+        }
+
+        const installment = {
+          id: instId,
+          contract_id: contractId,
+          installment_number: i,
+          due_date: addDaysHelper(contract_date, 30 * i),
+          value: currentVal,
+          status: "pending",
+          paid_date: null,
+          paid_value: null,
+          payment_method: null,
+          payment_observations: null,
+          receipt_number: null,
+          created_at: new Date().toISOString()
+        };
+        await saveFinancialInstallment(installment);
+      }
+    }
+
+    res.status(201).json({ success: true, contract: newContract });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Update/Edit Financial Contract (Allowed only if no installments are paid)
+app.put("/api/financial/contracts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      contract_number,
+      contract_date,
+      total_value,
+      payment_method,
+      installments_count,
+      down_payment,
+      observations
+    } = req.body;
+
+    // Check if contract exists
+    const contracts = await getFinancialContracts();
+    const existing = contracts.find(c => c.id === id);
+    if (!existing) {
+      return res.status(404).json({ error: "Contrato não encontrado." });
+    }
+
+    // Check if there are paid installments
+    const installments = await getFinancialInstallments();
+    const contractInstallments = installments.filter(inst => inst.contract_id === id);
+    const paidInstallments = contractInstallments.filter(inst => inst.status === "paid" && inst.installment_number > 0);
+
+    if (paidInstallments.length > 0) {
+      return res.status(400).json({ error: "Não é possível editar este contrato pois já existem parcelas pagas." });
+    }
+
+    // Delete old installments
+    await deleteFinancialInstallmentsByContract(id);
+
+    const updatedContract = {
+      ...existing,
+      contract_number: contract_number || existing.contract_number,
+      contract_date: contract_date || existing.contract_date,
+      total_value: total_value !== undefined ? Number(total_value) : existing.total_value,
+      payment_method: payment_method || existing.payment_method,
+      installments_count: payment_method === "a_vista" ? 1 : Number(installments_count || existing.installments_count || 1),
+      down_payment: down_payment !== undefined ? Number(down_payment) : existing.down_payment,
+      observations: observations !== undefined ? observations : existing.observations,
+      updated_at: new Date().toISOString()
+    };
+
+    await saveFinancialContract(updatedContract);
+
+    // Regenerate installments
+    const finalDate = updatedContract.contract_date;
+    const finalValue = updatedContract.total_value;
+    const finalMethod = updatedContract.payment_method;
+
+    if (finalMethod === "a_vista") {
+      const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+      const installment = {
+        id: instId,
+        contract_id: id,
+        installment_number: 1,
+        due_date: addDaysHelper(finalDate, 30),
+        value: finalValue,
+        status: "pending",
+        paid_date: null,
+        paid_value: null,
+        payment_method: null,
+        payment_observations: null,
+        receipt_number: null,
+        created_at: new Date().toISOString()
+      };
+      await saveFinancialInstallment(installment);
+    } else {
+      const finalCount = Number(updatedContract.installments_count || 2);
+      const finalDown = Number(updatedContract.down_payment || 0);
+      const remainingValue = finalValue - finalDown;
+      const installmentVal = Number((remainingValue / finalCount).toFixed(2));
+
+      if (finalDown > 0) {
+        const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+        
+        const existingInstallments = await getFinancialInstallments();
+        const nextReceiptNo = Math.max(100, existingInstallments.reduce((max, inst) => {
+          if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
+            const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
+            if (!isNaN(num) && num > max) return num;
+          }
+          return max;
+        }, 0)) + 1;
+        const receipt_number = `REC-${String(nextReceiptNo).padStart(6, '0')}`;
+
+        const downInstallment = {
+          id: instId,
+          contract_id: id,
+          installment_number: 0,
+          due_date: finalDate,
+          value: finalDown,
+          status: "paid",
+          paid_date: finalDate,
+          paid_value: finalDown,
+          payment_method: "Pix",
+          payment_observations: "Entrada re-gerada na edição do contrato",
+          receipt_number,
+          created_at: new Date().toISOString()
+        };
+        await saveFinancialInstallment(downInstallment);
+      }
+
+      for (let i = 1; i <= finalCount; i++) {
+        const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+        let currentVal = installmentVal;
+
+        if (i === finalCount) {
+          const checkSum = installmentVal * (finalCount - 1);
+          currentVal = Number((remainingValue - checkSum).toFixed(2));
+        }
+
+        const installment = {
+          id: instId,
+          contract_id: id,
+          installment_number: i,
+          due_date: addDaysHelper(finalDate, 30 * i),
+          value: currentVal,
+          status: "pending",
+          paid_date: null,
+          paid_value: null,
+          payment_method: null,
+          payment_observations: null,
+          receipt_number: null,
+          created_at: new Date().toISOString()
+        };
+        await saveFinancialInstallment(installment);
+      }
+    }
+
+    res.json({ success: true, contract: updatedContract });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Delete Financial Contract (Block if any installment is paid)
+app.delete("/api/financial/contracts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const installments = await getFinancialInstallments();
+    const contractInstallments = installments.filter(inst => inst.contract_id === id);
+    const paidInstallments = contractInstallments.filter(inst => inst.status === "paid");
+
+    if (paidInstallments.length > 0) {
+      return res.status(400).json({ error: "Não é possível excluir este contrato pois já existem parcelas pagas." });
+    }
+
+    await deleteFinancialContract(id);
+    res.json({ success: true, message: "Contrato e parcelas removidos com sucesso." });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Give Low/Pay Financial Installment ("Dar Baixa")
+app.post("/api/financial/installments/:id/pay", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paid_date, paid_value, payment_method, payment_observations } = req.body;
+
+    if (!paid_date || paid_value === undefined || !payment_method) {
+      return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    }
+
+    const installments = await getFinancialInstallments();
+    const idx = installments.findIndex(inst => inst.id === id);
+    if (idx < 0) {
+      return res.status(404).json({ error: "Parcela não encontrada." });
+    }
+
+    const installment = installments[idx];
+
+    // Generate unique sequential receipt number
+    const nextReceiptNo = Math.max(100, installments.reduce((max, inst) => {
+      if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
+        const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
+        if (!isNaN(num) && num > max) return num;
+      }
+      return max;
+    }, 0)) + 1;
+    const receipt_number = `REC-${String(nextReceiptNo).padStart(6, '0')}`;
+
+    installment.status = "paid";
+    installment.paid_date = paid_date;
+    installment.paid_value = Number(paid_value);
+    installment.payment_method = payment_method;
+    installment.payment_observations = payment_observations || "";
+    installment.receipt_number = receipt_number;
+    installment.updated_at = new Date().toISOString();
+
+    await saveFinancialInstallment(installment);
+
+    // Business Rule: Check if all installments for this contract are paid.
+    // If so, update contract status to 'completed'
+    const contractId = installment.contract_id;
+    const allInstallments = await getFinancialInstallments();
+    const contractInstallments = allInstallments.filter(inst => inst.contract_id === contractId);
+    const unpaid = contractInstallments.filter(inst => inst.status !== "paid");
+
+    if (unpaid.length === 0) {
+      const contracts = await getFinancialContracts();
+      const contract = contracts.find(c => c.id === contractId);
+      if (contract) {
+        contract.status = "completed";
+        contract.updated_at = new Date().toISOString();
+        await saveFinancialContract(contract);
+      }
+    }
+
+    res.json({ success: true, installment });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // API - Leads List
 app.get("/api/leads", async (req, res) => {

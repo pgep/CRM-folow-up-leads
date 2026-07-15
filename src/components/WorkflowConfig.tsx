@@ -1022,7 +1022,18 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 )}
 
                 {/* Save Button */}
-                <div className="flex justify-end pt-3 border-t border-zinc-800">
+                <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+                  {selectedEtapa !== "SEM_CONTATO" && selectedEtapa !== "ENCERRADO" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStep(selectedEtapa)}
+                      className="flex items-center gap-2 px-4 py-2 bg-rose-950/25 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 border border-rose-900/30 font-semibold text-xs rounded-lg transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir Etapa
+                    </button>
+                  )}
+                  <div className="flex-1"></div>
                   <button
                     type="submit"
                     disabled={isSavingStage}

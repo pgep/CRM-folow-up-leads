@@ -43,3 +43,33 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #print-receipt-modal, #print-receipt-modal * {
+    visibility: visible;
+  }
+  #print-receipt-modal {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background-color: white !important;
+    color: black !important;
+    padding: 24px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  /* Hide print buttons and close buttons inside the printed area if any */
+  .print-hidden {
+    display: none !important;
+  }
+}
