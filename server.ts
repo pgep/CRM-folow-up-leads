@@ -14,6 +14,7 @@ import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import pg from "pg";
 import { Jimp } from "jimp";
+import Redis from "ioredis";
 const { Pool } = pg;
 
 dotenv.config();
@@ -1338,6 +1339,18 @@ async function getGeneralSettings(): Promise<any> {
           api_key: "",
           session_name: "default",
           delay_seconds: 5
+        },
+        redis_lock: {
+          enabled: false,
+          host: "127.0.0.1",
+          port: 6379,
+          username: "",
+          password: "",
+          use_ssl: false,
+          key_template: "pausa:{chatId}",
+          value_template: "bloqueado",
+          expire: true,
+          ttl: 86400
         }
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
@@ -1347,6 +1360,21 @@ async function getGeneralSettings(): Promise<any> {
 
   // Ensure dynamic options lists are initialized
   let updated = false;
+  if (!settings.redis_lock) {
+    settings.redis_lock = {
+      enabled: false,
+      host: "127.0.0.1",
+      port: 6379,
+      username: "",
+      password: "",
+      use_ssl: false,
+      key_template: "pausa:{chatId}",
+      value_template: "bloqueado",
+      expire: true,
+      ttl: 86400
+    };
+    updated = true;
+  }
   if (!settings.etapas_contato || !Array.isArray(settings.etapas_contato)) {
     settings.etapas_contato = [
       "Sem Contato",
@@ -1469,6 +1497,72 @@ async function dispatchEmailMessage(toEmail: string, subject: string, bodyHtml: 
   }
 }
 
+async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
+  try {
+    const settings = customConfig || await getGeneralSettings();
+    if (!settings || !settings.redis_lock || !settings.redis_lock.enabled) {
+      return { success: true, log: "Redis lock não está ativado ou configurado." };
+    }
+
+    const conf = settings.redis_lock;
+    if (!conf.host || !conf.port) {
+      return { success: false, log: "Host ou Porta do Redis não configurados." };
+    }
+
+    const redisOptions: any = {
+      host: conf.host,
+      port: Number(conf.port),
+      username: conf.username || undefined,
+      password: conf.password || undefined,
+      connectTimeout: 4000,
+      maxRetriesPerRequest: 1,
+    };
+
+    if (conf.use_ssl) {
+      redisOptions.tls = {};
+    }
+
+    const redis = new Redis(redisOptions);
+
+    const rawKey = conf.key_template || "pausa:{chatId}";
+    const rawValue = conf.value_template || "bloqueado";
+    
+    let key = rawKey
+      .replace(/\{\{\s*\$json\.chatId\s*\}\}/g, chatId)
+      .replace(/\{\{\s*chatId\s*\}\}/g, chatId)
+      .replace(/\{chatId\}/g, chatId);
+    
+    let value = rawValue
+      .replace(/\{\{\s*\$json\.humanReason\s*\|\|\s*'([^']+)'\s*\}\}/g, "$1")
+      .replace(/\{\{\s*\$json\.humanReason\s*\}\}/g, "bloqueado")
+      .replace(/\{\{\s*humanReason\s*\}\}/g, "bloqueado")
+      .replace(/\{humanReason\}/g, "bloqueado");
+
+    if (conf.expire) {
+      const ttl = Number(conf.ttl) || 86400;
+      await redis.set(key, value, "EX", ttl);
+      await redis.quit();
+      return {
+        success: true,
+        log: `[Redis] Chave "${key}" gravada com sucesso! Valor: "${value}" (TTL: ${ttl}s)`
+      };
+    } else {
+      await redis.set(key, value);
+      await redis.quit();
+      return {
+        success: true,
+        log: `[Redis] Chave "${key}" gravada com sucesso! Valor: "${value}" (Sem expiração)`
+      };
+    }
+  } catch (err: any) {
+    console.error("Erro ao gravar no Redis:", err.message);
+    return {
+      success: false,
+      log: `[Redis] Erro ao gravar chave: ${err.message}`
+    };
+  }
+}
+
 async function dispatchWhatsAppMessage(phone: string, message: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
   try {
     const settings = customConfig || await getGeneralSettings();
@@ -1515,9 +1609,19 @@ async function dispatchWhatsAppMessage(phone: string, message: string, customCon
     });
 
     if (res.ok) {
+      let redisLog = "";
+      try {
+        const redisRes = await saveRedisLock(chatId, settings);
+        if (settings.redis_lock && settings.redis_lock.enabled) {
+          redisLog = ` ${redisRes.log}`;
+        }
+      } catch (redisErr: any) {
+        redisLog = ` [Aviso Redis] Falha: ${redisErr.message}`;
+      }
+
       return { 
         success: true, 
-        log: `[SUCESSO WAHA] Mensagem de WhatsApp enviada com sucesso para ${chatId}!` 
+        log: `[SUCESSO WAHA] Mensagem de WhatsApp enviada com sucesso para ${chatId}!${redisLog}` 
       };
     } else {
       const responseText = await res.text().catch(() => "");
@@ -2151,6 +2255,65 @@ app.post("/api/settings/test-connection", async (req, res) => {
       return res.json({ success: allSuccess, logs });
     }
 
+    if (action === "test_redis") {
+      log(`[REDIS TEST] Iniciando teste de conexão e gravação no Redis...`);
+      const redisConf = config.redis_lock;
+      if (!redisConf || !redisConf.host || !redisConf.port) {
+        log("[REDIS TEST] [ERRO] Host ou Porta do Redis não informados.");
+        return res.json({ success: false, logs });
+      }
+
+      try {
+        const redisOptions: any = {
+          host: redisConf.host,
+          port: Number(redisConf.port),
+          username: redisConf.username || undefined,
+          password: redisConf.password || undefined,
+          connectTimeout: 4000,
+          maxRetriesPerRequest: 1,
+        };
+
+        if (redisConf.use_ssl) {
+          redisOptions.tls = {};
+        }
+
+        log(`[REDIS TEST] Conectando a ${redisConf.host}:${redisConf.port}${redisConf.use_ssl ? " (SSL)" : ""}...`);
+        const redisClient = new Redis(redisOptions);
+
+        const testChatId = "5511999999999@c.us";
+        const rawKey = redisConf.key_template || "pausa:{chatId}";
+        const rawValue = redisConf.value_template || "bloqueado";
+
+        let key = rawKey
+          .replace(/\{\{\s*\$json\.chatId\s*\}\}/g, testChatId)
+          .replace(/\{\{\s*chatId\s*\}\}/g, testChatId)
+          .replace(/\{chatId\}/g, testChatId);
+
+        let value = rawValue
+          .replace(/\{\{\s*\$json\.humanReason\s*\|\|\s*'([^']+)'\s*\}\}/g, "$1")
+          .replace(/\{\{\s*\$json\.humanReason\s*\}\}/g, "bloqueado")
+          .replace(/\{\{\s*humanReason\s*\}\}/g, "bloqueado")
+          .replace(/\{humanReason\}/g, "bloqueado");
+
+        log(`[REDIS TEST] Gravando chave "${key}" com valor "${value}"...`);
+        if (redisConf.expire) {
+          const ttl = Number(redisConf.ttl) || 86400;
+          await redisClient.set(key, value, "EX", ttl);
+          log(`[REDIS TEST] [OK] Chave gravada com sucesso com TTL de ${ttl} segundos!`);
+        } else {
+          await redisClient.set(key, value);
+          log(`[REDIS TEST] [OK] Chave gravada com sucesso sem expiração!`);
+        }
+
+        await redisClient.quit();
+        log(`[REDIS TEST] Conexão e gravação encerradas com sucesso.`);
+        return res.json({ success: true, logs });
+      } catch (redisErr: any) {
+        log(`[REDIS TEST] [ERRO] Falha ao testar conexão/gravação: ${redisErr.message}`);
+        return res.json({ success: false, logs });
+      }
+    }
+
     log("Iniciando diagnósticos de conectividade para canais cadastrados...");
 
     // 1. Test Zoho SMTP (Outbound)
@@ -2264,6 +2427,38 @@ app.post("/api/settings/test-connection", async (req, res) => {
       } catch (wahaErr: any) {
         log(`[WAHA] [ERRO] Não foi possível conectar ao servidor WAHA em ${wahaConf.api_url}: ${wahaErr.message}. O sistema continuará em modo de simulação.`);
         success = false;
+      }
+    }
+
+    // 4. Test Redis Connectivity (if enabled)
+    if (config.redis_lock && config.redis_lock.enabled) {
+      const redisConf = config.redis_lock;
+      log(`[REDIS] Testando Conexão e Gravação com Redis: host=${redisConf.host}, port=${redisConf.port}...`);
+      if (!redisConf.host || !redisConf.port) {
+        log("[REDIS] [AVISO] Host ou Porta do Redis não configurados.");
+      } else {
+        try {
+          const redisOptions: any = {
+            host: redisConf.host,
+            port: Number(redisConf.port),
+            username: redisConf.username || undefined,
+            password: redisConf.password || undefined,
+            connectTimeout: 3000,
+            maxRetriesPerRequest: 1,
+          };
+
+          if (redisConf.use_ssl) {
+            redisOptions.tls = {};
+          }
+
+          const redisClient = new Redis(redisOptions);
+          await redisClient.ping();
+          log("[REDIS] [OK] Conexão com Redis estabelecida com sucesso via PING!");
+          await redisClient.quit();
+        } catch (redisErr: any) {
+          log(`[REDIS] [ERRO] Falha de conexão/autenticação Redis: ${redisErr.message}`);
+          success = false;
+        }
       }
     }
 

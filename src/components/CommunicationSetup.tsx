@@ -54,6 +54,18 @@ export default function CommunicationSetup() {
   const [webhookUrl, setWebhookUrl] = useState("https://seu-sistema.com/api/webhooks/whatsapp");
   const [webhookActive, setWebhookActive] = useState(true);
 
+  // Redis lock configurations
+  const [redisEnabled, setRedisEnabled] = useState(false);
+  const [redisHost, setRedisHost] = useState("127.0.0.1");
+  const [redisPort, setRedisPort] = useState(6379);
+  const [redisUsername, setRedisUsername] = useState("");
+  const [redisPassword, setRedisPassword] = useState("");
+  const [redisUseSsl, setRedisUseSsl] = useState(false);
+  const [redisKeyTemplate, setRedisKeyTemplate] = useState("pausa:{chatId}");
+  const [redisValueTemplate, setRedisValueTemplate] = useState("bloqueado");
+  const [redisExpire, setRedisExpire] = useState(true);
+  const [redisTtl, setRedisTtl] = useState(86400);
+
   // Load settings and leads on mount
   useEffect(() => {
     async function loadSettingsAndLeads() {
@@ -83,6 +95,18 @@ export default function CommunicationSetup() {
             setWahaDelay(data.waha_whatsapp.delay_seconds || 5);
             setWebhookUrl(data.waha_whatsapp.webhook_url || "https://seu-sistema.com/api/webhooks/whatsapp");
             setWebhookActive(data.waha_whatsapp.webhook_active !== undefined ? data.waha_whatsapp.webhook_active : true);
+          }
+          if (data.redis_lock) {
+            setRedisEnabled(data.redis_lock.enabled !== undefined ? data.redis_lock.enabled : false);
+            setRedisHost(data.redis_lock.host || "127.0.0.1");
+            setRedisPort(data.redis_lock.port || 6379);
+            setRedisUsername(data.redis_lock.username || "");
+            setRedisPassword(data.redis_lock.password || "");
+            setRedisUseSsl(data.redis_lock.use_ssl !== undefined ? data.redis_lock.use_ssl : false);
+            setRedisKeyTemplate(data.redis_lock.key_template || "pausa:{chatId}");
+            setRedisValueTemplate(data.redis_lock.value_template || "bloqueado");
+            setRedisExpire(data.redis_lock.expire !== undefined ? data.redis_lock.expire : true);
+            setRedisTtl(data.redis_lock.ttl || 86400);
           }
         }
 
@@ -133,6 +157,18 @@ export default function CommunicationSetup() {
           delay_seconds: Number(wahaDelay),
           webhook_url: webhookUrl,
           webhook_active: webhookActive
+        },
+        redis_lock: {
+          enabled: redisEnabled,
+          host: redisHost,
+          port: Number(redisPort),
+          username: redisUsername,
+          password: redisPassword,
+          use_ssl: redisUseSsl,
+          key_template: redisKeyTemplate,
+          value_template: redisValueTemplate,
+          expire: redisExpire,
+          ttl: Number(redisTtl)
         }
       };
 
@@ -151,6 +187,56 @@ export default function CommunicationSetup() {
       toast.error(`Falha ao salvar: ${err.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [testingRedis, setTestingRedis] = useState(false);
+
+  const handleTestRedisConnection = async () => {
+    setTestingRedis(true);
+    setTestLogs(["Iniciando teste de conectividade e gravação com Redis..."]);
+    setTestSuccess(null);
+    try {
+      const payload = {
+        action: "test_redis",
+        config: {
+          redis_lock: {
+            enabled: redisEnabled,
+            host: redisHost,
+            port: Number(redisPort),
+            username: redisUsername,
+            password: redisPassword,
+            use_ssl: redisUseSsl,
+            key_template: redisKeyTemplate,
+            value_template: redisValueTemplate,
+            expire: redisExpire,
+            ttl: Number(redisTtl)
+          }
+        }
+      };
+
+      const res = await fetch("/api/settings/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.logs) {
+        setTestLogs(data.logs);
+      }
+      setTestSuccess(data.success);
+      if (data.success) {
+        toast.success("Teste de gravação no Redis concluído com sucesso!");
+      } else {
+        toast.error("O teste de conexão com o Redis falhou.");
+      }
+    } catch (err: any) {
+      setTestLogs(prev => [...prev, `[ERRO]: Falha ao disparar o teste: ${err.message}`]);
+      setTestSuccess(false);
+      toast.error(`Falha no teste: ${err.message}`);
+    } finally {
+      setTestingRedis(false);
     }
   };
 
@@ -178,6 +264,18 @@ export default function CommunicationSetup() {
           api_key: wahaApiKey,
           session_name: wahaSession,
           delay_seconds: Number(wahaDelay)
+        },
+        redis_lock: {
+          enabled: redisEnabled,
+          host: redisHost,
+          port: Number(redisPort),
+          username: redisUsername,
+          password: redisPassword,
+          use_ssl: redisUseSsl,
+          key_template: redisKeyTemplate,
+          value_template: redisValueTemplate,
+          expire: redisExpire,
+          ttl: Number(redisTtl)
         }
       };
 
@@ -627,6 +725,229 @@ export default function CommunicationSetup() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Redis Lock Configuration Panel */}
+        <div className="col-span-12 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 space-y-6 flex flex-col shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
+                <Server className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-bold text-white text-sm">Bloqueio & Pausa Temporária (Redis Lock Engine)</h3>
+                <p className="text-zinc-500 text-[10px]">Grave chaves de bloqueio no Redis automaticamente ao enviar mensagens via WhatsApp</p>
+              </div>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setRedisEnabled(!redisEnabled)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition cursor-pointer ${
+                redisEnabled 
+                  ? "bg-red-500/10 border-red-500/25 text-red-400" 
+                  : "bg-zinc-950 border-zinc-800 text-zinc-500"
+              }`}
+            >
+              {redisEnabled ? (
+                <>
+                  <ToggleRight className="w-4 h-4" /> Redis Ativo
+                </>
+              ) : (
+                <>
+                  <ToggleLeft className="w-4 h-4 text-zinc-500" /> Redis Desativado
+                </>
+              )}
+            </button>
+          </div>
+
+          {redisEnabled && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
+              
+              {/* Connection Parameters */}
+              <div className="md:col-span-1 space-y-4 border-r border-zinc-800/60 pr-0 md:pr-6">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1.5 border-b border-zinc-850 pb-1.5">
+                  <span>⚙️</span> Acesso ao Servidor Redis
+                </h4>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase">Host / IP do Redis</label>
+                    <input
+                      type="text"
+                      required={redisEnabled}
+                      value={redisHost}
+                      onChange={(e) => setRedisHost(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="127.0.0.1"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase">Porta</label>
+                    <input
+                      type="number"
+                      required={redisEnabled}
+                      value={redisPort}
+                      onChange={(e) => setRedisPort(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="6379"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase">Usuário (Opcional)</label>
+                    <input
+                      type="text"
+                      value={redisUsername}
+                      onChange={(e) => setRedisUsername(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="default"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase">Senha (Opcional)</label>
+                    <input
+                      type="password"
+                      value={redisPassword}
+                      onChange={(e) => setRedisPassword(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="Sua senha secreta do Redis"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setRedisUseSsl(!redisUseSsl)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                        redisUseSsl 
+                          ? "bg-red-500/5 border-red-500/30 text-red-400" 
+                          : "bg-zinc-950 border-zinc-800 text-zinc-500"
+                      }`}
+                    >
+                      <span>Usar SSL/TLS (Seguro)</span>
+                      {redisUseSsl ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5 text-zinc-600" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key & Template Parameters */}
+              <div className="md:col-span-2 space-y-4">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1.5 border-b border-zinc-850 pb-1.5">
+                  <span>🔒</span> Estrutura da Chave de Bloqueio (Redis Set Key)
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase flex items-center justify-between">
+                      <span>Expressão de Chave (Key Template)</span>
+                      <span className="text-[9px] text-zinc-500 font-mono">Formato n8n / customizado</span>
+                    </label>
+                    <input
+                      type="text"
+                      required={redisEnabled}
+                      value={redisKeyTemplate}
+                      onChange={(e) => setRedisKeyTemplate(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="pausa:{chatId}"
+                    />
+                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                      Chave que será gravada no banco Redis. O parâmetro <code className="text-zinc-300 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[9px]">{`{chatId}`}</code> será substituído pelo Chat ID do WhatsApp enviado (ex: <code className="text-zinc-300 font-mono">5511999999999@c.us</code>). Suporta tags do n8n como <code className="text-zinc-300 font-mono">{`{{ $json.chatId }}`}</code>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase">Valor da Chave (Value Template)</label>
+                    <input
+                      type="text"
+                      required={redisEnabled}
+                      value={redisValueTemplate}
+                      onChange={(e) => setRedisValueTemplate(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                      placeholder="bloqueado"
+                    />
+                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                      Valor associado à chave. Suporta expressões como <code className="text-zinc-300 font-mono">{`{{ $json.humanReason || 'bloqueado' }}`}</code>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between pb-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase">Definir Expiração (TTL)</label>
+                      <button
+                        type="button"
+                        onClick={() => setRedisExpire(!redisExpire)}
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border transition cursor-pointer ${
+                          redisExpire 
+                            ? "bg-red-500/10 border-red-500/20 text-red-400" 
+                            : "bg-zinc-950 border-zinc-800 text-zinc-500"
+                        }`}
+                      >
+                        {redisExpire ? "Ativo" : "Infinito"}
+                      </button>
+                    </div>
+                    
+                    <input
+                      type="number"
+                      disabled={!redisExpire}
+                      required={redisEnabled && redisExpire}
+                      value={redisTtl}
+                      onChange={(e) => setRedisTtl(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono disabled:opacity-40"
+                      placeholder="86400"
+                    />
+                    <p className="text-[10px] text-zinc-500 leading-relaxed">
+                      Tempo de expiração da chave em segundos. Padrão: 86400 segundos (24 horas).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Direct Action Test Box */}
+                <div className="mt-4 p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Lock className="w-4 h-4 text-red-400 animate-pulse" /> Testar Integração Redis
+                    </span>
+                    <p className="text-zinc-500 text-[10px] leading-relaxed">
+                      O sistema tentará se conectar ao servidor Redis informado e gravar uma chave de teste de bloqueio de 24h para simulação.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={testingRedis}
+                    onClick={handleTestRedisConnection}
+                    className="w-full sm:w-auto shrink-0 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                  >
+                    {testingRedis ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Gravando no Redis...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5" />
+                        Gravar Chave de Teste
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!redisEnabled && (
+            <div className="bg-zinc-950 border border-zinc-850 p-6 rounded-xl flex flex-col items-center justify-center text-center py-8">
+              <Lock className="w-8 h-8 text-zinc-600 mb-2" />
+              <p className="text-xs text-zinc-400 font-semibold">O motor de Bloqueio Redis está atualmente desativado.</p>
+              <p className="text-[10px] text-zinc-500 mt-1 max-w-lg">
+                Ative o motor de bloqueio acima para configurar o acesso ao seu cluster/banco Redis para salvar chaves de pausa automaticamente a cada envio do WhatsApp.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Global form submit actions */}
