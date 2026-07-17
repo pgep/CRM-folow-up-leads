@@ -24,6 +24,7 @@ export default function AutoTriggerSetup() {
     processed: number;
     actions_taken: number;
   } | null>(null);
+  const [runningRetroactive, setRunningRetroactive] = useState(false);
 
   // Load scheduler settings
   useEffect(() => {
@@ -155,6 +156,55 @@ export default function AutoTriggerSetup() {
       setManualLogs(prev => [...prev, `[FALHA DE REDE] Erro ao conectar com o backend: ${err.message}`]);
     } finally {
       setRunningManual(false);
+    }
+  };
+
+  const handleRetroactiveTrigger = async () => {
+    if (runningRetroactive) return;
+    setRunningRetroactive(true);
+    setManualResult(null);
+    setManualLogs(["Iniciando sincronização retroativa segura de leads...", "Buscando leads ativos com passos pendentes..."]);
+    setShowLogs(true);
+
+    try {
+      const res = await fetch("/api/automation/retroactive-trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setManualResult({
+          success: true,
+          processed: data.updated_count,
+          actions_taken: data.updated_count
+        });
+        if (data.logs && data.logs.length > 0) {
+          setManualLogs(data.logs);
+        } else {
+          setManualLogs(prev => [...prev, `Sincronização concluída com sucesso! Nenhum lead precisou de ajuste retroativo.`]);
+        }
+        toast.success(`Sincronização retroativa concluída! ${data.updated_count} leads atualizados.`);
+      } else {
+        const data = await res.json();
+        setManualResult({
+          success: false,
+          processed: 0,
+          actions_taken: 0
+        });
+        setManualLogs(prev => [...prev, `[ERRO] Falha ao sincronizar: ${data.error || "Erro desconhecido"}`]);
+        toast.error("Falha ao sincronizar leads retroativamente.");
+      }
+    } catch (err: any) {
+      setManualResult({
+        success: false,
+        processed: 0,
+        actions_taken: 0
+      });
+      setManualLogs(prev => [...prev, `[FALHA DE REDE] Erro ao conectar com o backend: ${err.message}`]);
+      toast.error("Erro de conexão.");
+    } finally {
+      setRunningRetroactive(false);
     }
   };
 
@@ -368,6 +418,39 @@ export default function AutoTriggerSetup() {
           </div>
         </div>
 
+      </div>
+
+      {/* Retroactive Sync Card */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6" id="retroactive-sync-card">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2">
+              <Shield className="w-5 h-5 text-emerald-400" />
+              Preservação de Dados & Sincronização Retroativa (Seguro)
+            </h3>
+            <p className="text-sm text-zinc-400 leading-relaxed max-w-3xl">
+              Possui leads importados que não dispararam o WhatsApp do Passo 2 ou que acabaram de ser adicionados? Este botão analisa seus leads ativos de forma totalmente não destrutiva, atualizando apenas a fila de agendamento (<span className="font-mono text-zinc-300">proxima_acao_em</span>) sem alterar nenhum histórico de conversas ou informações cadastradas.
+            </p>
+          </div>
+          <button
+            onClick={handleRetroactiveTrigger}
+            disabled={runningRetroactive || runningManual}
+            className="flex items-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold text-xs rounded-lg transition shadow-md uppercase tracking-wider shrink-0"
+            id="retroactive-sync-button"
+          >
+            {runningRetroactive ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Sincronizando Leads...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 fill-current" />
+                Sincronizar Leads Retroativos
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Manual Run Real-Time Logs Collapsible Console */}

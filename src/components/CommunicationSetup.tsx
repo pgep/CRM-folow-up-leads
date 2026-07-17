@@ -368,6 +368,18 @@ export default function CommunicationSetup() {
             api_key: wahaApiKey,
             session_name: wahaSession,
             delay_seconds: Number(wahaDelay)
+          },
+          redis_lock: {
+            enabled: redisEnabled,
+            host: redisHost,
+            port: Number(redisPort),
+            username: redisUsername,
+            password: redisPassword,
+            use_ssl: redisUseSsl,
+            key_template: redisKeyTemplate,
+            value_template: redisValueTemplate,
+            expire: redisExpire,
+            ttl: Number(redisTtl)
           }
         }
       };
@@ -422,7 +434,7 @@ export default function CommunicationSetup() {
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Zoho Mail SMTP & IMAP Configuration Panel */}
-        <div className="lg:col-span-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 space-y-6 flex flex-col shadow-lg">
+        <div className="col-span-12 lg:col-span-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 space-y-6 flex flex-col shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
             <div className="flex items-center gap-2.5">
               <span className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
@@ -612,7 +624,7 @@ export default function CommunicationSetup() {
         </div>
 
         {/* WhatsApp WAHA API Panel */}
-        <div className="lg:col-span-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 space-y-6 flex flex-col shadow-lg">
+        <div className="col-span-12 lg:col-span-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 md:p-6 space-y-6 flex flex-col shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
             <div className="flex items-center gap-2.5">
               <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
@@ -765,7 +777,7 @@ export default function CommunicationSetup() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadeIn">
               
               {/* Connection Parameters */}
-              <div className="md:col-span-1 space-y-4 border-r border-zinc-800/60 pr-0 md:pr-6">
+              <div className="md:col-span-1 space-y-4 md:border-r md:border-zinc-800/60 border-b md:border-b-0 pb-6 md:pb-0 pr-0 md:pr-6">
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wide flex items-center gap-1.5 border-b border-zinc-850 pb-1.5">
                   <span>⚙️</span> Acesso ao Servidor Redis
                 </h4>
@@ -854,8 +866,8 @@ export default function CommunicationSetup() {
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
                       placeholder="pausa:{chatId}"
                     />
-                    <p className="text-[10px] text-zinc-500 leading-relaxed">
-                      Chave que será gravada no banco Redis. O parâmetro <code className="text-zinc-300 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[9px]">{`{chatId}`}</code> será substituído pelo Chat ID do WhatsApp enviado (ex: <code className="text-zinc-300 font-mono">5511999999999@c.us</code>). Suporta tags do n8n como <code className="text-zinc-300 font-mono">{`{{ $json.chatId }}`}</code>.
+                    <p className="text-[10px] text-zinc-500 leading-relaxed break-words">
+                      Chave que será gravada no banco Redis. O parâmetro <code className="text-zinc-300 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[9px] break-all">{`{chatId}`}</code> será substituído pelo Chat ID do WhatsApp enviado (ex: <code className="text-zinc-300 font-mono break-all">5511999999999@c.us</code>). Suporta tags do n8n como <code className="text-zinc-300 font-mono break-all">{`{{ $json.chatId }}`}</code>.
                     </p>
                   </div>
 
@@ -869,8 +881,8 @@ export default function CommunicationSetup() {
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
                       placeholder="bloqueado"
                     />
-                    <p className="text-[10px] text-zinc-500 leading-relaxed">
-                      Valor associado à chave. Suporta expressões como <code className="text-zinc-300 font-mono">{`{{ $json.humanReason || 'bloqueado' }}`}</code>.
+                    <p className="text-[10px] text-zinc-500 leading-relaxed break-words">
+                      Valor associado à chave. Suporta expressões como <code className="text-zinc-300 font-mono break-all">{`{{ $json.humanReason || 'bloqueado' }}`}</code>.
                     </p>
                   </div>
 

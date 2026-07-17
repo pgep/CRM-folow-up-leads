@@ -282,7 +282,7 @@ export default function App() {
 
       {/* Sidebar Drawer (Fixed on mobile, static on desktop) */}
       <aside
-        className={`fixed inset-y-0 left-0 w-72 bg-zinc-900 border-r border-zinc-850 z-50 flex flex-col justify-between transform transition-transform duration-300 md:relative md:transform-none md:flex shrink-0 h-screen sticky top-0 ${
+        className={`fixed inset-y-0 left-0 w-72 bg-zinc-900 border-r border-zinc-850 z-50 flex flex-col justify-between transform transition-transform duration-300 md:relative md:transform-none md:flex shrink-0 md:h-screen md:sticky md:top-0 ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >

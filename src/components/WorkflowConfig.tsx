@@ -482,10 +482,10 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   return (
     <div className="space-y-6">
       {/* Tab Selector */}
-      <div className="flex border-b border-zinc-850 gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800/60 rounded-xl w-fit">
+      <div className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap border-b border-zinc-850 gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800/60 rounded-xl w-fit">
         <button
           onClick={() => setActiveSubTab("followup")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "followup"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
@@ -496,7 +496,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         </button>
         <button
           onClick={() => setActiveSubTab("scheduler")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "scheduler"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
@@ -507,7 +507,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         </button>
         <button
           onClick={() => setActiveSubTab("general")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "general"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
@@ -518,7 +518,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         </button>
         <button
           onClick={() => setActiveSubTab("lists")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "lists"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"

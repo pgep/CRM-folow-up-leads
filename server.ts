@@ -277,6 +277,10 @@ async function initPgDatabase() {
           followup_especial_1m BOOLEAN DEFAULT FALSE,
           followup_especial_2m BOOLEAN DEFAULT FALSE,
           followup_especial_3m BOOLEAN DEFAULT FALSE,
+          whatsapp_retry_count INTEGER DEFAULT 0,
+          whatsapp_retry_stage VARCHAR(255),
+          email_retry_count INTEGER DEFAULT 0,
+          email_retry_stage VARCHAR(255),
           created_at VARCHAR(255),
           updated_at VARCHAR(255)
         );
@@ -290,6 +294,18 @@ async function initPgDatabase() {
       `);
       await client.query(`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS followup_especial_3m BOOLEAN DEFAULT FALSE;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_retry_count INTEGER DEFAULT 0;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_retry_stage VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_retry_count INTEGER DEFAULT 0;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_retry_stage VARCHAR(255);
       `);
 
       // 2. Workflow Config Table
@@ -572,15 +588,19 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
             soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
             observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
-            followup_especial_1m, followup_especial_2m, followup_especial_3m, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+            followup_especial_1m, followup_especial_2m, followup_especial_3m,
+            whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
+            created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
           RETURNING *
         `;
         const values = [
           lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
           lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
           lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false, lead.created_at, lead.updated_at
+          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+          lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
         return res.rows[0];
@@ -591,7 +611,8 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
             status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
             observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
-            ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30, updated_at = $31
+            ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
+            whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34, updated_at = $35
           WHERE id = $1
           RETURNING *
         `;
@@ -601,7 +622,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
           lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
           lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false, lead.updated_at
+          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+          lead.updated_at
         ];
         const res = await pgPool.query(query, values);
         return res.rows[0];
@@ -1499,7 +1522,11 @@ async function dispatchEmailMessage(toEmail: string, subject: string, bodyHtml: 
 
 async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
   try {
-    const settings = customConfig || await getGeneralSettings();
+    let settings = customConfig || await getGeneralSettings();
+    if (customConfig && !customConfig.redis_lock) {
+      const dbSettings = await getGeneralSettings();
+      settings = { ...dbSettings, ...customConfig };
+    }
     if (!settings || !settings.redis_lock || !settings.redis_lock.enabled) {
       return { success: true, log: "Redis lock não está ativado ou configurado." };
     }
@@ -1565,7 +1592,11 @@ async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ succ
 
 async function dispatchWhatsAppMessage(phone: string, message: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
   try {
-    const settings = customConfig || await getGeneralSettings();
+    let settings = customConfig || await getGeneralSettings();
+    if (customConfig && !customConfig.redis_lock) {
+      const dbSettings = await getGeneralSettings();
+      settings = { ...dbSettings, ...customConfig };
+    }
     if (!settings || !settings.waha_whatsapp) {
       return { success: false, log: "Configurações do WAHA não encontradas no banco." };
     }
@@ -1863,6 +1894,9 @@ app.post("/api/leads", async (req, res) => {
       titulo: "Lead Criado Manualmente",
       detalhes: `Lead registrado diretamente no CRM. Origem: ${origem_portal || "Manual"}`
     });
+
+    // Roda a sequência de número 1 do fluxo imediatamente para o novo lead criado manualmente
+    await runAutomationForNewWebhookLead(saved);
 
     res.status(201).json(saved);
   } catch (err: any) {
@@ -2971,6 +3005,175 @@ app.post("/api/financial/installments/:id/pay", async (req, res) => {
 });
 
 // Helper function to run sequence 1 immediately on webhook lead creation
+// Centralized Workflow Action Processor with WhatsApp and Email Retries & Alerts
+async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowConfigs: any[], log: (msg: string) => void): Promise<any> {
+  const canal = configEtapa.canal;
+  const templateName = configEtapa.template_name;
+  const etapaAtual = configEtapa.etapa || "SEM_CONTATO";
+  
+  const nextStageName = configEtapa.proxima_etapa || etapaAtual;
+  const nextStageConfig = workflowConfigs.find(
+    (c) =>
+      c.etapa === nextStageName ||
+      (c.etapa && String(c.etapa).toUpperCase() === String(nextStageName).toUpperCase())
+  );
+  const waitDays = nextStageConfig ? (nextStageConfig.esperar_dias || 0) : (configEtapa.esperar_dias || 0);
+  
+  let nextActionDate = new Date();
+  nextActionDate.setDate(nextActionDate.getDate() + waitDays);
+
+  let updatedLead = { ...lead };
+  let msgBody = await compileTemplate(configEtapa.mensagem_template || "", lead);
+
+  if (canal === "WHATSAPP") {
+    updatedLead.tentativas_whatsapp = (Number(lead.tentativas_whatsapp) || 0) + 1;
+    updatedLead.ultimo_whatsapp_em = new Date().toISOString();
+    
+    log(`Enviando WhatsApp (${templateName}) para ${lead.nome} (${lead.link_celular || "Sem número"})...`);
+    
+    const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
+    log(`Resultado do Disparo: ${dispatchResult.log}`);
+    
+    await addHistoryEntry(lead.id, {
+      canal: "WHATSAPP",
+      tipo: "ENVIO",
+      titulo: `WhatsApp [Workflow]: ${templateName || "Mensagem"}`,
+      detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
+    });
+
+    if (!dispatchResult.success) {
+      const currentCount = Number(lead.whatsapp_retry_count) || 0;
+      if (currentCount < 2) {
+        updatedLead.whatsapp_retry_count = currentCount + 1;
+        updatedLead.whatsapp_retry_stage = etapaAtual;
+        
+        let nextRetryDate = new Date();
+        nextRetryDate.setHours(nextRetryDate.getHours() + 2);
+        updatedLead.proxima_acao_em = nextRetryDate.toISOString();
+        
+        updatedLead.etapa_contato = etapaAtual;
+        updatedLead.status_funil = lead.status_funil;
+        updatedLead.temperatura = lead.temperatura;
+        
+        log(`[FALHA DE WHATSAPP - AGENDANDO REENVIO] Tentativa de reenvio agendada para daqui a 2 horas. Tentativa falha #${updatedLead.whatsapp_retry_count} para a etapa "${etapaAtual}"`);
+
+        if (currentCount === 0) {
+          try {
+            const errorEmailSubject = `⚠️ Falha no Envio de WhatsApp para Lead: ${lead.nome}`;
+            const errorEmailBody = `
+              <h3>Ocorreu uma falha no envio da mensagem de WhatsApp via WAHA</h3>
+              <p><b>Lead:</b> ${lead.nome}</p>
+              <p><b>E-mail:</b> ${lead.email}</p>
+              <p><b>Telefone:</b> ${lead.link_celular}</p>
+              <p><b>Etapa do Workflow:</b> ${etapaAtual}</p>
+              <p><b>Mensagem tentada:</b> ${msgBody}</p>
+              <p><b>Motivo / Log da Falha:</b> ${dispatchResult.log}</p>
+              <p>O CRM agendou automaticamente um reenvio para daqui a 2 horas (tentativa 1 de 2 adicionais).</p>
+            `;
+            await dispatchEmailMessage("paulocoala@gmail.com", errorEmailSubject, errorEmailBody);
+            log(`[NOTIFICAÇÃO FALHA] E-mail de notificação de falha enviado com sucesso para paulocoala@gmail.com`);
+          } catch (notifyErr: any) {
+            log(`[FALHA NOTIFICAÇÃO] Erro ao enviar e-mail de alerta: ${notifyErr.message}`);
+          }
+        }
+      } else {
+        updatedLead.whatsapp_retry_count = 0;
+        updatedLead.whatsapp_retry_stage = null;
+        
+        updatedLead.etapa_contato = configEtapa.proxima_etapa || etapaAtual;
+        updatedLead.status_funil = configEtapa.proximo_status || lead.status_funil;
+        updatedLead.temperatura = configEtapa.temperatura || lead.temperatura;
+        updatedLead.proxima_acao_em = nextActionDate.toISOString();
+        updatedLead.ultima_interacao_em = new Date().toISOString();
+        
+        log(`[FALHA DE WHATSAPP - ESGOTADO] Todas as 3 tentativas falharam. Prosseguindo o workflow para a próxima etapa: "${updatedLead.etapa_contato}"`);
+      }
+    } else {
+      updatedLead.whatsapp_retry_count = 0;
+      updatedLead.whatsapp_retry_stage = null;
+      
+      updatedLead.etapa_contato = configEtapa.proxima_etapa || etapaAtual;
+      updatedLead.status_funil = configEtapa.proximo_status || lead.status_funil;
+      updatedLead.temperatura = configEtapa.temperatura || lead.temperatura;
+      updatedLead.proxima_acao_em = nextActionDate.toISOString();
+      updatedLead.ultima_interacao_em = new Date().toISOString();
+      
+      log(`[SUCESSO DE WHATSAPP] Envio bem-sucedido. Transicionando para a próxima etapa: "${updatedLead.etapa_contato}"`);
+    }
+
+  } else if (canal === "EMAIL") {
+    updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
+    updatedLead.ultimo_email_em = new Date().toISOString();
+    
+    let emailSubject = await compileTemplate(configEtapa.assunto_template || "", lead);
+
+    log(`Enviando E-mail (${templateName}) para ${lead.nome} (${lead.email})...`);
+    
+    const dispatchResult = await dispatchEmailMessage(lead.email, emailSubject, msgBody);
+    log(`Resultado do Disparo: ${dispatchResult.log}`);
+    
+    await addHistoryEntry(lead.id, {
+      canal: "EMAIL",
+      tipo: "ENVIO",
+      titulo: `E-mail [Workflow]: ${templateName || "Mensagem"}`,
+      detalhes: `<b>Assunto:</b> ${emailSubject}<br/><br/>${msgBody.replace(/\n/g, "<br/>")}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
+    });
+
+    if (!dispatchResult.success) {
+      const currentCount = Number(lead.email_retry_count) || 0;
+      if (currentCount < 2) {
+        updatedLead.email_retry_count = currentCount + 1;
+        updatedLead.email_retry_stage = etapaAtual;
+        
+        let nextRetryDate = new Date();
+        nextRetryDate.setHours(nextRetryDate.getHours() + 2);
+        updatedLead.proxima_acao_em = nextRetryDate.toISOString();
+        
+        updatedLead.etapa_contato = etapaAtual;
+        updatedLead.status_funil = lead.status_funil;
+        updatedLead.temperatura = lead.temperatura;
+        
+        log(`[FALHA DE EMAIL - AGENDANDO REENVIO] Tentativa de reenvio agendada para daqui a 2 horas. Tentativa falha #${updatedLead.email_retry_count} para a etapa "${etapaAtual}"`);
+
+        if (currentCount === 0) {
+          try {
+            const alertMsg = `⚠️ *Falha de Envio de E-mail* ⚠️\n\n*Lead:* ${lead.nome}\n*E-mail:* ${lead.email}\n*Etapa:* ${etapaAtual}\n*Assunto:* ${emailSubject}\n*Erro/Log:* ${dispatchResult.log}\n\nO CRM tentará reenviar o e-mail mais 2 vezes, com intervalo de 2 horas.`;
+            await dispatchWhatsAppMessage("13991380688", alertMsg);
+            log(`[NOTIFICAÇÃO FALHA] Alerta de WhatsApp de falha enviado para 13991380688`);
+          } catch (notifyErr: any) {
+            log(`[FALHA NOTIFICAÇÃO] Erro ao enviar WhatsApp de alerta: ${notifyErr.message}`);
+          }
+        }
+      } else {
+        updatedLead.email_retry_count = 0;
+        updatedLead.email_retry_stage = null;
+        
+        updatedLead.etapa_contato = configEtapa.proxima_etapa || etapaAtual;
+        updatedLead.status_funil = configEtapa.proximo_status || lead.status_funil;
+        updatedLead.temperatura = configEtapa.temperatura || lead.temperatura;
+        updatedLead.proxima_acao_em = nextActionDate.toISOString();
+        updatedLead.ultima_interacao_em = new Date().toISOString();
+        
+        log(`[FALHA DE EMAIL - ESGOTADO] Todas as 3 tentativas falharam. Prosseguindo o workflow para a próxima etapa: "${updatedLead.etapa_contato}"`);
+      }
+    } else {
+      updatedLead.email_retry_count = 0;
+      updatedLead.email_retry_stage = null;
+      
+      updatedLead.etapa_contato = configEtapa.proxima_etapa || etapaAtual;
+      updatedLead.status_funil = configEtapa.proximo_status || lead.status_funil;
+      updatedLead.temperatura = configEtapa.temperatura || lead.temperatura;
+      updatedLead.proxima_acao_em = nextActionDate.toISOString();
+      updatedLead.ultima_interacao_em = new Date().toISOString();
+      
+      log(`[SUCESSO DE EMAIL] Envio bem-sucedido. Transicionando para a próxima etapa: "${updatedLead.etapa_contato}"`);
+    }
+  }
+
+  return updatedLead;
+}
+
+// Helper function to run sequence 1 immediately on webhook lead creation
 async function runAutomationForNewWebhookLead(lead: any) {
   try {
     const workflowConfigs = await getWorkflowConfigs();
@@ -2999,47 +3202,7 @@ async function runAutomationForNewWebhookLead(lead: any) {
 
     console.log(`[Webhook Automation] Triggering immediate dispatch of sequence 1 ("${config.etapa}") for Lead ${lead.nome}`);
 
-    // Compile message template
-    const msgBody = await compileTemplate(config.mensagem_template || "", lead);
-    const updatedLead = { ...lead };
-
-    if (canal === "WHATSAPP") {
-      updatedLead.tentativas_whatsapp = (Number(lead.tentativas_whatsapp) || 0) + 1;
-      updatedLead.ultimo_whatsapp_em = new Date().toISOString();
-
-      const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
-
-      await addHistoryEntry(lead.id, {
-        canal: "WHATSAPP",
-        tipo: "ENVIO",
-        titulo: `WhatsApp [Sequência 1 - Auto]: ${config.template_name || "Boas-Vindas"}`,
-        detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
-      });
-    } else if (canal === "EMAIL") {
-      updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
-      updatedLead.ultimo_email_em = new Date().toISOString();
-
-      let emailSubject = await compileTemplate(config.assunto_template || "", lead);
-      const dispatchResult = await dispatchEmailMessage(lead.email, emailSubject, msgBody);
-
-      await addHistoryEntry(lead.id, {
-        canal: "EMAIL",
-        tipo: "ENVIO",
-        titulo: `E-mail [Sequência 1 - Auto]: ${config.template_name || "Boas-Vindas"}`,
-        detalhes: `<b>Assunto:</b> ${emailSubject}<br/><br/>${msgBody.replace(/\n/g, "<br/>")}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
-      });
-    }
-
-    // Set transitions based on the executed config!
-    const waitDays = config.esperar_dias || 0;
-    let nextActionDate = new Date();
-    nextActionDate.setDate(nextActionDate.getDate() + waitDays);
-
-    updatedLead.etapa_contato = config.proxima_etapa || lead.etapa_contato;
-    updatedLead.status_funil = config.proximo_status || lead.status_funil;
-    updatedLead.temperatura = config.temperatura || lead.temperatura;
-    updatedLead.proxima_acao_em = nextActionDate.toISOString();
-    updatedLead.ultima_interacao_em = new Date().toISOString();
+    const updatedLead = await processLeadWorkflowAction(lead, config, workflowConfigs, (msg) => console.log(`[Webhook Automation] ${msg}`));
 
     await saveLead(updatedLead, false);
     console.log(`[Webhook Automation] Lead updated to Stage: ${updatedLead.etapa_contato}, Status: ${updatedLead.status_funil}`);
@@ -3509,13 +3672,17 @@ app.post("/api/leads/import-sheet/execute", async (req, res) => {
         continue;
       }
       const mappedLead = mapSheetRowToLead(row);
-      await saveLead(mappedLead, true);
+      const saved = await saveLead(mappedLead, true);
       await addHistoryEntry(mappedLead.id, {
         canal: "SISTEMA",
         tipo: "IMPORT",
         titulo: "Lead Importado do Google Sheets",
         detalhes: `Lead '${mappedLead.nome}' importado automaticamente da planilha com status '${mappedLead.status_funil}'.`
       });
+
+      // Roda a sequência de número 1 do fluxo imediatamente para o novo lead importado da planilha
+      await runAutomationForNewWebhookLead(saved || mappedLead);
+
       importedCount++;
     }
 
@@ -3612,65 +3779,8 @@ async function runCRMAutomationLogic(force: boolean = false): Promise<{ success:
 
       log(`Workflow ativo: Etapa atual "${etapaAtual}" solicita envio por [${configEtapa.canal}]`);
 
-      // 3. Simulating the send and processing response
-      const canal = configEtapa.canal;
-      const templateName = configEtapa.template_name;
-      const waitDays = configEtapa.esperar_dias || 0;
-      
-      let nextActionDate = new Date();
-      nextActionDate.setDate(nextActionDate.getDate() + waitDays);
-
-      let updatedLead = { ...lead };
-      
-      // Substitute template variables
-      let msgBody = await compileTemplate(configEtapa.mensagem_template || "", lead);
- 
-      if (canal === "WHATSAPP") {
-        updatedLead.tentativas_whatsapp = (Number(lead.tentativas_whatsapp) || 0) + 1;
-        updatedLead.ultimo_whatsapp_em = new Date().toISOString();
-        
-        log(`Enviando WhatsApp (${templateName}) para ${lead.nome} (${lead.link_celular || "Sem número"})...`);
-        log(`\n--- CONTEÚDO ENVIADO (WHATSAPP) ---\n${msgBody}\n------------------------------------`);
-        
-        const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
-        log(`Resultado do Disparo: ${dispatchResult.log}`);
-        
-        await addHistoryEntry(lead.id, {
-          canal: "WHATSAPP",
-          tipo: "ENVIO",
-          titulo: `WhatsApp Follow-up Enviado: ${templateName}`,
-          detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
-        });
-      } else if (canal === "EMAIL") {
-        updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
-        updatedLead.ultimo_email_em = new Date().toISOString();
-        
-        let emailSubject = await compileTemplate(configEtapa.assunto_template || "", lead);
- 
-        log(`Enviando E-mail (${templateName}) para ${lead.nome} (${lead.email})...`);
-        log(`Assunto: "${emailSubject}"`);
-        log(`\n--- CONTEÚDO ENVIADO (E-MAIL) ---\n${msgBody}\n----------------------------------`);
-        
-        const dispatchResult = await dispatchEmailMessage(lead.email, emailSubject, msgBody);
-        log(`Resultado do Disparo: ${dispatchResult.log}`);
-        
-        await addHistoryEntry(lead.id, {
-          canal: "EMAIL",
-          tipo: "ENVIO",
-          titulo: `E-mail Follow-up Enviado: ${templateName}`,
-          detalhes: `<b>Assunto:</b> ${emailSubject}<br/><br/>${msgBody.replace(/\n/g, "<br/>")}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
-        });
-      }
-
-      // Update lead stages
-      updatedLead.etapa_contato = configEtapa.proxima_etapa || etapaAtual;
-      updatedLead.status_funil = configEtapa.proximo_status || lead.status_funil;
-      updatedLead.temperatura = configEtapa.temperatura || lead.temperatura;
-      updatedLead.proxima_acao_em = nextActionDate.toISOString();
-      updatedLead.ultima_interacao_em = new Date().toISOString();
-
-      log(`Ajustando Lead: Etapa -> ${updatedLead.etapa_contato} | Status -> ${updatedLead.status_funil} | Próxima ação em: ${nextActionDate.toLocaleDateString("pt-BR")}`);
-
+      // 3. Executing workflow action with centralized retry logic
+      const updatedLead = await processLeadWorkflowAction(lead, configEtapa, workflowConfigs, log);
       await saveLead(updatedLead, false);
       actionTakenCount++;
     }
@@ -3705,6 +3815,82 @@ app.post("/api/automation/run", async (req, res) => {
     } else {
       res.status(500).json(result);
     }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - RETROACTIVE AUTOMATION SYNC FOR EXISTING LEADS
+app.post("/api/automation/retroactive-trigger", async (req, res) => {
+  try {
+    const workflowConfigs = await getWorkflowConfigs();
+    const leads = await getLeads();
+    
+    // Sort configs by order
+    const sortedConfigs = [...workflowConfigs].sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+    const step1Config = sortedConfigs[0];
+    const step2Config = sortedConfigs[1];
+
+    if (!step1Config || !step2Config) {
+      return res.status(400).json({ error: "Configurações de fluxo incompletas para rodar sincronização." });
+    }
+
+    let updatedCount = 0;
+    const logs: string[] = [];
+
+    for (const lead of leads) {
+      // Ignore leads who closed/converted, responded, or are lost/canceled
+      const statusUpper = String(lead.status_funil || "").toUpperCase();
+      const stageUpper = String(lead.etapa_contato || "").toUpperCase();
+      
+      if (statusUpper === "FECHOU" || 
+          statusUpper === "RESPONDIDO" || 
+          stageUpper === "ENCERRADO" ||
+          (lead.motivo_perda && lead.motivo_perda.trim() !== "" && lead.motivo_perda !== "AGUARDANDO_DATA")) {
+        continue;
+      }
+
+      let updated = false;
+      let updatedLead = { ...lead };
+
+      // Case A: Lead is in initial stage but hasn't had Step 1 run (0 email and 0 whatsapp)
+      const inStep1 = !lead.etapa_contato || 
+                      lead.etapa_contato === "SEM_CONTATO" || 
+                      stageUpper === String(step1Config.etapa).toUpperCase();
+      
+      const hasZeroAttempts = (Number(lead.tentativas_email) || 0) === 0 && (Number(lead.tentativas_whatsapp) || 0) === 0;
+
+      if (inStep1 && hasZeroAttempts) {
+        // Queue immediately for Step 1
+        updatedLead.proxima_acao_em = new Date().toISOString();
+        updatedLead.etapa_contato = step1Config.etapa;
+        updated = true;
+        logs.push(`Lead "${lead.nome}" (ID: ${lead.id}) estava em espera de importação. Colocado na fila imediata do Passo 1.`);
+      } 
+      // Case B: Lead is in Step 2 stage but has 0 whatsapp attempts (Meaning they finished Step 1 email but missed Step 2 whatsapp)
+      else {
+        const inStep2 = stageUpper === String(step2Config.etapa).toUpperCase();
+        const hasNoWhatsapp = (Number(lead.tentativas_whatsapp) || 0) === 0;
+
+        if (inStep2 && hasNoWhatsapp) {
+          // Queue immediately for Step 2 (WhatsApp)
+          updatedLead.proxima_acao_em = new Date().toISOString();
+          updated = true;
+          logs.push(`Lead "${lead.nome}" (ID: ${lead.id}) havia concluído Passo 1 (E-mail) mas não enviou WhatsApp (Passo 2). Fila do WhatsApp atualizada para envio imediato.`);
+        }
+      }
+
+      if (updated) {
+        await saveLead(updatedLead, false);
+        updatedCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      updated_count: updatedCount,
+      logs: logs.length > 0 ? logs : ["Todos os leads ativos já estão em conformidade com as regras da sequência."]
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
