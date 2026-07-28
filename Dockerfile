@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for the unified full-stack CRM (React + Express)
 # Stage 1: Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ COPY server.ts ./
 RUN npm run build
 
 # Stage 2: Runtime stage
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -32,7 +32,7 @@ ENV PORT=3000
 
 # Copy package manifests and install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy compiled build directory and server from the builder stage
 COPY --from=builder /app/dist ./dist

@@ -30,6 +30,9 @@ interface FinancialContract {
   contract_number: string;
   contract_date: string;
   total_value: number;
+  freight_value?: number;
+  discount_value?: number;
+  final_value?: number;
   payment_method: "a_vista" | "parcelado";
   installments_count: number;
   down_payment: number;
@@ -84,6 +87,8 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
   const [contractNumber, setContractNumber] = useState("");
   const [contractDate, setContractDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [totalValue, setTotalValue] = useState<number | string>("");
+  const [freightValue, setFreightValue] = useState<number | string>("");
+  const [discountValue, setDiscountValue] = useState<number | string>("");
   const [paymentMethod, setPaymentMethod] = useState<"a_vista" | "parcelado">("parcelado");
   const [installmentsCount, setInstallmentsCount] = useState<number>(2);
   const [downPayment, setDownPayment] = useState<number | string>("");
@@ -296,7 +301,10 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
     // Card 1: Total Contratado (soma de todos os contratos ativos)
     const activeContracts = contracts.filter(c => c.status === "active");
-    const totalContratado = activeContracts.reduce((sum, c) => sum + c.total_value, 0);
+    const totalContratado = activeContracts.reduce((sum, c) => {
+      const net = c.final_value ?? (c.total_value + (c.freight_value || 0) - (c.discount_value || 0));
+      return sum + net;
+    }, 0);
 
     // Card 2: Total Recebido (soma de todas as parcelas pagas)
     const totalRecebido = installments
@@ -394,13 +402,18 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
       toast.error("Por favor, preencha um valor de contrato válido.");
       return;
     }
+    const subtotal = Number(totalValue) || 0;
+    const freight = Number(freightValue) || 0;
+    const discount = Number(discountValue) || 0;
+    const netTotalValue = Math.max(0, subtotal + freight - discount);
+
     if (paymentMethod === "parcelado") {
       if (installmentsCount < 2 || installmentsCount > 24) {
         toast.error("O número de parcelas deve estar entre 2 e 24.");
         return;
       }
-      if (downPayment && Number(downPayment) >= Number(totalValue)) {
-        toast.error("O valor da entrada não pode ser maior ou igual ao valor total do contrato.");
+      if (downPayment && Number(downPayment) >= netTotalValue) {
+        toast.error("O valor da entrada não pode ser maior ou igual ao valor final líquido do contrato.");
         return;
       }
     }
@@ -415,7 +428,9 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
         lead_id: selectedLead.id,
         contract_number: contractNumber.trim() || undefined,
         contract_date: contractDate,
-        total_value: Number(totalValue),
+        total_value: subtotal,
+        freight_value: freight,
+        discount_value: discount,
         payment_method: paymentMethod,
         installments_count: paymentMethod === "a_vista" ? 1 : installmentsCount,
         down_payment: downPayment ? Number(downPayment) : 0,
@@ -436,6 +451,8 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
         setLeadSearch("");
         setContractNumber("");
         setTotalValue("");
+        setFreightValue("");
+        setDiscountValue("");
         setDownPayment("");
         setObservations("");
         setSubTab("installments");
@@ -470,6 +487,8 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
     setContractNumber(c.contract_number);
     setContractDate(c.contract_date);
     setTotalValue(c.total_value);
+    setFreightValue(c.freight_value || "");
+    setDiscountValue(c.discount_value || "");
     setPaymentMethod(c.payment_method);
     setInstallmentsCount(c.installments_count);
     setDownPayment(c.down_payment || "");
@@ -1046,8 +1065,17 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                             {paidCount} / {contractInsts.length} Pagas
                           </span>
                         </td>
-                        <td className="p-4 text-right font-mono font-bold text-white">
-                          {formatBRL(c.total_value)}
+                        <td className="p-4 text-right font-mono">
+                          <div className="font-bold text-white">
+                            {formatBRL(c.final_value ?? (c.total_value + (c.freight_value || 0) - (c.discount_value || 0)))}
+                          </div>
+                          {((c.freight_value || 0) > 0 || (c.discount_value || 0) > 0) && (
+                            <div className="text-[9px] text-zinc-500 font-sans mt-0.5">
+                              Base: {formatBRL(c.total_value)}
+                              {(c.freight_value || 0) > 0 && ` | Frete: +${formatBRL(c.freight_value || 0)}`}
+                              {(c.discount_value || 0) > 0 && ` | Desc: -${formatBRL(c.discount_value || 0)}`}
+                            </div>
+                          )}
                         </td>
                         <td className="p-4">
                           {c.status === "completed" ? (
@@ -1223,13 +1251,13 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
             </div>
 
-            {/* Contract Value & Payment Option Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Contract Values & Freight/Discount Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
-              {/* Contract value in BRL */}
+              {/* Products/Services Subtotal */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Valor Total do Contrato (R$) <span className="text-amber-500">*</span>
+                  Valor dos Produtos (R$) <span className="text-amber-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1242,6 +1270,79 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                 />
               </div>
 
+              {/* Freight Value */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
+                  Valor do Frete (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex: 150.00 (Opcional)"
+                  value={freightValue}
+                  onChange={(e) => setFreightValue(e.target.value)}
+                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                />
+              </div>
+
+              {/* Discount Value */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
+                  Desconto Concedido (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex: 200.00 (Opcional)"
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                />
+              </div>
+
+            </div>
+
+            {/* Dynamic Contract Total Breakdown & Simulation Card */}
+            {Boolean(totalValue || freightValue || discountValue) && (
+              <div className="p-4 bg-zinc-950/80 border border-amber-500/30 rounded-xl space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                  <span className="text-[11px] font-bold uppercase font-mono text-amber-400 tracking-wider">
+                    Resumo do Valor Final do Contrato
+                  </span>
+                  <span className="text-sm font-mono font-extrabold text-amber-400">
+                    {formatBRL(Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)))}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono text-zinc-400">
+                  <div>
+                    <span className="block text-[9px] uppercase text-zinc-500">Produtos / Base</span>
+                    <span className="text-zinc-200 font-bold">{formatBRL(Number(totalValue) || 0)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase text-zinc-500">(+) Frete</span>
+                    <span className="text-amber-300 font-bold">+{formatBRL(Number(freightValue) || 0)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] uppercase text-zinc-500">(-) Desconto</span>
+                    <span className="text-emerald-400 font-bold">-{formatBRL(Number(discountValue) || 0)}</span>
+                  </div>
+                </div>
+                {paymentMethod === "parcelado" && (
+                  <div className="pt-2 border-t border-zinc-850 text-[11px] text-zinc-300 flex flex-wrap justify-between items-center gap-2 font-mono">
+                    <span>
+                      Entrada: <strong className="text-amber-400">{formatBRL(Number(downPayment) || 0)}</strong> (paga no ato)
+                    </span>
+                    <span>
+                      Saldo: <strong className="text-white">{formatBRL(Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)))}</strong> em <strong className="text-white">{installmentsCount}x</strong> de <strong className="text-amber-400">{formatBRL(installmentsCount > 0 ? (Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)) / installmentsCount) : 0)}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Payment Option Row */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              
               {/* Payment selection dropdown */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
@@ -1323,6 +1424,8 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   setLeadSearch("");
                   setContractNumber("");
                   setTotalValue("");
+                  setFreightValue("");
+                  setDiscountValue("");
                   setDownPayment("");
                   setObservations("");
                   setSubTab("installments");
@@ -1594,6 +1697,35 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   contrato de prestação de serviços número <strong className="font-mono text-zinc-950">{viewingReceipt.contract.contract_number}</strong>, assinado em 
                   <strong> {new Date(viewingReceipt.contract.contract_date + "T12:00:00").toLocaleDateString("pt-BR")}</strong>.
                 </p>
+
+                {/* Composição Financeira do Contrato */}
+                <div className="mt-4 pt-3 border-t border-zinc-200/80 space-y-2">
+                  <span className="text-[10px] font-bold uppercase font-mono text-zinc-500 block tracking-wider">
+                    Composição e Controle do Contrato
+                  </span>
+                  <div className="bg-white border border-zinc-200 rounded-md p-3 font-mono text-xs space-y-1.5">
+                    <div className="flex justify-between text-zinc-600">
+                      <span>Valor dos Produtos/Serviços:</span>
+                      <span className="font-medium text-zinc-900">{formatBRL(viewingReceipt.contract.total_value)}</span>
+                    </div>
+                    {(viewingReceipt.contract.freight_value ?? 0) > 0 && (
+                      <div className="flex justify-between text-zinc-600">
+                        <span>(+) Valor do Frete:</span>
+                        <span className="font-medium text-zinc-900">+{formatBRL(viewingReceipt.contract.freight_value || 0)}</span>
+                      </div>
+                    )}
+                    {(viewingReceipt.contract.discount_value ?? 0) > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>(-) Desconto Concedido:</span>
+                        <span className="font-bold text-emerald-700">-{formatBRL(viewingReceipt.contract.discount_value || 0)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-zinc-950 pt-1.5 border-t border-zinc-200 text-xs">
+                      <span>(=) Valor Líquido Total do Contrato:</span>
+                      <span>{formatBRL(viewingReceipt.contract.final_value ?? (viewingReceipt.contract.total_value + (viewingReceipt.contract.freight_value || 0) - (viewingReceipt.contract.discount_value || 0)))}</span>
+                    </div>
+                  </div>
+                </div>
 
                 {viewingReceipt.installment.payment_observations && (
                   <p className="text-xs text-zinc-500 italic mt-3 border-l-2 border-zinc-300 pl-3">

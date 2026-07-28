@@ -393,6 +393,9 @@ async function initPgDatabase() {
           contract_number VARCHAR(255),
           contract_date VARCHAR(255),
           total_value NUMERIC(10,2) DEFAULT 0.00,
+          freight_value NUMERIC(10,2) DEFAULT 0.00,
+          discount_value NUMERIC(10,2) DEFAULT 0.00,
+          final_value NUMERIC(10,2) DEFAULT 0.00,
           payment_method VARCHAR(255),
           installments_count INTEGER DEFAULT 1,
           down_payment NUMERIC(10,2) DEFAULT 0.00,
@@ -401,6 +404,12 @@ async function initPgDatabase() {
           created_at VARCHAR(255),
           updated_at VARCHAR(255)
         );
+      `);
+
+      await client.query(`
+        ALTER TABLE financial_contracts ADD COLUMN IF NOT EXISTS freight_value NUMERIC(10,2) DEFAULT 0.00;
+        ALTER TABLE financial_contracts ADD COLUMN IF NOT EXISTS discount_value NUMERIC(10,2) DEFAULT 0.00;
+        ALTER TABLE financial_contracts ADD COLUMN IF NOT EXISTS final_value NUMERIC(10,2) DEFAULT 0.00;
       `);
 
       // 8. Financial Installments Table
@@ -1122,14 +1131,27 @@ async function deleteProduct(id: string): Promise<boolean> {
 }
 
 async function getFinancialContracts(): Promise<any[]> {
+  const parseContract = (row: any) => {
+    const total = Number(row.total_value) || 0;
+    const freight = Number(row.freight_value) || 0;
+    const discount = Number(row.discount_value) || 0;
+    const finalVal = row.final_value !== null && row.final_value !== undefined 
+      ? Number(row.final_value) 
+      : Math.max(0, total + freight - discount);
+    return {
+      ...row,
+      total_value: total,
+      freight_value: freight,
+      discount_value: discount,
+      final_value: finalVal,
+      down_payment: Number(row.down_payment) || 0
+    };
+  };
+
   if (usePg && pgPool) {
     try {
       const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
-      return res.rows.map(row => ({
-        ...row,
-        total_value: Number(row.total_value),
-        down_payment: Number(row.down_payment)
-      }));
+      return res.rows.map(parseContract);
     } catch (e: any) {
       console.warn("PostgreSQL contracts fetch failed:", e.message);
     }
@@ -1138,33 +1160,33 @@ async function getFinancialContracts(): Promise<any[]> {
     try {
       const { data, error } = await supabase.from("financial_contracts").select("*").order("created_at", { ascending: false });
       if (!error && data) {
-        return data.map(c => ({
-          ...c,
-          total_value: Number(c.total_value),
-          down_payment: Number(c.down_payment)
-        }));
+        return data.map(parseContract);
       }
     } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return (db.financial_contracts || []).map((c: any) => ({
-    ...c,
-    total_value: Number(c.total_value),
-    down_payment: Number(c.down_payment)
-  }));
+  return (db.financial_contracts || []).map(parseContract);
 }
 
 async function saveFinancialContract(c: any): Promise<boolean> {
+  const totalVal = Number(c.total_value) || 0;
+  const freightVal = Number(c.freight_value) || 0;
+  const discountVal = Number(c.discount_value) || 0;
+  const finalVal = c.final_value !== undefined ? Number(c.final_value) : Math.max(0, totalVal + freightVal - discountVal);
+
   if (usePg && pgPool) {
     try {
       await pgPool.query(`
-        INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT (id) DO UPDATE SET
           lead_id = EXCLUDED.lead_id,
           contract_number = EXCLUDED.contract_number,
           contract_date = EXCLUDED.contract_date,
           total_value = EXCLUDED.total_value,
+          freight_value = EXCLUDED.freight_value,
+          discount_value = EXCLUDED.discount_value,
+          final_value = EXCLUDED.final_value,
           payment_method = EXCLUDED.payment_method,
           installments_count = EXCLUDED.installments_count,
           down_payment = EXCLUDED.down_payment,
@@ -1176,7 +1198,10 @@ async function saveFinancialContract(c: any): Promise<boolean> {
         c.lead_id,
         c.contract_number,
         c.contract_date,
-        c.total_value,
+        totalVal,
+        freightVal,
+        discountVal,
+        finalVal,
         c.payment_method,
         c.installments_count,
         c.down_payment,
@@ -1197,7 +1222,10 @@ async function saveFinancialContract(c: any): Promise<boolean> {
         lead_id: c.lead_id,
         contract_number: c.contract_number,
         contract_date: c.contract_date,
-        total_value: Number(c.total_value),
+        total_value: totalVal,
+        freight_value: freightVal,
+        discount_value: discountVal,
+        final_value: finalVal,
         payment_method: c.payment_method,
         installments_count: Number(c.installments_count),
         down_payment: Number(c.down_payment),
@@ -1215,6 +1243,10 @@ async function saveFinancialContract(c: any): Promise<boolean> {
   const now = new Date().toISOString();
   const savedContract = {
     ...c,
+    total_value: totalVal,
+    freight_value: freightVal,
+    discount_value: discountVal,
+    final_value: finalVal,
     status: c.status || 'active',
     observations: c.observations || '',
     created_at: c.created_at || now,
@@ -3081,6 +3113,8 @@ app.post("/api/financial/contracts", async (req, res) => {
       contract_number,
       contract_date,
       total_value,
+      freight_value,
+      discount_value,
       payment_method,
       installments_count,
       down_payment,
@@ -3115,12 +3149,20 @@ app.post("/api/financial/contracts", async (req, res) => {
     });
     const generatedContractNumber = contract_number || `CTR-${nextContractNo}`;
 
+    const totalVal = Number(total_value) || 0;
+    const freightVal = Number(freight_value || 0);
+    const discountVal = Number(discount_value || 0);
+    const finalVal = Math.max(0, totalVal + freightVal - discountVal);
+
     const newContract = {
       id: contractId,
       lead_id,
       contract_number: generatedContractNumber,
       contract_date,
-      total_value: Number(total_value),
+      total_value: totalVal,
+      freight_value: freightVal,
+      discount_value: discountVal,
+      final_value: finalVal,
       payment_method,
       installments_count: payment_method === "a_vista" ? 1 : Number(installments_count || 1),
       down_payment: Number(down_payment || 0),
@@ -3139,7 +3181,7 @@ app.post("/api/financial/contracts", async (req, res) => {
         contract_id: contractId,
         installment_number: 1,
         due_date: addDaysHelper(contract_date, 30),
-        value: Number(total_value),
+        value: finalVal,
         status: "pending",
         paid_date: null,
         paid_value: null,
@@ -3153,7 +3195,7 @@ app.post("/api/financial/contracts", async (req, res) => {
       // Parcelado
       const installmentsNum = Number(installments_count || 2);
       const downPaymentVal = Number(down_payment || 0);
-      const remainingValue = Number(total_value) - downPaymentVal;
+      const remainingValue = finalVal - downPaymentVal;
       const installmentVal = Number((remainingValue / installmentsNum).toFixed(2));
 
       // 1. If there's down payment, create a paid installment number 0
@@ -3231,6 +3273,8 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
       contract_number,
       contract_date,
       total_value,
+      freight_value,
+      discount_value,
       payment_method,
       installments_count,
       down_payment,
@@ -3256,11 +3300,19 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
     // Delete old installments
     await deleteFinancialInstallmentsByContract(id);
 
+    const totalVal = total_value !== undefined ? Number(total_value) : existing.total_value;
+    const freightVal = freight_value !== undefined ? Number(freight_value) : (existing.freight_value || 0);
+    const discountVal = discount_value !== undefined ? Number(discount_value) : (existing.discount_value || 0);
+    const finalVal = Math.max(0, totalVal + freightVal - discountVal);
+
     const updatedContract = {
       ...existing,
       contract_number: contract_number || existing.contract_number,
       contract_date: contract_date || existing.contract_date,
-      total_value: total_value !== undefined ? Number(total_value) : existing.total_value,
+      total_value: totalVal,
+      freight_value: freightVal,
+      discount_value: discountVal,
+      final_value: finalVal,
       payment_method: payment_method || existing.payment_method,
       installments_count: payment_method === "a_vista" ? 1 : Number(installments_count || existing.installments_count || 1),
       down_payment: down_payment !== undefined ? Number(down_payment) : existing.down_payment,
@@ -3272,7 +3324,6 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
 
     // Regenerate installments
     const finalDate = updatedContract.contract_date;
-    const finalValue = updatedContract.total_value;
     const finalMethod = updatedContract.payment_method;
 
     if (finalMethod === "a_vista") {
@@ -3282,7 +3333,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
         contract_id: id,
         installment_number: 1,
         due_date: addDaysHelper(finalDate, 30),
-        value: finalValue,
+        value: finalVal,
         status: "pending",
         paid_date: null,
         paid_value: null,
@@ -3295,7 +3346,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
     } else {
       const finalCount = Number(updatedContract.installments_count || 2);
       const finalDown = Number(updatedContract.down_payment || 0);
-      const remainingValue = finalValue - finalDown;
+      const remainingValue = finalVal - finalDown;
       const installmentVal = Number((remainingValue / finalCount).toFixed(2));
 
       if (finalDown > 0) {
