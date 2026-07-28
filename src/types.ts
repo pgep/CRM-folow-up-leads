@@ -13,7 +13,9 @@ export type LeadStatus =
   | 'RESPONDIDO'
   | 'FECHOU'
   | 'PERDIDO'
-  | 'SEM_RETORNO';
+  | 'SEM_RETORNO'
+  | 'SEM_WHATSAPP'
+  | 'Sem WhatsApp';
 
 export type LeadEtapa = string;
 
@@ -50,6 +52,10 @@ export interface Lead {
   followup_especial_1m?: boolean;
   followup_especial_2m?: boolean;
   followup_especial_3m?: boolean;
+  whatsapp_validation_status?: 'NUMERO_SEM_WHATSAPP' | 'ERRO_TEMPORARIO_WAHA' | 'ERRO_COMUNICACAO' | 'ENVIADO_SUCESSO' | string;
+  whatsapp_validation_http_code?: number;
+  whatsapp_validation_error?: string;
+  whatsapp_validated_at?: string;
   created_at: string;
   updated_at: string;
 }

@@ -307,6 +307,18 @@ async function initPgDatabase() {
       await client.query(`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_retry_stage VARCHAR(255);
       `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validation_status VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validation_http_code INTEGER;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validation_error TEXT;
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validated_at VARCHAR(255);
+      `);
 
       // 2. Workflow Config Table
       await client.query(`
@@ -574,6 +586,111 @@ async function getLeadById(id: string): Promise<any | null> {
   return db.leads.find((l: any) => l.id === id) || null;
 }
 
+async function getAllLeadsUnfiltered(): Promise<any[]> {
+  let list: any[] = [];
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
+      list = res.rows;
+    } catch (e: any) {
+      console.warn("PostgreSQL leads fetch failed:", e.message);
+    }
+  } else if (useSupabase) {
+    try {
+      const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
+      if (!error && data) {
+        list = data;
+      }
+    } catch (e: any) {}
+  }
+
+  if (list.length === 0) {
+    try {
+      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      list = db.leads || [];
+    } catch (e) {
+      list = [];
+    }
+  }
+
+  return list;
+}
+
+async function findDuplicateLead(email?: string, phone?: string): Promise<any | null> {
+  const cleanEmail = email && typeof email === "string" ? email.trim().toLowerCase() : "";
+  const cleanPhone = phone && typeof phone === "string" ? phone.replace(/\D/g, "") : "";
+
+  if (!cleanEmail && (!cleanPhone || cleanPhone.length < 8)) {
+    return null;
+  }
+
+  const allLeads = await getAllLeadsUnfiltered();
+
+  for (const lead of allLeads) {
+    // 1. Check Email match
+    if (cleanEmail && lead.email && String(lead.email).trim().toLowerCase() === cleanEmail) {
+      return lead;
+    }
+
+    // 2. Check Phone match (minimum 8 digits to avoid short string false positives)
+    if (cleanPhone && cleanPhone.length >= 8) {
+      const leadPhoneLimpo = lead.telefone_limpo ? String(lead.telefone_limpo).replace(/\D/g, "") : "";
+      const leadLinkCelularDigits = lead.link_celular ? String(lead.link_celular).replace(/\D/g, "") : "";
+
+      if (leadPhoneLimpo && leadPhoneLimpo.length >= 8 && (leadPhoneLimpo === cleanPhone || leadPhoneLimpo.endsWith(cleanPhone) || cleanPhone.endsWith(leadPhoneLimpo))) {
+        return lead;
+      }
+      if (leadLinkCelularDigits && leadLinkCelularDigits.length >= 8 && (leadLinkCelularDigits === cleanPhone || leadLinkCelularDigits.endsWith(cleanPhone) || cleanPhone.endsWith(leadLinkCelularDigits))) {
+        return lead;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function handleDuplicateAttempt(existingLead: any, sourceName: string, payloadData: any): Promise<any> {
+  const now = new Date().toISOString();
+  existingLead.ultima_interacao_em = now;
+
+  // Enrich missing fields if present in new payload
+  if (!existingLead.data_casamento && payloadData.data_casamento) {
+    existingLead.data_casamento = payloadData.data_casamento;
+  }
+  if (!existingLead.local && payloadData.local) {
+    existingLead.local = payloadData.local;
+  }
+  if ((!existingLead.link_celular || existingLead.link_celular === "") && (payloadData.link_celular || payloadData.celular || payloadData.whatsapp || payloadData.phone)) {
+    const rawPhone = payloadData.link_celular || payloadData.celular || payloadData.whatsapp || payloadData.phone;
+    existingLead.link_celular = rawPhone;
+    existingLead.telefone_limpo = String(rawPhone).replace(/\D/g, "");
+  }
+
+  const emailAttempt = payloadData.email || payloadData.mail || payloadData.email_cliente || existingLead.email || "N/A";
+  const phoneAttempt = payloadData.link_celular || payloadData.celular || payloadData.whatsapp || payloadData.phone || payloadData.telefone || existingLead.link_celular || "N/A";
+
+  let detailsText = `Tentativa de recadastro interceptada para evitar duplicidade.\n`;
+  detailsText += `Fonte / Origem que tentou recadastrar: ${sourceName}\n`;
+  detailsText += `E-mail informado: ${emailAttempt}\n`;
+  detailsText += `Telefone informado: ${phoneAttempt}\n`;
+
+  const obs = payloadData.observacoes || payloadData.notes || payloadData.obs || payloadData.comentarios;
+  if (obs) {
+    detailsText += `Observações recebidas: ${obs}\n`;
+    existingLead.observacoes = (existingLead.observacoes ? existingLead.observacoes + "\n\n" : "") + `[Tentativa Recadastro - ${sourceName}]: ${obs}`;
+  }
+
+  await addHistoryEntry(existingLead.id, {
+    canal: "SISTEMA",
+    tipo: "IMPORT",
+    titulo: `Tentativa de Recadastro Bloqueada (${sourceName})`,
+    detalhes: detailsText
+  });
+
+  const updated = await saveLead(existingLead, false);
+  return updated;
+}
+
 async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
   lead.updated_at = new Date().toISOString();
   if (isNew) {
@@ -590,8 +707,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
             followup_especial_1m, followup_especial_2m, followup_especial_3m,
             whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
+            whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40)
           RETURNING *
         `;
         const values = [
@@ -600,6 +718,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
           lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -612,7 +731,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
             observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
             ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
-            whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34, updated_at = $35
+            whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
+            whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
+            updated_at = $39
           WHERE id = $1
           RETURNING *
         `;
@@ -624,6 +745,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.ultima_interacao_em, lead.proxima_acao_em,
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
           lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -1520,7 +1642,7 @@ async function dispatchEmailMessage(toEmail: string, subject: string, bodyHtml: 
   }
 }
 
-async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
+async function saveRedisLock(chatId: string, customConfig?: any, messageText?: string): Promise<{ success: boolean; log: string }> {
   try {
     let settings = customConfig || await getGeneralSettings();
     if (customConfig && !customConfig.redis_lock) {
@@ -1561,26 +1683,60 @@ async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ succ
     
     let value = rawValue
       .replace(/\{\{\s*\$json\.humanReason\s*\|\|\s*'([^']+)'\s*\}\}/g, "$1")
-      .replace(/\{\{\s*\$json\.humanReason\s*\}\}/g, "bloqueado")
-      .replace(/\{\{\s*humanReason\s*\}\}/g, "bloqueado")
-      .replace(/\{humanReason\}/g, "bloqueado");
+      .replace(/\{\{\s*\$json\.humanReason\s*\}\}/g, "crm_leads")
+      .replace(/\{\{\s*humanReason\s*\}\}/g, "crm_leads")
+      .replace(/\{humanReason\}/g, "crm_leads");
 
-    if (conf.expire) {
-      const ttl = Number(conf.ttl) || 86400;
-      await redis.set(key, value, "EX", ttl);
-      await redis.quit();
-      return {
-        success: true,
-        log: `[Redis] Chave "${key}" gravada com sucesso! Valor: "${value}" (TTL: ${ttl}s)`
-      };
+    // Bloqueia respostas da IA por exatamente 30 minutos (1800 segundos) para mensagens enviadas por esta aplicação CRM
+    const lockTtl = conf.expire === false ? 0 : 1800; // 30 minutos (1800s)
+
+    if (lockTtl > 0) {
+      await redis.set(key, value, "EX", lockTtl);
     } else {
       await redis.set(key, value);
-      await redis.quit();
-      return {
-        success: true,
-        log: `[Redis] Chave "${key}" gravada com sucesso! Valor: "${value}" (Sem expiração)`
-      };
     }
+
+    let logMessage = `[Redis] Trava de IA "${key}" gravada por 30 min (1800s)! Valor: "${value}"`;
+
+    // Retenção da mensagem enviada para contextualização da IA quando o lead entrar em contato (pause_log:{chatId})
+    if (messageText && messageText.trim()) {
+      const logKey = `pause_log:${chatId}`;
+      let historico: any[] = [];
+      try {
+        const rawLog = await redis.get(logKey);
+        if (rawLog && rawLog.trim().startsWith("[")) {
+          historico = JSON.parse(rawLog);
+        }
+      } catch {
+        historico = [];
+      }
+
+      if (!Array.isArray(historico)) historico = [];
+
+      const newPauseEntry = {
+        ts: new Date().toISOString(),
+        role: "humano_lu",
+        fromMe: true,
+        actorName: "CRM Casa Colombo",
+        text: messageText.trim(),
+        tipoMedia: "",
+        origem: "crm",
+        pauseReason: value || "crm_leads"
+      };
+
+      historico.push(newPauseEntry);
+      historico = historico.slice(-30);
+
+      // Salva o histórico com TTL de 3 dias (259200s) mantendo a retenção mesmo após a expiração dos 30m de trava
+      await redis.set(logKey, JSON.stringify(historico), "EX", 259200);
+      logMessage += ` | Mensagem retida em "${logKey}" para contextualização da IA`;
+    }
+
+    await redis.quit();
+    return {
+      success: true,
+      log: logMessage
+    };
   } catch (err: any) {
     console.error("Erro ao gravar no Redis:", err.message);
     return {
@@ -1590,7 +1746,162 @@ async function saveRedisLock(chatId: string, customConfig?: any): Promise<{ succ
   }
 }
 
-async function dispatchWhatsAppMessage(phone: string, message: string, customConfig?: any): Promise<{ success: boolean; log: string }> {
+export interface WhatsAppValidationResult {
+  isValid: boolean;
+  code: "ENVIADO_SUCESSO" | "NUMERO_SEM_WHATSAPP" | "ERRO_TEMPORARIO_WAHA" | "ERRO_COMUNICACAO";
+  httpCode: number;
+  errorMessage: string | null;
+  validatedAt: string;
+}
+
+async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise<WhatsAppValidationResult> {
+  const validatedAt = new Date().toISOString();
+  
+  let cleanPhone = (phone || "").replace(/\D/g, "");
+  if (!cleanPhone) {
+    return {
+      isValid: false,
+      code: "NUMERO_SEM_WHATSAPP",
+      httpCode: 400,
+      errorMessage: "Telefone do lead está vazio ou inválido",
+      validatedAt
+    };
+  }
+
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    cleanPhone = "55" + cleanPhone;
+  }
+
+  const wahaConf = settings?.waha_whatsapp;
+  if (!wahaConf || !wahaConf.api_url) {
+    return {
+      isValid: false,
+      code: "ERRO_COMUNICACAO",
+      httpCode: 0,
+      errorMessage: "URL da API do WAHA não configurada",
+      validatedAt
+    };
+  }
+
+  const session = wahaConf.session_name || "default";
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (wahaConf.api_key) {
+    headers["X-Api-Key"] = wahaConf.api_key;
+  }
+
+  const endpoints = [
+    { url: `${wahaConf.api_url}/api/contacts/check-exists?phone=${cleanPhone}&session=${session}`, method: "GET" },
+    { url: `${wahaConf.api_url}/api/checkNumberStatus?phone=${cleanPhone}&session=${session}`, method: "GET" },
+    { url: `${wahaConf.api_url}/api/contacts/check-exists`, method: "POST", body: { phone: cleanPhone, session } }
+  ];
+
+  let lastStatus = 0;
+  let lastErrorMsg = "";
+
+  for (const ep of endpoints) {
+    try {
+      const options: any = {
+        method: ep.method,
+        headers,
+        signal: (AbortSignal as any).timeout ? (AbortSignal as any).timeout(6000) : undefined
+      };
+      if (ep.body) {
+        options.body = JSON.stringify(ep.body);
+      }
+
+      const res = await fetch(ep.url, options);
+      lastStatus = res.status;
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const numberExists = data.numberExists !== undefined 
+          ? Boolean(data.numberExists) 
+          : (data.exists !== undefined ? Boolean(data.exists) : Boolean(data.chatId && !data.error));
+
+        if (numberExists) {
+          return {
+            isValid: true,
+            code: "ENVIADO_SUCESSO",
+            httpCode: res.status,
+            errorMessage: null,
+            validatedAt
+          };
+        } else {
+          return {
+            isValid: false,
+            code: "NUMERO_SEM_WHATSAPP",
+            httpCode: res.status,
+            errorMessage: `[WAHA ${res.status}] O número ${cleanPhone} não possui conta ativa no WhatsApp`,
+            validatedAt
+          };
+        }
+      }
+
+      const text = await res.text().catch(() => "");
+      lastErrorMsg = text || `HTTP Status ${res.status}`;
+
+      if ((res.status === 404 || res.status === 400) && (text.toLowerCase().includes("not found") || text.toLowerCase().includes("number_not_exists") || text.toLowerCase().includes("false"))) {
+        return {
+          isValid: false,
+          code: "NUMERO_SEM_WHATSAPP",
+          httpCode: res.status,
+          errorMessage: `[WAHA ${res.status}] ${text || "Número inexistente no WhatsApp"}`,
+          validatedAt
+        };
+      }
+
+      if (res.status >= 500 || res.status === 401 || res.status === 403 || res.status === 408) {
+        return {
+          isValid: false,
+          code: "ERRO_TEMPORARIO_WAHA",
+          httpCode: res.status,
+          errorMessage: `[WAHA HTTP ${res.status}] ${text || "Erro temporário no servidor WAHA / Sessão desconectada"}`,
+          validatedAt
+        };
+      }
+    } catch (err: any) {
+      const isTimeout = err.name === "AbortError" || err.message.toLowerCase().includes("timeout");
+      if (isTimeout) {
+        return {
+          isValid: false,
+          code: "ERRO_TEMPORARIO_WAHA",
+          httpCode: 408,
+          errorMessage: `[WAHA Timeout] Conexão excedeu o tempo limite de resposta: ${err.message}`,
+          validatedAt
+        };
+      }
+      return {
+        isValid: false,
+        code: "ERRO_COMUNICACAO",
+        httpCode: 0,
+        errorMessage: `[Erro Comunicação] Não foi possível conectar ao WAHA: ${err.message}`,
+        validatedAt
+      };
+    }
+  }
+
+  return {
+    isValid: false,
+    code: lastStatus >= 500 ? "ERRO_TEMPORARIO_WAHA" : "ERRO_COMUNICACAO",
+    httpCode: lastStatus,
+    errorMessage: `[WAHA HTTP ${lastStatus}] ${lastErrorMsg || "Falha nas tentativas de verificação de número"}`,
+    validatedAt
+  };
+}
+
+async function dispatchWhatsAppMessage(
+  phone: string, 
+  message: string, 
+  customConfig?: any
+): Promise<{ 
+  success: boolean; 
+  log: string;
+  code: "ENVIADO_SUCESSO" | "NUMERO_SEM_WHATSAPP" | "ERRO_TEMPORARIO_WAHA" | "ERRO_COMUNICACAO";
+  httpCode: number;
+  errorMessage: string | null;
+  validatedAt: string;
+}> {
+  const validatedAt = new Date().toISOString();
   try {
     let settings = customConfig || await getGeneralSettings();
     if (customConfig && !customConfig.redis_lock) {
@@ -1598,21 +1909,55 @@ async function dispatchWhatsAppMessage(phone: string, message: string, customCon
       settings = { ...dbSettings, ...customConfig };
     }
     if (!settings || !settings.waha_whatsapp) {
-      return { success: false, log: "Configurações do WAHA não encontradas no banco." };
+      return { 
+        success: false, 
+        log: "Configurações do WAHA não encontradas no banco.",
+        code: "ERRO_COMUNICACAO",
+        httpCode: 0,
+        errorMessage: "Configurações do WAHA ausentes no banco",
+        validatedAt
+      };
     }
 
     const wahaConf = settings.waha_whatsapp;
     if (!wahaConf.api_url) {
-      return { success: false, log: "URL da API do WAHA não configurada." };
+      return { 
+        success: false, 
+        log: "URL da API do WAHA não configurada.",
+        code: "ERRO_COMUNICACAO",
+        httpCode: 0,
+        errorMessage: "URL da API do WAHA não configurada",
+        validatedAt
+      };
     }
 
-    // Clean phone number
+    // 1. Validação prévia da existência do número no WhatsApp antes de disparar /api/sendText
+    const validation = await checkWhatsAppNumberExists(phone, settings);
+
+    if (validation.code === "NUMERO_SEM_WHATSAPP") {
+      return {
+        success: false,
+        log: `[NÚMERO SEM WHATSAPP] Validação WAHA cancelou o envio. O número ${phone} não possui conta ativa no WhatsApp.`,
+        code: "NUMERO_SEM_WHATSAPP",
+        httpCode: validation.httpCode,
+        errorMessage: validation.errorMessage,
+        validatedAt: validation.validatedAt
+      };
+    }
+
+    if (!validation.isValid) {
+      return {
+        success: false,
+        log: `[FALHA VALIDAÇÃO WAHA] ${validation.errorMessage}`,
+        code: validation.code,
+        httpCode: validation.httpCode,
+        errorMessage: validation.errorMessage,
+        validatedAt: validation.validatedAt
+      };
+    }
+
+    // 2. Número existe no WhatsApp: realizar o envio da mensagem
     let cleanPhone = (phone || "").replace(/\D/g, "");
-    if (!cleanPhone) {
-      return { success: false, log: "Telefone do lead está vazio ou inválido." };
-    }
-
-    // Add Brazilian country code if missing
     if (cleanPhone.length === 10 || cleanPhone.length === 11) {
       cleanPhone = "55" + cleanPhone;
     }
@@ -1642,7 +1987,7 @@ async function dispatchWhatsAppMessage(phone: string, message: string, customCon
     if (res.ok) {
       let redisLog = "";
       try {
-        const redisRes = await saveRedisLock(chatId, settings);
+        const redisRes = await saveRedisLock(chatId, settings, message);
         if (settings.redis_lock && settings.redis_lock.enabled) {
           redisLog = ` ${redisRes.log}`;
         }
@@ -1652,20 +1997,35 @@ async function dispatchWhatsAppMessage(phone: string, message: string, customCon
 
       return { 
         success: true, 
-        log: `[SUCESSO WAHA] Mensagem de WhatsApp enviada com sucesso para ${chatId}!${redisLog}` 
+        log: `[SUCESSO WAHA] Mensagem de WhatsApp enviada com sucesso para ${chatId}!${redisLog}`,
+        code: "ENVIADO_SUCESSO",
+        httpCode: res.status,
+        errorMessage: null,
+        validatedAt: validation.validatedAt
       };
     } else {
       const responseText = await res.text().catch(() => "");
+      const is5xx = res.status >= 500 || res.status === 401 || res.status === 403 || res.status === 408;
+      const code = is5xx ? "ERRO_TEMPORARIO_WAHA" : "ERRO_COMUNICACAO";
       return { 
         success: false, 
-        log: `[FALHA WAHA] O gateway WAHA retornou status HTTP ${res.status}. Detalhes: ${responseText || "Sem detalhes"}` 
+        log: `[FALHA WAHA] O gateway WAHA retornou status HTTP ${res.status}. Detalhes: ${responseText || "Sem detalhes"}`,
+        code,
+        httpCode: res.status,
+        errorMessage: responseText || `HTTP Status ${res.status}`,
+        validatedAt: validation.validatedAt
       };
     }
   } catch (err: any) {
     console.error("Erro ao disparar WAHA real:", err.message);
+    const isTimeout = err.name === "AbortError" || err.message.toLowerCase().includes("timeout");
     return { 
       success: false, 
-      log: `[FALHA WAHA] Erro ao conectar ao gateway em ${phone}: ${err.message}` 
+      log: `[FALHA WAHA] Erro ao conectar ao gateway em ${phone}: ${err.message}`,
+      code: isTimeout ? "ERRO_TEMPORARIO_WAHA" : "ERRO_COMUNICACAO",
+      httpCode: isTimeout ? 408 : 0,
+      errorMessage: err.message,
+      validatedAt
     };
   }
 }
@@ -1857,6 +2217,18 @@ app.post("/api/leads", async (req, res) => {
     
     if (!nome || !email) {
       return res.status(400).json({ error: "Nome e Email são obrigatórios" });
+    }
+
+    // Check duplicate lead by email or phone
+    const existing = await findDuplicateLead(email, link_celular);
+    if (existing) {
+      const sourceName = origem_portal || "Manual (CRM)";
+      const updated = await handleDuplicateAttempt(existing, sourceName, req.body);
+      return res.status(200).json({
+        ...updated,
+        duplicate: true,
+        message: `Lead já cadastrado previamente! Tentativa registrada no histórico de "${existing.nome}".`
+      });
     }
 
     const leadId = `CRM-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${Math.floor(1000 + Math.random() * 9000)}`;
@@ -2057,6 +2429,19 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
     const lead = await getLeadById(req.params.id);
     if (!lead) return res.status(404).json({ error: "Lead not found" });
 
+    // Reject message sending for lost or closed leads
+    const statusUpperCheck = String(lead.status_funil || "").toUpperCase();
+    if (
+      statusUpperCheck === "PERDIDO" ||
+      statusUpperCheck === "SEM_RETORNO" ||
+      lead.status_funil === "Perdido" ||
+      lead.status_funil === "Sem Retorno" ||
+      lead.status_funil === "Sem WhatsApp" ||
+      (lead.motivo_perda && lead.motivo_perda.trim() !== "" && lead.motivo_perda !== "AGUARDANDO_DATA")
+    ) {
+      return res.status(400).json({ error: `Envio de mensagem cancelado: O lead está com status do funil '${lead.status_funil}'.` });
+    }
+
     // Substitute variables
     const finalSubject = substituteVariables(assunto || "", lead);
     const finalBody = substituteVariables(mensagem, lead);
@@ -2081,12 +2466,56 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
       const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, finalBody);
       dispatchStatus = dispatchResult.log;
 
-      await addHistoryEntry(lead.id, {
-        canal: "WHATSAPP",
-        tipo: "ENVIO",
-        titulo: titulo_historico || "Mensagem Especial WhatsApp",
-        detalhes: `${finalBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchStatus}</small>`
-      });
+      updatedLead.whatsapp_validation_status = dispatchResult.code;
+      updatedLead.whatsapp_validation_http_code = dispatchResult.httpCode;
+      updatedLead.whatsapp_validation_error = dispatchResult.errorMessage;
+      updatedLead.whatsapp_validated_at = dispatchResult.validatedAt;
+
+      if (dispatchResult.code === "NUMERO_SEM_WHATSAPP") {
+        updatedLead.status_funil = "Sem WhatsApp";
+        updatedLead.etapa_contato = "Sem WhatsApp";
+
+        await addHistoryEntry(lead.id, {
+          canal: "WHATSAPP",
+          tipo: "ENVIO",
+          titulo: "Número sem WhatsApp",
+          detalhes: `Envio não realizado. Motivo: Número sem WhatsApp<br/>
+            <small style="color: #ef4444; font-family: monospace;">
+              • Código Interno: NUMERO_SEM_WHATSAPP<br/>
+              • Status HTTP: ${dispatchResult.httpCode}<br/>
+              • Validado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
+              • Detalhes do WAHA: ${dispatchResult.errorMessage || "O número não possui conta ativa no WhatsApp"}
+            </small>`
+        });
+      } else if (!dispatchResult.success) {
+        const rotuloErro = dispatchResult.code === "ERRO_TEMPORARIO_WAHA" ? "Erro Temporário (WAHA)" : "Erro de Comunicação";
+        await addHistoryEntry(lead.id, {
+          canal: "WHATSAPP",
+          tipo: "ENVIO",
+          titulo: `Falha de Envio: ${rotuloErro}`,
+          detalhes: `${finalBody}<br/><br/>
+            <small style="color: #f59e0b; font-family: monospace;">
+              ⚠️ ${rotuloErro}<br/>
+              • Código Interno: ${dispatchResult.code}<br/>
+              • Status HTTP: ${dispatchResult.httpCode}<br/>
+              • Validado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
+              • Detalhes do WAHA: ${dispatchResult.errorMessage || dispatchStatus}
+            </small>`
+        });
+      } else {
+        await addHistoryEntry(lead.id, {
+          canal: "WHATSAPP",
+          tipo: "ENVIO",
+          titulo: titulo_historico || "Mensagem Especial WhatsApp",
+          detalhes: `${finalBody}<br/><br/>
+            <small style="color: #10b981; font-family: monospace;">
+              🚀 Mensagem enviada com sucesso!<br/>
+              • Código Interno: ENVIADO_SUCESSO<br/>
+              • Status HTTP: ${dispatchResult.httpCode}<br/>
+              • Validado e Enviado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}
+            </small>`
+        });
+      }
     } else if (canal === "EMAIL") {
       updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
       updatedLead.ultimo_email_em = new Date().toISOString();
@@ -2329,15 +2758,24 @@ app.post("/api/settings/test-connection", async (req, res) => {
           .replace(/\{\{\s*humanReason\s*\}\}/g, "bloqueado")
           .replace(/\{humanReason\}/g, "bloqueado");
 
-        log(`[REDIS TEST] Gravando chave "${key}" com valor "${value}"...`);
-        if (redisConf.expire) {
-          const ttl = Number(redisConf.ttl) || 86400;
-          await redisClient.set(key, value, "EX", ttl);
-          log(`[REDIS TEST] [OK] Chave gravada com sucesso com TTL de ${ttl} segundos!`);
-        } else {
-          await redisClient.set(key, value);
-          log(`[REDIS TEST] [OK] Chave gravada com sucesso sem expiração!`);
-        }
+        log(`[REDIS TEST] Gravando chave de trava de IA "${key}" com valor "${value}" por 30 minutos (1800s)...`);
+        await redisClient.set(key, value, "EX", 1800);
+        log(`[REDIS TEST] [OK] Trava da IA gravada com sucesso! (TTL: 1800s / 30m)`);
+
+        const testLogKey = `pause_log:${testChatId}`;
+        log(`[REDIS TEST] Gravando histórico de contextualização da IA em "${testLogKey}"...`);
+        const testLogEntry = [{
+          ts: new Date().toISOString(),
+          role: "humano_lu",
+          fromMe: true,
+          actorName: "CRM Casa Colombo",
+          text: "Teste de retenção e contextualização de mensagem enviada pelo CRM",
+          tipoMedia: "",
+          origem: "crm",
+          pauseReason: value || "crm_leads"
+        }];
+        await redisClient.set(testLogKey, JSON.stringify(testLogEntry), "EX", 259200);
+        log(`[REDIS TEST] [OK] Histórico de contextualização gravado com sucesso! (TTL: 259200s / 3 dias)`);
 
         await redisClient.quit();
         log(`[REDIS TEST] Conexão e gravação encerradas com sucesso.`);
@@ -3007,6 +3445,19 @@ app.post("/api/financial/installments/:id/pay", async (req, res) => {
 // Helper function to run sequence 1 immediately on webhook lead creation
 // Centralized Workflow Action Processor with WhatsApp and Email Retries & Alerts
 async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowConfigs: any[], log: (msg: string) => void): Promise<any> {
+  const statusUpperCheck = String(lead.status_funil || "").toUpperCase();
+  if (
+    statusUpperCheck === "PERDIDO" ||
+    statusUpperCheck === "SEM_RETORNO" ||
+    lead.status_funil === "Perdido" ||
+    lead.status_funil === "Sem Retorno" ||
+    lead.status_funil === "Sem WhatsApp" ||
+    (lead.motivo_perda && lead.motivo_perda.trim() !== "" && lead.motivo_perda !== "AGUARDANDO_DATA")
+  ) {
+    log(`[IGNORADO] Lead ${lead.nome} (ID: ${lead.id}) possui status '${lead.status_funil}'. Envio de e-mail/WhatsApp cancelado.`);
+    return lead;
+  }
+
   const canal = configEtapa.canal;
   const templateName = configEtapa.template_name;
   const etapaAtual = configEtapa.etapa || "SEM_CONTATO";
@@ -3033,15 +3484,55 @@ async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowCo
     
     const dispatchResult = await dispatchWhatsAppMessage(lead.link_celular, msgBody);
     log(`Resultado do Disparo: ${dispatchResult.log}`);
-    
-    await addHistoryEntry(lead.id, {
-      canal: "WHATSAPP",
-      tipo: "ENVIO",
-      titulo: `WhatsApp [Workflow]: ${templateName || "Mensagem"}`,
-      detalhes: `${msgBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchResult.log}</small>`
-    });
 
-    if (!dispatchResult.success) {
+    updatedLead.whatsapp_validation_status = dispatchResult.code;
+    updatedLead.whatsapp_validation_http_code = dispatchResult.httpCode;
+    updatedLead.whatsapp_validation_error = dispatchResult.errorMessage;
+    updatedLead.whatsapp_validated_at = dispatchResult.validatedAt;
+
+    if (dispatchResult.code === "NUMERO_SEM_WHATSAPP") {
+      updatedLead.status_funil = "Sem WhatsApp";
+      updatedLead.etapa_contato = "Sem WhatsApp";
+      updatedLead.whatsapp_retry_count = 0;
+      updatedLead.whatsapp_retry_stage = null;
+      updatedLead.proxima_acao_em = "";
+      updatedLead.ultima_interacao_em = new Date().toISOString();
+
+      await addHistoryEntry(lead.id, {
+        canal: "WHATSAPP",
+        tipo: "SISTEMA",
+        titulo: "Número sem WhatsApp",
+        detalhes: `Validação do WhatsApp falhou. Motivo: Número sem WhatsApp<br/>
+          <small style="color: #ef4444; font-family: monospace;">
+            • Status da Automação: Sem WhatsApp<br/>
+            • Código Interno: NUMERO_SEM_WHATSAPP<br/>
+            • Status HTTP: ${dispatchResult.httpCode}<br/>
+            • Data/Hora da Validação: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
+            • Mensagem WAHA: ${dispatchResult.errorMessage || "Número inexistente no WhatsApp"}
+          </small>`
+      });
+
+      log(`[NÚMERO SEM WHATSAPP] Status da automação atualizado para 'Sem WhatsApp'. Envio e retentativas canceladas para ${lead.nome}.`);
+
+    } else if (!dispatchResult.success) {
+      const rotuloErro = dispatchResult.code === "ERRO_TEMPORARIO_WAHA" 
+        ? "Erro Temporário (WAHA)" 
+        : (dispatchResult.code === "ERRO_COMUNICACAO" ? "Erro de Comunicação" : "Erro no Disparo");
+
+      await addHistoryEntry(lead.id, {
+        canal: "WHATSAPP",
+        tipo: "ENVIO",
+        titulo: `WhatsApp [Workflow]: Falha - ${rotuloErro}`,
+        detalhes: `${msgBody}<br/><br/>
+          <small style="color: #f59e0b; font-family: monospace;">
+            ⚠️ Motivo: ${rotuloErro}<br/>
+            • Código Interno: ${dispatchResult.code}<br/>
+            • Status HTTP: ${dispatchResult.httpCode}<br/>
+            • Data/Hora da Validação: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
+            • Mensagem WAHA: ${dispatchResult.errorMessage || dispatchResult.log}
+          </small>`
+      });
+
       const currentCount = Number(lead.whatsapp_retry_count) || 0;
       if (currentCount < 2) {
         updatedLead.whatsapp_retry_count = currentCount + 1;
@@ -3055,23 +3546,26 @@ async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowCo
         updatedLead.status_funil = lead.status_funil;
         updatedLead.temperatura = lead.temperatura;
         
-        log(`[FALHA DE WHATSAPP - AGENDANDO REENVIO] Tentativa de reenvio agendada para daqui a 2 horas. Tentativa falha #${updatedLead.whatsapp_retry_count} para a etapa "${etapaAtual}"`);
+        log(`[ERRO TEMPORÁRIO WAHA - AGENDANDO REENVIO] Tentativa de reenvio agendada para daqui a 2 horas. Tentativa falha #${updatedLead.whatsapp_retry_count} para a etapa "${etapaAtual}"`);
 
         if (currentCount === 0) {
           try {
-            const errorEmailSubject = `⚠️ Falha no Envio de WhatsApp para Lead: ${lead.nome}`;
+            const errorEmailSubject = `⚠️ Erro Temporário WAHA no Envio de WhatsApp para Lead: ${lead.nome}`;
             const errorEmailBody = `
-              <h3>Ocorreu uma falha no envio da mensagem de WhatsApp via WAHA</h3>
+              <h3>Ocorreu uma falha temporária no envio da mensagem de WhatsApp via WAHA</h3>
               <p><b>Lead:</b> ${lead.nome}</p>
               <p><b>E-mail:</b> ${lead.email}</p>
               <p><b>Telefone:</b> ${lead.link_celular}</p>
               <p><b>Etapa do Workflow:</b> ${etapaAtual}</p>
+              <p><b>Código do Erro:</b> ${dispatchResult.code}</p>
+              <p><b>Status HTTP:</b> ${dispatchResult.httpCode}</p>
+              <p><b>Data/Hora Validação:</b> ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}</p>
               <p><b>Mensagem tentada:</b> ${msgBody}</p>
-              <p><b>Motivo / Log da Falha:</b> ${dispatchResult.log}</p>
+              <p><b>Motivo / Detalhes:</b> ${dispatchResult.errorMessage || dispatchResult.log}</p>
               <p>O CRM agendou automaticamente um reenvio para daqui a 2 horas (tentativa 1 de 2 adicionais).</p>
             `;
             await dispatchEmailMessage("paulocoala@gmail.com", errorEmailSubject, errorEmailBody);
-            log(`[NOTIFICAÇÃO FALHA] E-mail de notificação de falha enviado com sucesso para paulocoala@gmail.com`);
+            log(`[NOTIFICAÇÃO FALHA] E-mail de notificação de erro enviado com sucesso para paulocoala@gmail.com`);
           } catch (notifyErr: any) {
             log(`[FALHA NOTIFICAÇÃO] Erro ao enviar e-mail de alerta: ${notifyErr.message}`);
           }
@@ -3098,6 +3592,19 @@ async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowCo
       updatedLead.proxima_acao_em = nextActionDate.toISOString();
       updatedLead.ultima_interacao_em = new Date().toISOString();
       
+      await addHistoryEntry(lead.id, {
+        canal: "WHATSAPP",
+        tipo: "ENVIO",
+        titulo: `WhatsApp [Workflow]: ${templateName || "Mensagem"}`,
+        detalhes: `${msgBody}<br/><br/>
+          <small style="color: #10b981; font-family: monospace;">
+            🚀 Mensagem enviada com sucesso!<br/>
+            • Código Interno: ENVIADO_SUCESSO<br/>
+            • Status HTTP: ${dispatchResult.httpCode}<br/>
+            • Validado e Enviado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}
+          </small>`
+      });
+
       log(`[SUCESSO DE WHATSAPP] Envio bem-sucedido. Transicionando para a próxima etapa: "${updatedLead.etapa_contato}"`);
     }
 
@@ -3245,6 +3752,19 @@ const webhookHandler = async (req: any, res: any) => {
       return res.status(400).json({ error: "E-mail do lead é obrigatório no payload" });
     }
 
+    // Check duplicate lead by email or phone
+    const existing = await findDuplicateLead(email, link_celular);
+    if (existing) {
+      const updated = await handleDuplicateAttempt(existing, `Webhook (${nomePortal})`, leadData);
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        message: `Lead já existente no CRM. Tentativa de recadastro via Webhook (${nomePortal}) foi registrada no histórico.`,
+        lead_id: existing.id,
+        lead: updated
+      });
+    }
+
     const leadId = `CRM-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${Math.floor(1000 + Math.random() * 9000)}`;
     const orcamentos = calcularOrcamentos(convidados);
     const phoneDigits = (link_celular || "").replace(/\D/g, "");
@@ -3317,6 +3837,19 @@ app.post("/api/leads/n8n-webhook", async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         error: "O campo de e-mail ('email' ou 'mail') é obrigatório para cadastrar o lead no CRM." 
+      });
+    }
+
+    // Check duplicate lead by email or phone
+    const existing = await findDuplicateLead(email, link_celular);
+    if (existing) {
+      const updated = await handleDuplicateAttempt(existing, `n8n Webhook (${origem_portal})`, leadData);
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        message: `Lead já existente no CRM. Tentativa de recadastro via n8n Webhook (${origem_portal}) registrada no histórico.`,
+        lead_id: existing.id,
+        lead: updated
       });
     }
 
@@ -3436,6 +3969,22 @@ app.post("/api/leads/zoho-email", async (req, res) => {
 
     if (!parsed.email) {
       return res.status(400).json({ error: "Não foi possível extrair um endereço de e-mail válido deste texto" });
+    }
+
+    // Check duplicate lead by email or phone
+    const existing = await findDuplicateLead(parsed.email, parsed.linkCelular);
+    if (existing) {
+      const updated = await handleDuplicateAttempt(existing, "Zoho E-mail / Portal Noivas", {
+        texto_email: email_body,
+        dados_extraidos: parsed
+      });
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        message: "Lead já existente no CRM. Tentativa de recadastro via e-mail do Zoho registrada no histórico.",
+        lead: updated,
+        parser_details: parsed
+      });
     }
 
     // Calculations & insert
@@ -3629,13 +4178,24 @@ app.get("/api/leads/import-sheet/preview", async (req, res) => {
     }
     const csvText = await response.text();
     const sheetRows = parseCSV(csvText);
-    const localLeads = await getLeads();
-    const localLeadIds = localLeads.map((l: any) => l.id);
+    const allLeads = await getAllLeadsUnfiltered();
 
-    const result = sheetRows.map((row: any) => ({
-      ...row,
-      already_imported: localLeadIds.includes(row.lead_id)
-    }));
+    const localLeadIds = allLeads.map((l: any) => l.id);
+    const localEmails = allLeads.map((l: any) => l.email ? String(l.email).trim().toLowerCase() : "").filter(Boolean);
+    const localPhones = allLeads.map((l: any) => l.telefone_limpo || (l.link_celular ? String(l.link_celular).replace(/\D/g, "") : "")).filter((p) => p && p.length >= 8);
+
+    const result = sheetRows.map((row: any) => {
+      const rowEmail = row.email ? String(row.email).trim().toLowerCase() : "";
+      const rowPhone = row.linkCelular ? String(row.linkCelular).replace(/\D/g, "") : "";
+      const isDuplicate = localLeadIds.includes(row.lead_id) ||
+        (rowEmail && localEmails.includes(rowEmail)) ||
+        (rowPhone && rowPhone.length >= 8 && localPhones.some((lp) => lp === rowPhone || lp.endsWith(rowPhone) || rowPhone.endsWith(lp)));
+
+      return {
+        ...row,
+        already_imported: isDuplicate
+      };
+    });
 
     res.json(result);
   } catch (err: any) {
@@ -3653,24 +4213,32 @@ app.post("/api/leads/import-sheet/execute", async (req, res) => {
     }
     const csvText = await response.text();
     const sheetRows = parseCSV(csvText);
-    const localLeads = await getLeads();
-    const localLeadIds = localLeads.map((l: any) => l.id);
-
-    const rowsToImport = sheetRows.filter((row: any) => {
-      if (localLeadIds.includes(row.lead_id)) {
-        return false;
-      }
-      if (lead_ids && Array.isArray(lead_ids)) {
-        return lead_ids.includes(row.lead_id);
-      }
-      return true;
-    });
 
     let importedCount = 0;
-    for (const row of rowsToImport) {
+    let duplicateCount = 0;
+
+    for (const row of sheetRows) {
       if (!row.lead_id || !row.nome || !row.email) {
         continue;
       }
+      if (lead_ids && Array.isArray(lead_ids) && !lead_ids.includes(row.lead_id)) {
+        continue;
+      }
+
+      // Check if duplicate exists by Email or Phone or ID
+      const existing = (await findDuplicateLead(row.email, row.linkCelular)) || (await getLeadById(row.lead_id));
+      if (existing) {
+        duplicateCount++;
+        await handleDuplicateAttempt(existing, "Google Sheets Import", {
+          lead_id_planilha: row.lead_id,
+          nome: row.nome,
+          email: row.email,
+          celular: row.linkCelular,
+          origem: row.origem || "Google Sheets"
+        });
+        continue;
+      }
+
       const mappedLead = mapSheetRowToLead(row);
       const saved = await saveLead(mappedLead, true);
       await addHistoryEntry(mappedLead.id, {
@@ -3689,7 +4257,9 @@ app.post("/api/leads/import-sheet/execute", async (req, res) => {
     res.json({
       success: true,
       imported_count: importedCount,
-      total_found: sheetRows.length
+      duplicate_count: duplicateCount,
+      total_found: sheetRows.length,
+      message: `${importedCount} novos leads importados. ${duplicateCount} tentativas de duplicidade registradas no histórico.`
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -3733,7 +4303,18 @@ async function runCRMAutomationLogic(force: boolean = false): Promise<{ success:
       log(`Analisando Lead ID: ${lead.id} | Nome: ${lead.nome}`);
 
       // 1. Validation Logic
-      if (String(lead.status_funil).toUpperCase() === "FECHOU") {
+      const statusUpperAutom = String(lead.status_funil || "").toUpperCase();
+      if (
+        statusUpperAutom === "PERDIDO" ||
+        statusUpperAutom === "SEM_RETORNO" ||
+        lead.status_funil === "Perdido" ||
+        lead.status_funil === "Sem Retorno" ||
+        lead.status_funil === "Sem WhatsApp"
+      ) {
+        log(`Elegibilidade: Lead PERDIDO / SEM_RETORNO (${lead.status_funil}). Ignorando.`);
+        continue;
+      }
+      if (statusUpperAutom === "FECHOU") {
         log("Elegibilidade: Lead já CONVERTIDO (fechou). Ignorando.");
         continue;
       }
@@ -3845,6 +4426,11 @@ app.post("/api/automation/retroactive-trigger", async (req, res) => {
       
       if (statusUpper === "FECHOU" || 
           statusUpper === "RESPONDIDO" || 
+          statusUpper === "PERDIDO" ||
+          statusUpper === "SEM_RETORNO" ||
+          lead.status_funil === "Perdido" ||
+          lead.status_funil === "Sem Retorno" ||
+          lead.status_funil === "Sem WhatsApp" ||
           stageUpper === "ENCERRADO" ||
           (lead.motivo_perda && lead.motivo_perda.trim() !== "" && lead.motivo_perda !== "AGUARDANDO_DATA")) {
         continue;
@@ -3922,7 +4508,12 @@ app.get("/api/stats", async (req, res) => {
     const upcoming2Months: any[] = [];
     const upcoming3Months: any[] = [];
 
+    const isNovo = (s: string) => !s || s === "NOVO" || s === "Novo" || s === "Primeiro Contato" || s === "PRIMEIRO_CONTATO";
+    const isConvertido = (s: string) => s === "FECHOU" || s === "Fechou (Convertido)" || s === "Fechou" || s === "CONVERTIDO";
+    const isPerdido = (s: string) => s === "PERDIDO" || s === "SEM_RETORNO" || s === "Perdido" || s === "Sem Retorno / Encerrado" || s === "Sem Retorno" || s === "Sem WhatsApp";
+
     leads.forEach((l) => {
+      if (isPerdido(l.status_funil) || (l.motivo_perda && l.motivo_perda.trim() !== "" && l.motivo_perda !== "AGUARDANDO_DATA")) return;
       if (!l.data_casamento) return;
       const wDate = parseWeddingDate(l.data_casamento);
       if (!wDate) return;
@@ -3943,10 +4534,6 @@ app.get("/api/stats", async (req, res) => {
     upcoming1Month.sort(sortByDays);
     upcoming2Months.sort(sortByDays);
     upcoming3Months.sort(sortByDays);
-
-    const isNovo = (s: string) => !s || s === "NOVO" || s === "Novo" || s === "Primeiro Contato" || s === "PRIMEIRO_CONTATO";
-    const isConvertido = (s: string) => s === "FECHOU" || s === "Fechou (Convertido)" || s === "Fechou" || s === "CONVERTIDO";
-    const isPerdido = (s: string) => s === "PERDIDO" || s === "SEM_RETORNO" || s === "Perdido" || s === "Sem Retorno / Encerrado" || s === "Sem Retorno";
 
     const totalLeads = dashboardLeads.length;
     const leadsNovos = dashboardLeads.filter((l) => isNovo(l.status_funil)).length;

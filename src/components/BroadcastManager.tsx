@@ -240,8 +240,17 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
     return null;
   };
 
+  const isPerdido = (status?: string, motivo?: string) => {
+    if (motivo && motivo.trim() !== "" && motivo !== "AGUARDANDO_DATA") return true;
+    const s = String(status || "").toUpperCase();
+    return s === "PERDIDO" || s === "SEM_RETORNO" || status === "Perdido" || status === "Sem Retorno" || status === "Sem Retorno / Encerrado" || status === "Sem WhatsApp";
+  };
+
   // Match lead against a rule's condition
   const isLeadEligible = (lead: Lead, rule: SpecialRule): boolean => {
+    // Exclude leads with Perdido / lost status
+    if (isPerdido(lead.status_funil, lead.motivo_perda)) return false;
+
     // Exclude past weddings
     if (lead.data_casamento) {
       const wDate = parseWeddingDateLocal(lead.data_casamento);
@@ -316,6 +325,9 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
   // Filters for bulk dispatch
   const filteredLeadsForBulk = leads.filter(lead => {
+    // Exclude leads with Perdido / lost status
+    if (isPerdido(lead.status_funil, lead.motivo_perda)) return false;
+
     // Exclude past weddings
     if (lead.data_casamento) {
       const wDate = parseWeddingDateLocal(lead.data_casamento);

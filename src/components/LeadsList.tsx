@@ -149,6 +149,8 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
         return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
       case "PERDIDO":
       case "SEM_RETORNO":
+      case "SEM_WHATSAPP":
+      case "Sem WhatsApp":
         return "bg-rose-500/10 text-rose-400 border-rose-500/20";
       default:
         return "bg-zinc-800 text-zinc-400 border-zinc-700";
@@ -235,7 +237,15 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
         return p;
       };
 
-      const matchStatus = selectedStatus === "ALL" || lead.status_funil === selectedStatus || mapLegacyValue("status_funil", lead.status_funil) === selectedStatus;
+      const isPerdido = (status?: string, motivo?: string) => {
+        if (motivo && motivo.trim() !== "" && motivo !== "AGUARDANDO_DATA") return true;
+        const s = String(status || "").toUpperCase();
+        return s === "PERDIDO" || s === "SEM_RETORNO" || status === "Perdido" || status === "Sem Retorno" || status === "Sem Retorno / Encerrado" || status === "Sem WhatsApp";
+      };
+
+      const matchStatus = selectedStatus === "ALL" 
+        ? !isPerdido(lead.status_funil, lead.motivo_perda)
+        : (lead.status_funil === selectedStatus || mapLegacyValue("status_funil", lead.status_funil) === selectedStatus);
       const matchTemp = selectedTemp === "ALL" || lead.temperatura === selectedTemp || mapLegacyValue("temperatura", lead.temperatura) === selectedTemp;
       const matchPortal = selectedPortal === "ALL" || normalizePortal(lead.origem_portal) === normalizePortal(selectedPortal);
 
@@ -252,6 +262,14 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
+
+  const isPerdido = (status?: string, motivo?: string) => {
+    if (motivo && motivo.trim() !== "" && motivo !== "AGUARDANDO_DATA") return true;
+    const s = String(status || "").toUpperCase();
+    return s === "PERDIDO" || s === "SEM_RETORNO" || status === "Perdido" || status === "Sem Retorno" || status === "Sem Retorno / Encerrado" || status === "Sem WhatsApp";
+  };
+
+  const activeLeadsCount = leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda)).length;
 
   return (
     <div className="space-y-4">
@@ -278,7 +296,7 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-amber-500"
           >
-            <option value="ALL">Todos Status ({leads.length})</option>
+            <option value="ALL">Todos Status Ativos ({activeLeadsCount})</option>
             {statusList.length > 0 ? (
               statusList.map((st) => (
                 <option key={st} value={st}>{st}</option>
@@ -292,7 +310,7 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
                 <option value="FOLLOWUP3">Follow-up 3</option>
                 <option value="FOLLOWUPFINAL">Follow-up Final</option>
                 <option value="RESPONDIDO">Respondidos</option>
-                <option value="FECHOU">Fechou (Convertidos)</option>
+                <option value="FECHOU">Fechou (Convertido)</option>
                 <option value="PERDIDO">Perdidos / Encerrados</option>
               </>
             )}

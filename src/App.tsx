@@ -210,11 +210,20 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
+      const data = await res.json();
       if (res.ok) {
+        if (data.duplicate) {
+          toast.warning(`Lead já cadastrado previamente! Tentativa registrada no histórico de "${data.nome}".`);
+        } else {
+          toast.success(`Lead "${data.nome}" cadastrado com sucesso!`);
+        }
         await fetchData();
+      } else {
+        toast.error(data.error || "Erro ao cadastrar lead.");
       }
     } catch (e) {
       console.error(e);
+      toast.error("Erro de rede ao cadastrar lead.");
     }
   };
 

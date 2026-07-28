@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { 
   DollarSign, 
   Calendar, 
@@ -103,6 +105,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
     contract: FinancialContract;
     lead: Lead;
   } | null>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Fetch Data
   const fetchFinancialData = async () => {
@@ -131,7 +134,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
     fetchFinancialData();
   }, []);
 
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
     const printContent = document.getElementById("print-receipt-modal");
     if (!printContent) {
       toast.error("Erro: Área de impressão não encontrada.");
@@ -139,111 +142,132 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
     }
 
     try {
-      // Create a hidden iframe
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "absolute";
-      iframe.style.width = "0px";
-      iframe.style.height = "0px";
-      iframe.style.border = "none";
-      iframe.style.visibility = "hidden";
-      document.body.appendChild(iframe);
+      setIsGeneratingPDF(true);
+      toast.info("Gerando PDF do recibo...");
 
-      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (!iframeDoc) {
-        throw new Error("Não foi possível acessar o documento do iframe.");
+      // Render the receipt container to canvas with high resolution
+      const canvas = await html2canvas(printContent, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        onclone: (clonedDoc, clonedElement) => {
+          // Replace unsupported modern CSS color functions in style tags with transparent to avoid html2canvas parser crash
+          const styleTags = clonedDoc.querySelectorAll("style");
+          styleTags.forEach((style) => {
+            if (style.textContent) {
+              style.textContent = style.textContent
+                .replace(/oklch\([^)]+\)/gi, "rgba(0,0,0,0)")
+                .replace(/color-mix\([^)]+\)/gi, "rgba(0,0,0,0)")
+                .replace(/light-dark\([^)]+\)/gi, "rgba(0,0,0,0)");
+            }
+          });
+
+          // Function to apply explicit hex styles based on Tailwind class names so rendering is pristine
+          const applyExplicitStyles = (el: HTMLElement) => {
+            const classList = Array.from(el.classList);
+
+            // Backgrounds
+            if (classList.some((c) => c.startsWith("bg-zinc-50"))) el.style.backgroundColor = "#fafafa";
+            else if (classList.some((c) => c.startsWith("bg-zinc-100"))) el.style.backgroundColor = "#f4f4f5";
+            else if (classList.some((c) => c.startsWith("bg-zinc-900"))) el.style.backgroundColor = "#18181b";
+            else if (classList.some((c) => c.startsWith("bg-zinc-950"))) el.style.backgroundColor = "#09090b";
+            else if (classList.some((c) => c.startsWith("bg-white"))) el.style.backgroundColor = "#ffffff";
+
+            // Text colors
+            if (classList.some((c) => c.startsWith("text-zinc-950"))) el.style.color = "#09090b";
+            else if (classList.some((c) => c.startsWith("text-zinc-900"))) el.style.color = "#18181b";
+            else if (classList.some((c) => c.startsWith("text-zinc-800"))) el.style.color = "#27272a";
+            else if (classList.some((c) => c.startsWith("text-zinc-500"))) el.style.color = "#71717a";
+            else if (classList.some((c) => c.startsWith("text-zinc-400"))) el.style.color = "#a1a1aa";
+            else if (classList.some((c) => c.startsWith("text-amber-500"))) el.style.color = "#f59e0b";
+            else if (classList.some((c) => c.startsWith("text-white"))) el.style.color = "#ffffff";
+
+            // Borders
+            if (classList.some((c) => c.startsWith("border-zinc-100"))) el.style.borderColor = "#f4f4f5";
+            else if (classList.some((c) => c.startsWith("border-zinc-200"))) el.style.borderColor = "#e4e4e7";
+            else if (classList.some((c) => c.startsWith("border-zinc-300"))) el.style.borderColor = "#d4d4d8";
+            else if (classList.some((c) => c.startsWith("border-zinc-800"))) el.style.borderColor = "#27272a";
+          };
+
+          if (clonedElement) {
+            clonedElement.style.backgroundColor = "#ffffff";
+            clonedElement.style.color = "#09090b";
+            clonedElement.style.padding = "32px";
+
+            applyExplicitStyles(clonedElement);
+            const children = clonedElement.querySelectorAll<HTMLElement>("*");
+            children.forEach((child) => applyExplicitStyles(child));
+          }
+        },
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 0, 5, pdfWidth, pdfHeight);
+
+      const receiptNum = viewingReceipt?.installment?.receipt_number || "RECIBO";
+      const leadNameClean = (viewingReceipt?.lead?.nome || "Lead").replace(/[^a-zA-Z0-9]/g, "_");
+      const fileName = `Recibo_${receiptNum}_${leadNameClean}.pdf`;
+
+      pdf.save(fileName);
+      toast.success("PDF do recibo baixado com sucesso!");
+
+      // Try silent fallback window print if browser allows
+      try {
+        const iframe = document.createElement("iframe");
+        iframe.style.position = "absolute";
+        iframe.style.width = "0px";
+        iframe.style.height = "0px";
+        iframe.style.border = "none";
+        iframe.style.visibility = "hidden";
+        document.body.appendChild(iframe);
+
+        const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+        if (iframeDoc) {
+          iframeDoc.open();
+          iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Recibo ${receiptNum}</title>
+                <style>
+                  body { background: white; margin: 0; padding: 20px; display: flex; justify-content: center; }
+                  img { max-width: 100%; height: auto; }
+                </style>
+              </head>
+              <body>
+                <img src="${imgData}" />
+                <script>
+                  window.onload = function() {
+                    try { window.print(); } catch(e) {}
+                    setTimeout(function() {
+                      try { window.frameElement.remove(); } catch(e) {}
+                    }, 500);
+                  };
+                </script>
+              </body>
+            </html>
+          `);
+          iframeDoc.close();
+        }
+      } catch (e) {
+        // Ignored if window.print is blocked in iframe sandbox
       }
-
-      // Build a clean HTML page with fonts and styles
-      iframeDoc.open();
-      iframeDoc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Recibo Casa Colombo</title>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-            <style>
-              body {
-                background-color: white !important;
-                color: #09090b !important;
-                font-family: 'Inter', sans-serif;
-                padding: 40px;
-                margin: 0;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-              /* Clean styled equivalents of Tailwind classes for printing */
-              .flex { display: flex; }
-              .flex-col { flex-direction: column; }
-              .items-center { align-items: center; }
-              .justify-between { justify-content: space-between; }
-              .text-center { text-align: center; }
-              .font-mono { font-family: 'JetBrains Mono', monospace; }
-              .font-bold { font-weight: 700; }
-              .font-extrabold { font-weight: 800; }
-              .text-xs { font-size: 12px; }
-              .text-sm { font-size: 14px; }
-              .text-base { font-size: 16px; }
-              .text-lg { font-size: 18px; }
-              .text-2xl { font-size: 24px; }
-              .text-zinc-950 { color: #09090b !important; }
-              .text-zinc-900 { color: #18181b !important; }
-              .text-zinc-800 { color: #27272a !important; }
-              .text-zinc-500 { color: #71717a !important; }
-              .text-zinc-400 { color: #a1a1aa !important; }
-              .bg-zinc-50 { background-color: #f4f4f5 !important; }
-              .bg-zinc-900 { background-color: #18181b !important; }
-              .border { border: 1px solid #e4e4e7; }
-              .border-b-2 { border-bottom: 2px solid #27272a; }
-              .border-t { border-top: 1px solid #e4e4e7; }
-              .border-zinc-800 { border-color: #27272a; }
-              .p-1.5 { padding: 6px; }
-              .p-6 { padding: 24px; }
-              .pb-5 { padding-bottom: 20px; }
-              .pt-6 { padding-top: 24px; }
-              .my-2 { margin-top: 8px; margin-bottom: 8px; }
-              .py-3 { padding-top: 12px; padding-bottom: 12px; }
-              .gap-3 { gap: 12px; }
-              .gap-4 { gap: 16px; }
-              .space-y-1 > * + * { margin-top: 4px; }
-              .space-y-4 > * + * { margin-top: 16px; }
-              .rounded-full { border-radius: 9999px; }
-              .rounded-lg { border-radius: 8px; }
-              .w-14 { width: 56px; }
-              .h-14 { height: 56px; }
-              .w-full { width: 100%; }
-              .h-full { height: 100%; }
-              .object-cover { object-fit: cover; }
-              .hidden { display: none !important; }
-              .block { display: block; }
-              .uppercase { text-transform: uppercase; }
-              .italic { font-style: italic; }
-              
-              @media print {
-                body {
-                  padding: 20px;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div>${printContent.innerHTML}</div>
-            <script>
-              window.onload = function() {
-                setTimeout(function() {
-                  window.print();
-                  setTimeout(function() {
-                    window.frameElement.remove();
-                  }, 100);
-                }, 400);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      iframeDoc.close();
-    } catch (e) {
-      console.warn("Falha no print iframe, executando window.print como fallback:", e);
-      window.print();
+    } catch (err: any) {
+      console.error("Erro ao gerar PDF do recibo:", err);
+      toast.error("Erro ao gerar PDF: " + (err?.message || "Falha inesperada."));
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -1481,10 +1505,20 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrintReceipt}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold rounded text-xs flex items-center gap-1.5 transition"
+                  disabled={isGeneratingPDF}
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-zinc-950 font-bold rounded text-xs flex items-center gap-1.5 transition shadow-sm"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  Imprimir / PDF
+                  {isGeneratingPDF ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Gerando PDF...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      Imprimir / Baixar PDF
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => setViewingReceipt(null)}

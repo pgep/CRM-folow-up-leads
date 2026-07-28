@@ -228,39 +228,40 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
   if (!lead) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-full max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] md:h-[90vh] flex flex-col overflow-hidden shadow-2xl my-auto">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2.5rem)] md:h-[90vh] flex flex-col overflow-hidden shadow-2xl my-auto">
         
         {/* Header bar */}
-        <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/40 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold font-mono">
+        <div className="p-3.5 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50 shrink-0 gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold font-mono text-xs sm:text-base shrink-0">
               {lead.nome.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-white">{lead.nome}</h3>
-                <span className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+                <h3 className="text-xs sm:text-base font-semibold text-white truncate max-w-[130px] sm:max-w-xs">{lead.nome}</h3>
+                <span className="text-[9px] sm:text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded shrink-0">
                   {lead.id}
                 </span>
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="text-[10px] sm:text-xs text-zinc-500 truncate">
                 Origem: <strong>{lead.origem_portal}</strong> • Cadastrado em:{" "}
                 {new Date(lead.created_at).toLocaleDateString("pt-BR")}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {onDeleteLead && (
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/30 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg text-xs font-semibold transition disabled:opacity-40"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 border border-rose-500/30 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg text-[11px] sm:text-xs font-semibold transition disabled:opacity-40"
                 title="Excluir Lead"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{isDeleting ? "Excluindo..." : "Excluir Lead"}</span>
+                <span className="hidden sm:inline">{isDeleting ? "Excluindo..." : "Excluir Lead"}</span>
+                <span className="sm:hidden">{isDeleting ? "..." : "Excluir"}</span>
               </button>
             )}
 
@@ -277,10 +278,10 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
         <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
           
           {/* Left Column - Metadata & Budgets */}
-          <div className="lg:col-span-7 p-6 space-y-6">
+          <div className="lg:col-span-7 p-4 sm:p-6 space-y-5 sm:space-y-6">
             
             {/* Quick Status Changers */}
-            <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 grid grid-cols-3 gap-3">
+            <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
               <div className="space-y-1">
                 <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
                   Status Funil
@@ -379,8 +380,8 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
               </div>
 
               {isEditingMetadata ? (
-                <div className="bg-zinc-950/30 border border-zinc-800 rounded-xl p-4 space-y-4 text-xs">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-950/30 border border-zinc-800 rounded-xl p-3 sm:p-4 space-y-3 sm:space-y-4 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-zinc-500">Nome</label>
                       <input
@@ -437,7 +438,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-zinc-500">Local da Cerimônia</label>
                       <input
@@ -469,40 +470,80 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   </div>
                 </div>
               ) : (
-                <div className="bg-zinc-950/20 border border-zinc-800/80 rounded-xl p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2 text-zinc-400">
+                <div className="bg-zinc-950/20 border border-zinc-800/80 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
+                  <div className="space-y-2.5 min-w-0">
+                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
                       <User className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span className="text-white font-medium">{lead.nome}</span>
+                      <span className="text-white font-medium truncate">{lead.nome}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400">
+                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
                       <Mail className="w-4 h-4 text-zinc-500 shrink-0" />
                       <span className="truncate">{lead.email}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400">
-                      <Phone className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span>{lead.link_celular || "Telefone não informado"}</span>
+                    <div className="flex flex-col gap-1 text-zinc-400 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Phone className="w-4 h-4 text-zinc-500 shrink-0" />
+                        <span className="truncate">{lead.link_celular || "Telefone não informado"}</span>
+                      </div>
+                      {lead.whatsapp_validation_status && (
+                        <div className="pl-6 flex flex-wrap items-center gap-1.5">
+                          {lead.whatsapp_validation_status === "NUMERO_SEM_WHATSAPP" && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              title={lead.whatsapp_validation_error || "Número sem WhatsApp"}
+                            >
+                              🚫 Número sem WhatsApp
+                            </span>
+                          )}
+                          {lead.whatsapp_validation_status === "ERRO_TEMPORARIO_WAHA" && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              title={lead.whatsapp_validation_error || "Erro Temporário WAHA"}
+                            >
+                              ⚠️ Erro Temporário WAHA {lead.whatsapp_validation_http_code ? `(HTTP ${lead.whatsapp_validation_http_code})` : ""}
+                            </span>
+                          )}
+                          {lead.whatsapp_validation_status === "ERRO_COMUNICACAO" && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700"
+                              title={lead.whatsapp_validation_error || "Erro de Comunicação com WAHA"}
+                            >
+                              ⚡ Erro Conexão WAHA
+                            </span>
+                          )}
+                          {lead.whatsapp_validation_status === "ENVIADO_SUCESSO" && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              ✓ WhatsApp Válido
+                            </span>
+                          )}
+                          {lead.whatsapp_validated_at && (
+                            <span className="text-[10px] text-zinc-500">
+                              ({new Date(lead.whatsapp_validated_at).toLocaleDateString("pt-BR")} {new Date(lead.whatsapp_validated_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2 text-zinc-400">
+                  <div className="space-y-2.5 min-w-0">
+                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
                       <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span>
-                        Casamento: {lead.data_casamento || "Sem data informada"} ({lead.mes_casamento})
+                      <span className="truncate">
+                        Casamento: {lead.data_casamento || "Sem data"} ({lead.mes_casamento})
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400">
+                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
                       <MapPin className="w-4 h-4 text-zinc-500 shrink-0" />
                       <span className="truncate">{lead.local || "Local não informado"}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400">
+                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
                       <Gift className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span>{lead.convidados} convidados • {lead.servicos || "Geral"}</span>
+                      <span className="truncate">{lead.convidados} convidados • {lead.servicos || "Geral"}</span>
                     </div>
                   </div>
                 </div>
@@ -521,7 +562,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   Nenhum produto cadastrado no catálogo para cálculo de orçamentos dinâmicos.
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {products.map((prod) => {
                     const totalOrcamento = prod.valor_unitario * (lead.convidados || 0);
                     return (
@@ -556,22 +597,22 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                 <Clipboard className="w-4 h-4 text-amber-500" />
                 Histórico de Observações do CRM
               </h4>
-              <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-400 font-mono whitespace-pre-wrap leading-relaxed">
+              <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 max-h-36 sm:max-h-40 overflow-y-auto text-xs text-zinc-400 font-mono whitespace-pre-wrap leading-relaxed">
                 {lead.observacoes || "Nenhuma observação cadastrada no momento."}
               </div>
             </div>
           </div>
 
           {/* Right Column - Timeline Logs & Manual note creator */}
-          <div className="lg:col-span-5 p-6 flex flex-col h-full overflow-hidden">
+          <div className="lg:col-span-5 p-4 sm:p-6 flex flex-col space-y-5 lg:space-y-4 lg:h-full lg:overflow-hidden min-h-0">
             
             {/* Note Creator form */}
-            <form onSubmit={handleAddNote} className="space-y-2 shrink-0 mb-5">
+            <form onSubmit={handleAddNote} className="space-y-2 shrink-0">
               <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
                 <Tag className="w-4 h-4 text-amber-500" />
                 Registrar Atendimento Manual
               </h4>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={newNote}
@@ -582,7 +623,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                 <button
                   type="submit"
                   disabled={isSubmittingNote || !newNote.trim()}
-                  className="px-3 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 rounded-lg text-black font-semibold text-xs transition flex items-center gap-1 shrink-0"
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 rounded-lg text-black font-semibold text-xs transition flex items-center justify-center gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Salvar Note
@@ -591,12 +632,12 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
             </form>
 
             {/* Chronological timeline list */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex flex-col lg:flex-1 lg:min-h-0 pt-2 lg:pt-0">
               <h4 className="text-xs font-semibold text-zinc-500 tracking-wider uppercase mb-3 shrink-0">
                 Timeline de Interações
               </h4>
 
-              <div className="flex-1 overflow-y-auto pr-1 space-y-4 relative pl-3 border-l border-zinc-800">
+              <div className="max-h-[350px] sm:max-h-[450px] lg:max-h-none lg:flex-1 overflow-y-auto pr-1 space-y-4 relative pl-3 border-l border-zinc-800">
                 {history.length > 0 ? (
                   history.map((event) => {
                     const eventDate = new Date(event.created_at);
@@ -607,7 +648,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                         <div className="absolute -left-[17px] top-1.5 w-2.5 h-2.5 rounded-full bg-zinc-800 border-2 border-zinc-900 group-hover:bg-amber-400 transition shrink-0" />
                         
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between flex-wrap gap-1">
                             <span className="font-semibold text-white leading-none">
                               {event.titulo}
                             </span>
@@ -630,7 +671,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
                           {event.detalhes && (
                             <div
-                              className="mt-1.5 p-2 bg-zinc-950/60 border border-zinc-850 rounded-lg text-[11px] text-zinc-400 font-sans leading-relaxed"
+                              className="mt-1.5 p-2 bg-zinc-950/60 border border-zinc-850 rounded-lg text-[11px] text-zinc-400 font-sans leading-relaxed break-words"
                               dangerouslySetInnerHTML={{ __html: event.detalhes }}
                             />
                           )}

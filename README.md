@@ -79,6 +79,28 @@ O CRM elimina a necessidade de digitação manual exaustiva, oferecendo canais m
 
 ---
 
+## 💰 Módulo Financeiro, Contratos & Recibos Digitais em PDF
+
+O CRM conta com um módulo financeiro completo para controle das vendas e parcelamentos da Casa Colombo Artesanal:
+
+* **Gestão de Contratos de Vendas:** Cadastro e edição de contratos vinculados aos leads, aceitando pagamentos à vista ou parcelados com cálculo automático de parcelas e valor de entrada (*down payment*).
+* **Controle de Parcelas & Baixas:** Registro visual das parcelas pagas, pendentes e em atraso com histórico de data de quitação e meio de pagamento (Pix, Cartão, Dinheiro, Boleto, Transferência).
+* **📄 Geração & Download de Recibo Digital em PDF:**
+  * Emissão instantânea de recibo oficial de pagamento com identidade visual da Casa Colombo Artesanal e chancela eletrônica.
+  * **Exportação em PDF de Alta Definição:** Renderização direta para arquivo PDF utilizando `html2canvas` e `jsPDF`, garantindo download imediato sem dependência de permissões `allow-modals` de iframes/sandboxes.
+  * Botão **"Imprimir / Baixar PDF"** integrado com feedback em tempo real e fallback de impressão.
+
+---
+
+## 📢 Campanhas, Disparos em Massa (Broadcast) & Ações Especiais
+
+* **Segmentação Comercial:** Disparo de mensagens personalizadas e propostas dinâmicas em lote para noivas selecionadas por portal de origem, temperatura, quantidade de convidados ou intervalo da data do casamento.
+* **🛡️ Proteção Estrita contra Envios Inoportunos:**
+  * Leads com status de funil **Perdido**, **Sem Retorno**, **Sem WhatsApp** ou com motivo de perda cadastrado são **automaticamente bloqueados** em todos os fluxos de e-mail, automações e disparos em massa.
+  * A listagem de leads exibe por padrão apenas os **Leads Ativos**, facilitando o foco da equipe de atendimento e prevenindo ruídos em campanhas ativas.
+
+---
+
 ## ⚙️ A Esteira de Automação & Workflows (Follow-up)
 
 A esteira de automação do CRM é o coração pensante do sistema de vendas da Casa Colombo Artesanal. Ela funciona de forma sequencial com base nas configurações criadas no **Editor de Etapas**.
