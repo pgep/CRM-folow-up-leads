@@ -30,6 +30,7 @@ export default function App() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [useSupabase, setUseSupabase] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showNegociacaoOnly, setShowNegociacaoOnly] = useState(false);
 
   // Fetch all necessary data from the backend full-stack endpoints
   const fetchData = async () => {
@@ -491,7 +492,15 @@ export default function App() {
             <div className="animate-fade-in space-y-6">
               
               {activeTab === "dashboard" && (
-                <Dashboard stats={stats} onRunAutomation={handleRunAutomation} onRefresh={fetchData} />
+                <Dashboard 
+                  stats={stats} 
+                  onRunAutomation={handleRunAutomation} 
+                  onRefresh={fetchData} 
+                  onSelectNegociacao={() => {
+                    setShowNegociacaoOnly(true);
+                    setActiveTab("leads");
+                  }}
+                />
               )}
 
               {activeTab === "broadcast" && (
@@ -510,6 +519,8 @@ export default function App() {
                   onAddManualLead={handleAddManualLead}
                   onRefresh={fetchData}
                   onSwitchTab={setActiveTab}
+                  initialNegociacaoOnly={showNegociacaoOnly}
+                  onClearNegociacaoOnly={() => setShowNegociacaoOnly(false)}
                 />
               )}
 

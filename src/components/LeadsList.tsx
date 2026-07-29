@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Download } from "lucide-react";
+import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Download, Flame, MessageCircle, MapPin } from "lucide-react";
 import { Lead, LeadStatus, LeadTemperatura, PortalSource } from "../types";
 
 interface LeadsListProps {
@@ -15,16 +15,34 @@ interface LeadsListProps {
   onAddManualLead: (formData: any) => Promise<void>;
   onRefresh: () => void;
   onSwitchTab?: (tab: "sheet_import") => void;
+  initialNegociacaoOnly?: boolean;
+  onClearNegociacaoOnly?: () => void;
 }
 
-export default function LeadsList({ leads, portals, onSelectLead, onAddManualLead, onRefresh, onSwitchTab }: LeadsListProps) {
+export default function LeadsList({ 
+  leads, 
+  portals, 
+  onSelectLead, 
+  onAddManualLead, 
+  onRefresh, 
+  onSwitchTab,
+  initialNegociacaoOnly,
+  onClearNegociacaoOnly
+}: LeadsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | "ALL">("ALL");
   const [selectedTemp, setSelectedTemp] = useState<string | "ALL">("ALL");
   const [selectedPortal, setSelectedPortal] = useState<string | "ALL">("ALL");
+  const [negociacaoFilterOnly, setNegociacaoFilterOnly] = useState(initialNegociacaoOnly || false);
   const [isAddingLead, setIsAddingLead] = useState(false);
-  const [sortField, setSortField] = useState<"created_at" | "nome" | "convidados">("created_at");
+  const [sortField, setSortField] = useState<"created_at" | "nome" | "convidados" | "data_casamento">("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  React.useEffect(() => {
+    if (initialNegociacaoOnly !== undefined) {
+      setNegociacaoFilterOnly(initialNegociacaoOnly);
+    }
+  }, [initialNegociacaoOnly]);
 
   // Dynamic Options states
   const [statusList, setStatusList] = useState<string[]>([]);
@@ -66,11 +84,11 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
     }
     if (field === "temperatura") {
       switch (upperVal) {
-        case "FRIA": return "Fria";
-        case "MORNA": return "Morna";
-        case "QUENTE": return "Quente";
-        case "CLIENTE": return "Cliente";
-        default: return val;
+        case "FRIA": return "FRIA";
+        case "MORNA": return "MORNA";
+        case "QUENTE": return "QUENTE";
+        case "CLIENTE": return "CLIENTE";
+        default: return upperVal;
       }
     }
     return val;
@@ -123,7 +141,7 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
     }
   };
 
-  const toggleSort = (field: "created_at" | "nome" | "convidados") => {
+  const toggleSort = (field: "created_at" | "nome" | "convidados" | "data_casamento") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -157,16 +175,17 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
     }
   };
 
-  const getTempColor = (temp: LeadTemperatura) => {
-    switch (temp) {
+  const getTempColor = (temp?: string) => {
+    const norm = String(temp || "").trim().toUpperCase();
+    switch (norm) {
       case "FRIA":
-        return "text-sky-400 bg-sky-500/10 border-sky-500/10";
+        return "text-sky-400 bg-sky-500/10 border-sky-500/20";
       case "MORNA":
-        return "text-orange-400 bg-orange-500/10 border-orange-500/10";
+        return "text-amber-400 bg-amber-500/10 border-amber-500/20";
       case "QUENTE":
-        return "text-red-400 bg-red-500/10 border-red-500/10";
+        return "text-red-400 bg-red-500/10 border-red-500/20";
       case "CLIENTE":
-        return "text-emerald-400 bg-emerald-500/10 border-emerald-500/10";
+        return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
       default:
         return "text-zinc-400 bg-zinc-800 border-zinc-700";
     }
@@ -200,6 +219,29 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
       return d;
     }
     return null;
+  };
+
+  const isNegociacaoLead = (lead: Lead) => {
+    const status = (lead.status_funil || mapLegacyValue("status_funil", lead.status_funil) || "").trim().toUpperCase();
+    const temp = (lead.temperatura || mapLegacyValue("temperatura", lead.temperatura) || "").trim().toUpperCase();
+    return status === "RESPONDIDO" && temp === "QUENTE";
+  };
+
+  const isPerdido = (status?: string, motivo?: string) => {
+    const s = String(status || "").toUpperCase().trim();
+    if (s === "PERDIDO" || s === "SEM_RETORNO" || s === "SEM RETORNO" || s === "SEM RETORNO / ENCERRADO") return true;
+    if (motivo) {
+      const m = motivo.toUpperCase().trim();
+      if (["PRECO_ALTO", "FECHOU_COM_CONCORRENTE", "CANCELOU", "FORA_DO_PERFIL", "DESISTIU", "PERDIDO"].includes(m)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isConvertido = (status?: string) => {
+    const s = String(status || "").toUpperCase().trim();
+    return s === "FECHOU" || s === "CONVERTIDO" || s === "FECHOU (CONVERTIDO)";
   };
 
   // Filter & Search Logic
@@ -237,19 +279,15 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
         return p;
       };
 
-      const isPerdido = (status?: string, motivo?: string) => {
-        if (motivo && motivo.trim() !== "" && motivo !== "AGUARDANDO_DATA") return true;
-        const s = String(status || "").toUpperCase();
-        return s === "PERDIDO" || s === "SEM_RETORNO" || status === "Perdido" || status === "Sem Retorno" || status === "Sem Retorno / Encerrado" || status === "Sem WhatsApp";
-      };
-
       const matchStatus = selectedStatus === "ALL" 
-        ? !isPerdido(lead.status_funil, lead.motivo_perda)
+        ? (!isPerdido(lead.status_funil, lead.motivo_perda) && !isConvertido(lead.status_funil))
         : (lead.status_funil === selectedStatus || mapLegacyValue("status_funil", lead.status_funil) === selectedStatus);
-      const matchTemp = selectedTemp === "ALL" || lead.temperatura === selectedTemp || mapLegacyValue("temperatura", lead.temperatura) === selectedTemp;
+      const matchTemp = selectedTemp === "ALL" || 
+        String(lead.temperatura || "").trim().toUpperCase() === String(selectedTemp).trim().toUpperCase();
       const matchPortal = selectedPortal === "ALL" || normalizePortal(lead.origem_portal) === normalizePortal(selectedPortal);
+      const matchNegociacao = !negociacaoFilterOnly || isNegociacaoLead(lead);
 
-      return matchSearch && matchStatus && matchTemp && matchPortal;
+      return matchSearch && matchStatus && matchTemp && matchPortal && matchNegociacao;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -259,20 +297,75 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
         comparison = a.nome.localeCompare(b.nome);
       } else if (sortField === "convidados") {
         comparison = (a.convidados || 0) - (b.convidados || 0);
+      } else if (sortField === "data_casamento") {
+        const dateA = parseWeddingDateLocal(a.data_casamento);
+        const dateB = parseWeddingDateLocal(b.data_casamento);
+        const timeA = dateA ? dateA.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+        const timeB = dateB ? dateB.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+        comparison = timeA - timeB;
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
-  const isPerdido = (status?: string, motivo?: string) => {
-    if (motivo && motivo.trim() !== "" && motivo !== "AGUARDANDO_DATA") return true;
-    const s = String(status || "").toUpperCase();
-    return s === "PERDIDO" || s === "SEM_RETORNO" || status === "Perdido" || status === "Sem Retorno" || status === "Sem Retorno / Encerrado" || status === "Sem WhatsApp";
-  };
-
-  const activeLeadsCount = leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda)).length;
+  const activeLeadsCount = leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda) && !isConvertido(l.status_funil)).length;
+  const negociacaoCount = leads.filter(isNegociacaoLead).length;
 
   return (
     <div className="space-y-4">
+      {/* Quick View Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setNegociacaoFilterOnly(false);
+              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition ${
+              !negociacaoFilterOnly
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-sm"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+            }`}
+          >
+            <span>Todos os Leads Ativos</span>
+            <span className="bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] text-zinc-400 font-mono">
+              {activeLeadsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setNegociacaoFilterOnly(true)}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition ${
+              negociacaoFilterOnly
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm"
+                : "bg-zinc-900 text-zinc-400 hover:text-amber-300 hover:bg-amber-500/10 border border-zinc-800"
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
+            <span>🔥 Visão Leads em Negociação</span>
+            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-500/40">
+              {negociacaoCount}
+            </span>
+          </button>
+        </div>
+
+        {negociacaoFilterOnly && (
+          <div className="text-xs text-amber-300/80 font-medium flex items-center gap-1.5 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+            <span>Exibindo apenas leads com <strong>Status: Respondido</strong> e <strong>Temperatura: Quente</strong></span>
+            <button 
+              onClick={() => {
+                setNegociacaoFilterOnly(false);
+                if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+              }} 
+              className="text-amber-400 hover:text-amber-200 underline font-semibold ml-1"
+            >
+              Limpar filtro
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Search & Filter Header bar */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
         
@@ -324,15 +417,16 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
           >
             <option value="ALL">Todas Temperaturas</option>
             {tempsList.length > 0 ? (
-              tempsList.map((tmp) => (
-                <option key={tmp} value={tmp}>{tmp}</option>
-              ))
+              tempsList.map((tmp) => {
+                const normTmp = String(tmp).trim().toUpperCase();
+                return <option key={normTmp} value={normTmp}>{normTmp}</option>;
+              })
             ) : (
               <>
-                <option value="FRIA">Fria</option>
-                <option value="MORNA">Morna</option>
-                <option value="QUENTE">Quente</option>
-                <option value="CLIENTE">Cliente</option>
+                <option value="FRIA">FRIA</option>
+                <option value="MORNA">MORNA</option>
+                <option value="QUENTE">QUENTE</option>
+                <option value="CLIENTE">CLIENTE</option>
               </>
             )}
           </select>
@@ -389,7 +483,10 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
           Convidados
           <ArrowUpDown className="w-3 h-3" />
         </button>
-        <span className="col-span-2">Detalhes Evento</span>
+        <button onClick={() => toggleSort("data_casamento")} className="col-span-2 flex items-center gap-1 text-left hover:text-white">
+          DATA EVENTO
+          <ArrowUpDown className="w-3 h-3" />
+        </button>
         <span className="col-span-2">Status / Etapa</span>
         <button onClick={() => toggleSort("created_at")} className="col-span-1 flex items-center gap-1 hover:text-white justify-end">
           Criado
@@ -402,25 +499,42 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
         {filteredLeads.length > 0 ? (
           filteredLeads.map((lead) => {
             const date = new Date(lead.created_at || Date.now());
+            const isEmNegociacao = isNegociacaoLead(lead);
             
             return (
-              <button
+              <div
                 key={lead.id}
                 onClick={() => onSelectLead(lead.id)}
-                className="w-full bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3.5 items-start md:items-center text-xs text-zinc-300 text-left transition"
+                className={`w-full cursor-pointer rounded-xl p-4 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3.5 items-start md:items-center text-xs text-zinc-300 text-left transition ${
+                  isEmNegociacao
+                    ? "bg-amber-950/20 hover:bg-amber-950/35 border border-amber-500/40 hover:border-amber-400 shadow-sm shadow-amber-500/5"
+                    : "bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700"
+                }`}
               >
                 {/* Bride identity */}
                 <div className="md:col-span-3 w-full flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center font-bold shrink-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
+                    isEmNegociacao ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-zinc-800 text-zinc-300"
+                  }`}>
                     {lead.nome.charAt(0).toUpperCase()}
                   </div>
                   <div className="truncate">
-                    <span className="font-semibold text-white block truncate">{lead.nome}</span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-white block truncate">{lead.nome}</span>
+                    </div>
                     <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">{lead.id}</span>
+                    {isEmNegociacao && (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm animate-pulse">
+                          <Flame className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                          Em Negociação
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Email / phone contact */}
+                {/* Email / phone contact & location & 1-Click Quick Actions */}
                 <div className="md:col-span-3 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate space-y-1">
                   <div className="flex items-center gap-1.5 text-zinc-400">
                     <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
@@ -430,6 +544,40 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
                     <Phone className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                     <span>{lead.link_celular || "Sem fone"}</span>
                   </div>
+                  {lead.local && (
+                    <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] truncate" title={lead.local}>
+                      <MapPin className="w-3.5 h-3.5 text-amber-500/80 shrink-0" />
+                      <span className="truncate">{lead.local}</span>
+                    </div>
+                  )}
+
+                  {/* 1-Click Quick Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    {lead.link_celular && (
+                      <a
+                        href={`https://wa.me/${lead.link_celular.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.nome}! Tudo bem? Gostaria de conversar sobre o seu orçamento de casamento na Casa Colombo Artesanal.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Abrir WhatsApp direto (1-Clique)"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-bold transition"
+                      >
+                        <MessageCircle className="w-3 h-3 text-emerald-400 fill-emerald-400/20" />
+                        WhatsApp
+                      </a>
+                    )}
+                    {lead.email && (
+                      <a
+                        href={`mailto:${lead.email}?subject=${encodeURIComponent(`Acompanhamento de Orçamento - ${lead.nome}`)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Enviar E-mail direto (1-Clique)"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/15 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 rounded text-[10px] font-bold transition"
+                      >
+                        <Mail className="w-3 h-3 text-sky-400" />
+                        E-mail
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {/* Guests */}
@@ -438,23 +586,22 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
                   <span>{lead.convidados}</span>
                 </div>
 
-                {/* Event Details */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate space-y-1 pr-2">
-                  <div className="flex items-center gap-1 text-zinc-400">
-                    <Calendar className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <span className="truncate">{lead.data_casamento || "Não inf."}</span>
+                {/* Event Date */}
+                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate flex items-center pr-2">
+                  <div className="flex items-center gap-1.5 text-zinc-300">
+                    <Calendar className="w-3.5 h-3.5 text-amber-500/80 shrink-0" />
+                    <span className="truncate font-medium">{lead.data_casamento || "Não inf."}</span>
                   </div>
-                  <span className="text-[10px] text-zinc-500 block truncate">{lead.local || "Local não informado"}</span>
                 </div>
 
                 {/* Status Badges */}
                 <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col gap-1.5">
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border ${getStatusColor(lead.status_funil)}`}>
                       {lead.status_funil}
                     </span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${getTempColor(lead.temperatura)}`}>
-                      {lead.temperatura}
+                      {String(lead.temperatura || "FRIA").trim().toUpperCase()}
                     </span>
                   </div>
                   <span className="text-[10px] text-zinc-500 truncate block">Etapa: {lead.etapa_contato}</span>
@@ -468,7 +615,7 @@ export default function LeadsList({ leads, portals, onSelectLead, onAddManualLea
                     <ChevronRight className="w-4 h-4 text-zinc-600 hidden md:block" />
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })
         ) : (

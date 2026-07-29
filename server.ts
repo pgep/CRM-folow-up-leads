@@ -320,6 +320,19 @@ async function initPgDatabase() {
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validated_at VARCHAR(255);
       `);
 
+      // 1.1 Index for Negotiation Leads filtering
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_leads_negociacao ON leads (status_funil, temperatura);
+      `);
+
+      // 1.2 Normalize existing lead temperatures
+      await client.query(`
+        UPDATE leads SET temperatura = 'QUENTE' WHERE UPPER(TRIM(temperatura)) = 'QUENTE';
+        UPDATE leads SET temperatura = 'MORNA' WHERE UPPER(TRIM(temperatura)) = 'MORNA';
+        UPDATE leads SET temperatura = 'FRIA' WHERE UPPER(TRIM(temperatura)) = 'FRIA';
+        UPDATE leads SET temperatura = 'CLIENTE' WHERE UPPER(TRIM(temperatura)) = 'CLIENTE';
+      `);
+
       // 2. Workflow Config Table
       await client.query(`
         CREATE TABLE IF NOT EXISTS workflow_config (
@@ -531,6 +544,16 @@ function parseWeddingDateGlobal(dateStr?: string): Date | null {
   return null;
 }
 
+function normalizeTemperatura(temp?: string): string {
+  if (!temp) return "FRIA";
+  const s = String(temp).trim().toUpperCase();
+  if (s === "QUENTE" || s === "HOT") return "QUENTE";
+  if (s === "MORNA" || s === "WARM") return "MORNA";
+  if (s === "FRIA" || s === "COLD") return "FRIA";
+  if (s === "CLIENTE" || s === "CUSTOMER") return "CLIENTE";
+  return s;
+}
+
 // Database Helper methods that abstract Supabase vs. Local JSON
 async function getLeads(): Promise<any[]> {
   let list: any[] = [];
@@ -562,6 +585,14 @@ async function getLeads(): Promise<any[]> {
       list = [];
     }
   }
+
+  // Normalize temperatura on all leads
+  list = list.map((l) => {
+    if (l) {
+      l.temperatura = normalizeTemperatura(l.temperatura);
+    }
+    return l;
+  });
 
   // Filter out any lead with a wedding date in the past
   const today = new Date();
@@ -701,6 +732,7 @@ async function handleDuplicateAttempt(existingLead: any, sourceName: string, pay
 }
 
 async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
+  lead.temperatura = normalizeTemperatura(lead.temperatura);
   lead.updated_at = new Date().toISOString();
   if (isNew) {
     lead.created_at = lead.created_at || new Date().toISOString();
@@ -1512,7 +1544,7 @@ async function getGeneralSettings(): Promise<any> {
           use_ssl: true
         },
         waha_whatsapp: {
-          api_url: "http://localhost:3000",
+          api_url: "",
           api_key: "",
           session_name: "default",
           delay_seconds: 5
@@ -1537,6 +1569,10 @@ async function getGeneralSettings(): Promise<any> {
 
   // Ensure dynamic options lists are initialized
   let updated = false;
+  if (settings.waha_whatsapp && settings.waha_whatsapp.api_url && (settings.waha_whatsapp.api_url.includes("localhost:3000") || settings.waha_whatsapp.api_url.includes("127.0.0.1:3000"))) {
+    settings.waha_whatsapp.api_url = "";
+    updated = true;
+  }
   if (!settings.redis_lock) {
     settings.redis_lock = {
       enabled: false,
@@ -1581,12 +1617,18 @@ async function getGeneralSettings(): Promise<any> {
   }
   if (!settings.temperaturas || !Array.isArray(settings.temperaturas)) {
     settings.temperaturas = [
-      "Fria",
-      "Morna",
-      "Quente",
-      "Cliente"
+      "FRIA",
+      "MORNA",
+      "QUENTE",
+      "CLIENTE"
     ];
     updated = true;
+  } else {
+    const normalizedList = Array.from(new Set(settings.temperaturas.map((t: string) => normalizeTemperatura(t))));
+    if (JSON.stringify(normalizedList) !== JSON.stringify(settings.temperaturas)) {
+      settings.temperaturas = normalizedList;
+      updated = true;
+    }
   }
 
   if (updated) {
@@ -1805,12 +1847,26 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
   }
 
   const wahaConf = settings?.waha_whatsapp;
-  if (!wahaConf || !wahaConf.api_url) {
+  if (!wahaConf || !wahaConf.api_url || !wahaConf.api_url.trim()) {
     return {
       isValid: false,
       code: "ERRO_COMUNICACAO",
       httpCode: 0,
-      errorMessage: "URL da API do WAHA não configurada",
+      errorMessage: "URL da API do WAHA não configurada em Comunicação / WhatsApp",
+      validatedAt
+    };
+  }
+
+  const apiUrl = wahaConf.api_url.trim();
+  const apiUrlLower = apiUrl.toLowerCase();
+
+  // Protection against loopback/localhost pointing to this CRM app instead of a real WAHA server
+  if (apiUrlLower.includes("localhost:3000") || apiUrlLower.includes("127.0.0.1:3000") || apiUrlLower.includes("seu-sistema.com")) {
+    return {
+      isValid: false,
+      code: "ERRO_COMUNICACAO",
+      httpCode: 0,
+      errorMessage: "URL do WAHA está apontando para o próprio CRM ou placeholder (não é um servidor WAHA ativo)",
       validatedAt
     };
   }
@@ -1822,9 +1878,9 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
   }
 
   const endpoints = [
-    { url: `${wahaConf.api_url}/api/contacts/check-exists?phone=${cleanPhone}&session=${session}`, method: "GET" },
-    { url: `${wahaConf.api_url}/api/checkNumberStatus?phone=${cleanPhone}&session=${session}`, method: "GET" },
-    { url: `${wahaConf.api_url}/api/contacts/check-exists`, method: "POST", body: { phone: cleanPhone, session } }
+    { url: `${apiUrl}/api/contacts/check-exists?phone=${cleanPhone}&session=${session}`, method: "GET" },
+    { url: `${apiUrl}/api/checkNumberStatus?phone=${cleanPhone}&session=${session}`, method: "GET" },
+    { url: `${apiUrl}/api/contacts/check-exists`, method: "POST", body: { phone: cleanPhone, session } }
   ];
 
   let lastStatus = 0;
@@ -1844,13 +1900,29 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
       const res = await fetch(ep.url, options);
       lastStatus = res.status;
 
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const numberExists = data.numberExists !== undefined 
-          ? Boolean(data.numberExists) 
-          : (data.exists !== undefined ? Boolean(data.exists) : Boolean(data.chatId && !data.error));
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        lastErrorMsg = `URL do WAHA retornou ${contentType || 'HTML/Texto'} em vez de JSON do WAHA`;
+        continue;
+      }
 
-        if (numberExists) {
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (!data || typeof data !== "object") {
+          lastErrorMsg = "Resposta da API do WAHA não é um JSON válido";
+          continue;
+        }
+
+        let numberExists: boolean | null = null;
+        if (typeof data.numberExists === "boolean") {
+          numberExists = data.numberExists;
+        } else if (typeof data.exists === "boolean") {
+          numberExists = data.exists;
+        } else if (data.chatId && !data.error) {
+          numberExists = true;
+        }
+
+        if (numberExists === true) {
           return {
             isValid: true,
             code: "ENVIADO_SUCESSO",
@@ -1858,21 +1930,24 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
             errorMessage: null,
             validatedAt
           };
-        } else {
+        } else if (numberExists === false) {
           return {
             isValid: false,
             code: "NUMERO_SEM_WHATSAPP",
             httpCode: res.status,
-            errorMessage: `[WAHA ${res.status}] O número ${cleanPhone} não possui conta ativa no WhatsApp`,
+            errorMessage: `[WAHA ${res.status}] O número ${cleanPhone} foi confirmado como NÃO EXISTENTE no WhatsApp pelo WAHA`,
             validatedAt
           };
+        } else {
+          lastErrorMsg = "Resposta JSON do WAHA não contém a propriedade 'numberExists' ou 'exists'";
+          continue;
         }
       }
 
       const text = await res.text().catch(() => "");
       lastErrorMsg = text || `HTTP Status ${res.status}`;
 
-      if ((res.status === 404 || res.status === 400) && (text.toLowerCase().includes("not found") || text.toLowerCase().includes("number_not_exists") || text.toLowerCase().includes("false"))) {
+      if ((res.status === 404 || res.status === 400) && (text.toLowerCase().includes("not found") || text.toLowerCase().includes("number_not_exists"))) {
         return {
           isValid: false,
           code: "NUMERO_SEM_WHATSAPP",
@@ -1902,13 +1977,7 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
           validatedAt
         };
       }
-      return {
-        isValid: false,
-        code: "ERRO_COMUNICACAO",
-        httpCode: 0,
-        errorMessage: `[Erro Comunicação] Não foi possível conectar ao WAHA: ${err.message}`,
-        validatedAt
-      };
+      lastErrorMsg = err.message;
     }
   }
 
@@ -1916,7 +1985,7 @@ async function checkWhatsAppNumberExists(phone: string, settings?: any): Promise
     isValid: false,
     code: lastStatus >= 500 ? "ERRO_TEMPORARIO_WAHA" : "ERRO_COMUNICACAO",
     httpCode: lastStatus,
-    errorMessage: `[WAHA HTTP ${lastStatus}] ${lastErrorMsg || "Falha nas tentativas de verificação de número"}`,
+    errorMessage: `[WAHA HTTP ${lastStatus}] ${lastErrorMsg || "Não foi possível conectar ou validar o número na API do WAHA"}`,
     validatedAt
   };
 }
@@ -2211,10 +2280,32 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
 // REST API ROUTES
 // -------------------------------------------------------------
 
+// API - Leads Em Negociação (Filtro Respondido + Quente)
+app.get("/api/leads/em-negociacao", async (req, res) => {
+  try {
+    const list = await getLeads();
+    const negociacaoLeads = list.filter((l) => {
+      const status = String(l.status_funil || "").trim().toUpperCase();
+      const temp = String(l.temperatura || "").trim().toUpperCase();
+      return status === "RESPONDIDO" && temp === "QUENTE";
+    });
+    res.json(negociacaoLeads);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API - Leads List
 app.get("/api/leads", async (req, res) => {
   try {
-    const list = await getLeads();
+    let list = await getLeads();
+    if (req.query.negociacao === "true" || req.query.em_negociacao === "true" || req.query.negociacao === "1") {
+      list = list.filter((l) => {
+        const status = String(l.status_funil || "").trim().toUpperCase();
+        const temp = String(l.temperatura || "").trim().toUpperCase();
+        return status === "RESPONDIDO" && temp === "QUENTE";
+      });
+    }
     res.json(list);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -3500,8 +3591,10 @@ async function processLeadWorkflowAction(lead: any, configEtapa: any, workflowCo
   if (
     statusUpperCheck === "PERDIDO" ||
     statusUpperCheck === "SEM_RETORNO" ||
+    statusUpperCheck === "RESPONDIDO" ||
     lead.status_funil === "Perdido" ||
     lead.status_funil === "Sem Retorno" ||
+    lead.status_funil === "Respondido" ||
     lead.status_funil === "Sem WhatsApp" ||
     (lead.motivo_perda && lead.motivo_perda.trim() !== "" && lead.motivo_perda !== "AGUARDANDO_DATA")
   ) {
@@ -4560,11 +4653,24 @@ app.get("/api/stats", async (req, res) => {
     const upcoming3Months: any[] = [];
 
     const isNovo = (s: string) => !s || s === "NOVO" || s === "Novo" || s === "Primeiro Contato" || s === "PRIMEIRO_CONTATO";
-    const isConvertido = (s: string) => s === "FECHOU" || s === "Fechou (Convertido)" || s === "Fechou" || s === "CONVERTIDO";
-    const isPerdido = (s: string) => s === "PERDIDO" || s === "SEM_RETORNO" || s === "Perdido" || s === "Sem Retorno / Encerrado" || s === "Sem Retorno" || s === "Sem WhatsApp";
+    const isConvertido = (s: string) => {
+      const upper = String(s || "").toUpperCase().trim();
+      return upper === "FECHOU" || upper === "CONVERTIDO" || upper === "FECHOU (CONVERTIDO)";
+    };
+    const isPerdido = (s: string, m?: string) => {
+      const upper = String(s || "").toUpperCase().trim();
+      if (upper === "PERDIDO" || upper === "SEM_RETORNO" || upper === "SEM RETORNO" || upper === "SEM RETORNO / ENCERRADO") return true;
+      if (m) {
+        const upperM = String(m || "").toUpperCase().trim();
+        if (["PRECO_ALTO", "FECHOU_COM_CONCORRENTE", "CANCELOU", "FORA_DO_PERFIL", "DESISTIU", "PERDIDO"].includes(upperM)) {
+          return true;
+        }
+      }
+      return false;
+    };
 
     leads.forEach((l) => {
-      if (isPerdido(l.status_funil) || (l.motivo_perda && l.motivo_perda.trim() !== "" && l.motivo_perda !== "AGUARDANDO_DATA")) return;
+      if (isPerdido(l.status_funil, l.motivo_perda)) return;
       if (!l.data_casamento) return;
       const wDate = parseWeddingDate(l.data_casamento);
       if (!wDate) return;
@@ -4588,9 +4694,14 @@ app.get("/api/stats", async (req, res) => {
 
     const totalLeads = dashboardLeads.length;
     const leadsNovos = dashboardLeads.filter((l) => isNovo(l.status_funil)).length;
-    const leadsAtivos = dashboardLeads.filter((l) => !isConvertido(l.status_funil) && !isPerdido(l.status_funil)).length;
+    const leadsAtivos = dashboardLeads.filter((l) => !isConvertido(l.status_funil) && !isPerdido(l.status_funil, l.motivo_perda)).length;
     const leadsConvertidos = dashboardLeads.filter((l) => isConvertido(l.status_funil)).length;
-    const leadsPerdidos = dashboardLeads.filter((l) => isPerdido(l.status_funil)).length;
+    const leadsPerdidos = dashboardLeads.filter((l) => isPerdido(l.status_funil, l.motivo_perda)).length;
+    const leadsEmNegociacao = dashboardLeads.filter((l) => {
+      const status = String(l.status_funil || "").trim().toUpperCase();
+      const temp = String(l.temperatura || "").trim().toUpperCase();
+      return status === "RESPONDIDO" && temp === "QUENTE";
+    }).length;
     
     const taxaConversao = totalLeads > 0 ? parseFloat(((leadsConvertidos / totalLeads) * 100).toFixed(1)) : 0;
 
@@ -4602,7 +4713,8 @@ app.get("/api/stats", async (req, res) => {
     dashboardLeads.forEach((l) => {
       leadsPorStatus[l.status_funil] = (leadsPorStatus[l.status_funil] || 0) + 1;
       leadsPorEtapa[l.etapa_contato] = (leadsPorEtapa[l.etapa_contato] || 0) + 1;
-      leadsPorTemperatura[l.temperatura] = (leadsPorTemperatura[l.temperatura] || 0) + 1;
+      const normTemp = normalizeTemperatura(l.temperatura);
+      leadsPorTemperatura[normTemp] = (leadsPorTemperatura[normTemp] || 0) + 1;
       
       let originName = l.origem_portal || "Manual";
       const upperOrigin = originName.toUpperCase().trim();
@@ -4646,6 +4758,7 @@ app.get("/api/stats", async (req, res) => {
       leadsAtivos,
       leadsConvertidos,
       leadsPerdidos,
+      leadsEmNegociacao,
       taxaConversao,
       leadsPorStatus,
       leadsPorEtapa,

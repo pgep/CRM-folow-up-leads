@@ -99,11 +99,11 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
     }
     if (field === "temperatura") {
       switch (upperVal) {
-        case "FRIA": return "Fria";
-        case "MORNA": return "Morna";
-        case "QUENTE": return "Quente";
-        case "CLIENTE": return "Cliente";
-        default: return val;
+        case "FRIA": return "FRIA";
+        case "MORNA": return "MORNA";
+        case "QUENTE": return "QUENTE";
+        case "CLIENTE": return "CLIENTE";
+        default: return upperVal;
       }
     }
     return val;
@@ -349,15 +349,16 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 font-medium"
                 >
                   {tempsList.length > 0 ? (
-                    tempsList.map((tmp) => (
-                      <option key={tmp} value={tmp}>{tmp}</option>
-                    ))
+                    tempsList.map((tmp) => {
+                      const normTmp = String(tmp).trim().toUpperCase();
+                      return <option key={normTmp} value={normTmp}>{normTmp}</option>;
+                    })
                   ) : (
                     <>
-                      <option value="Fria">Fria</option>
-                      <option value="Morna">Morna</option>
-                      <option value="Quente">Quente</option>
-                      <option value="Cliente">Cliente</option>
+                      <option value="FRIA">FRIA</option>
+                      <option value="MORNA">MORNA</option>
+                      <option value="QUENTE">QUENTE</option>
+                      <option value="CLIENTE">CLIENTE</option>
                     </>
                   )}
                 </select>

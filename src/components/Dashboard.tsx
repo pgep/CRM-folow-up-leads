@@ -6,16 +6,17 @@
 import React, { useState, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend } from "recharts";
 import { DashboardStats, Lead } from "../types";
-import { Users, TrendingUp, AlertCircle, Sparkles, Star, Calendar, RefreshCw, Play, Terminal, ShieldCheck, CheckCircle2, Clock, Mail, MessageSquare, Phone, X, Send, AlertTriangle } from "lucide-react";
+import { Users, TrendingUp, AlertCircle, Sparkles, Star, Calendar, RefreshCw, Play, Terminal, ShieldCheck, CheckCircle2, Clock, Mail, MessageSquare, Phone, X, Send, AlertTriangle, Flame, ArrowRight } from "lucide-react";
 import { useToast } from "./Toast";
 
 interface DashboardProps {
   stats: DashboardStats | null;
   onRunAutomation: () => Promise<any>;
   onRefresh?: () => Promise<void>;
+  onSelectNegociacao?: () => void;
 }
 
-export default function Dashboard({ stats, onRunAutomation, onRefresh }: DashboardProps) {
+export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectNegociacao }: DashboardProps) {
   const { toast, confirm } = useToast();
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [automationLogs, setAutomationLogs] = useState<string[]>([]);
@@ -241,7 +242,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
     <div className="space-y-6">
       
       {/* KPI Stats Cards row */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3.5">
         
         {/* Total Leads */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
@@ -252,6 +253,25 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh }: Dashboa
           <div className="mt-2.5">
             <span className="text-2xl font-bold text-white block leading-none">{stats.totalLeads}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Capturadas no funil</span>
+          </div>
+        </div>
+
+        {/* Em Negociação (Respondido + Quente) */}
+        <div 
+          onClick={() => onSelectNegociacao && onSelectNegociacao()}
+          className="bg-gradient-to-br from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/40 hover:border-amber-400 rounded-xl p-4 flex flex-col justify-between cursor-pointer transition group shadow-lg shadow-amber-500/5 relative overflow-hidden"
+          title="Clique para ver todos os Leads em Negociação"
+        >
+          <div className="flex items-center justify-between text-amber-400">
+            <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1 text-amber-400">
+              <Flame className="w-3.5 h-3.5 fill-amber-400/30 text-amber-400 animate-pulse" />
+              Em Negociação
+            </span>
+            <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition" />
+          </div>
+          <div className="mt-2.5">
+            <span className="text-2xl font-extrabold text-amber-400 block leading-none">{stats.leadsEmNegociacao || 0}</span>
+            <span className="text-[10px] text-amber-300/80 mt-1 block font-medium">Respondido + Quente</span>
           </div>
         </div>
 

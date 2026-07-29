@@ -106,6 +106,7 @@ export interface DashboardStats {
   leadsAtivos: number;
   leadsConvertidos: number;
   leadsPerdidos: number;
+  leadsEmNegociacao?: number;
   taxaConversao: number; // percentage
   leadsPorStatus: Record<LeadStatus, number>;
   leadsPorEtapa: Record<LeadEtapa, number>;

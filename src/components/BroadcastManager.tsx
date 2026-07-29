@@ -355,7 +355,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
     };
 
     if (bulkFilterStatus !== "ALL" && lead.status_funil !== bulkFilterStatus) return false;
-    if (bulkFilterTemp !== "ALL" && lead.temperatura !== bulkFilterTemp) return false;
+    if (bulkFilterTemp !== "ALL" && String(lead.temperatura || "").trim().toUpperCase() !== String(bulkFilterTemp).trim().toUpperCase()) return false;
     if (bulkFilterPortal !== "ALL" && normalizePortal(lead.origem_portal) !== normalizePortal(bulkFilterPortal)) return false;
     if (bulkFilterMonth !== "ALL") {
       if (!lead.mes_casamento) return false;
@@ -1120,11 +1120,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                             {lead.status_funil}
                           </span>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-mono ${
-                            lead.temperatura === "QUENTE" ? "bg-red-500/10 text-red-400" :
-                            lead.temperatura === "MORNA" ? "bg-amber-500/10 text-amber-400" :
-                            "bg-blue-500/10 text-blue-400"
+                            String(lead.temperatura || "").toUpperCase() === "QUENTE" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                            String(lead.temperatura || "").toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                            String(lead.temperatura || "").toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                            "bg-sky-500/10 text-sky-400 border border-sky-500/20"
                           }`}>
-                            {lead.temperatura}
+                            {String(lead.temperatura || "FRIA").toUpperCase()}
                           </span>
                         </div>
                       </div>

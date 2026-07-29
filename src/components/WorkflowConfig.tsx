@@ -658,12 +658,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                           </span>
                           {stage.temperatura && (
                             <span className={`text-[9px] px-1 py-0.5 rounded font-bold uppercase ${
-                              stage.temperatura === "QUENTE" ? "bg-rose-500/10 text-rose-400" :
-                              stage.temperatura === "MORNA" ? "bg-amber-500/10 text-amber-400" :
-                              stage.temperatura === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400" :
-                              "bg-zinc-800 text-zinc-400"
+                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                              String(stage.temperatura).toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                              String(stage.temperatura).toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                              "bg-sky-500/10 text-sky-400 border border-sky-500/20"
                             }`}>
-                              {stage.temperatura}
+                              {String(stage.temperatura).toUpperCase()}
                             </span>
                           )}
                         </div>
@@ -791,10 +791,10 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       onChange={(e) => setTemperatura(e.target.value as LeadTemperatura)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
                     >
-                      <option value="FRIA font-semibold">Fria</option>
-                      <option value="MORNA">Morna</option>
-                      <option value="QUENTE">Quente</option>
-                      <option value="CLIENTE">Cliente</option>
+                      <option value="FRIA">FRIA</option>
+                      <option value="MORNA">MORNA</option>
+                      <option value="QUENTE">QUENTE</option>
+                      <option value="CLIENTE">CLIENTE</option>
                     </select>
                   </div>
 

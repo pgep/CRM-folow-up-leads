@@ -168,9 +168,10 @@ export default function OptionsListsSetup() {
   // Temperatura CRUD Handlers
   const handleAddTemp = () => {
     if (!newTemp.trim() || !settings) return;
+    const formatted = newTemp.trim().toUpperCase();
     const updated = {
       ...settings,
-      temperaturas: [...(settings.temperaturas || []), newTemp.trim()]
+      temperaturas: Array.from(new Set([...(settings.temperaturas || []), formatted]))
     };
     saveSettings(updated);
     setNewTemp("");
@@ -199,7 +200,7 @@ export default function OptionsListsSetup() {
   const handleSaveEditTemp = (index: number) => {
     if (!editingTempVal.trim() || !settings) return;
     const updatedTemps = [...settings.temperaturas];
-    updatedTemps[index] = editingTempVal.trim();
+    updatedTemps[index] = editingTempVal.trim().toUpperCase();
     const updated = {
       ...settings,
       temperaturas: updatedTemps
