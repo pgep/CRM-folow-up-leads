@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Lead, PortalSource } from "../types";
 import { useToast } from "./Toast";
+import VariablePicker from "./VariablePicker";
 
 interface BroadcastManagerProps {
   leads: Lead[];
@@ -662,15 +663,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 )}
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400">Template da Mensagem</label>
-                  <span className="text-[10px] text-zinc-500">Substitutos: <code className="text-[#89F0B2]">{`{nome}`}</code>, <code className="text-[#89F0B2]">{`{local}`}</code>, <code className="text-[#89F0B2]">{`{dias_casamento}`}</code>, <code className="text-[#89F0B2]">{`{convidados}`}</code></span>
+                  <span className="text-[10px] text-zinc-500 font-mono">Use a barra abaixo para escolher variáveis</span>
                 </div>
+
+                <VariablePicker 
+                  onInsert={(tag) => setRuleMessage(prev => prev + (prev.endsWith(" ") || prev === "" ? "" : " ") + tag)} 
+                  className="mb-2"
+                />
+
                 <textarea
                   required
                   rows={4}
-                  placeholder="Olá {nome}, vimos que falta pouco ({dias_casamento} dias) para o seu grande dia no {local}. Quer fechar as lembrancinhas aromáticas?"
+                  placeholder="Olá {nome}, vimos que falta pouco ({dias_casamento} dias) para o seu grande dia no {local}. Quer fechar as lembrancinhas aromáticas? O valor total para {convidados} convidados fica {orcamento_vela_vidro}."
                   value={ruleMessage}
                   onChange={e => setRuleMessage(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans focus:outline-none focus:border-[#89F0B2]/50 leading-relaxed"
@@ -983,17 +990,23 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 </div>
               )}
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-mono text-zinc-400">Texto / Corpo da Mensagem</label>
-                  <span className="text-[9px] text-zinc-500 font-mono">Variáveis suportadas: {`{nome}`}, {`{local}`}</span>
+                  <span className="text-[9px] text-zinc-500 font-mono">Suporta todas as variáveis do sistema</span>
                 </div>
+
+                <VariablePicker 
+                  onInsert={(tag) => setBulkMessage(prev => prev + (prev.endsWith(" ") || prev === "" ? "" : " ") + tag)} 
+                  className="mb-2"
+                />
+
                 <textarea
                   rows={6}
                   value={bulkMessage}
                   onChange={e => setBulkMessage(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-[#89F0B2]/50"
-                  placeholder="Escreva a mensagem aqui..."
+                  placeholder="Olá {nome}, preparamos um orçamento especial para o seu evento em {local} ({mes_casamento}). O total fica {orcamento_vela_vidro}..."
                 />
               </div>
 

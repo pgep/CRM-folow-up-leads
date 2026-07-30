@@ -14,6 +14,7 @@ import { WorkflowStage, LeadStatus, LeadEtapa, LeadTemperatura } from "../types"
 import CommunicationSetup from "./CommunicationSetup";
 import AutoTriggerSetup from "./AutoTriggerSetup";
 import OptionsListsSetup from "./OptionsListsSetup";
+import VariablePicker from "./VariablePicker";
 import { useToast } from "./Toast";
 
 const generateIdFromFriendlyName = (name: string): string => {
@@ -842,9 +843,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                         <label className="text-xs font-medium text-zinc-400">Mensagem Template</label>
                         <span className="text-[10px] text-amber-500 flex items-center gap-1 font-semibold">
                           <HelpCircle className="w-3.5 h-3.5" />
-                          Variáveis: {"{{nome}}"}, {"{{mesCasamento}}"}, {"{{local}}"}
+                          Suporta todas as variáveis do sistema
                         </span>
                       </div>
+
+                      <VariablePicker onInsert={(tag) => insertTextAtCursor(tag)} className="mb-2" />
 
                       {/* Enhanced Formatting Toolbar & Emoji Selector */}
                       <div className="bg-zinc-950 border border-zinc-800 rounded-t-lg p-2 flex flex-wrap gap-2 items-center justify-between border-b-0">

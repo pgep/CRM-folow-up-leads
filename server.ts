@@ -2097,27 +2097,76 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
   let text = template;
   
   const leadName = lead.nome || lead.name || "";
+  const leadEmail = lead.email || "";
   const leadLocal = lead.local || "sua região";
   const leadServicos = lead.servicos || lead.services || "nossos produtos";
-  const leadConvidados = String(lead.convidados || lead.guests || "100");
+  const leadConvidados = String(lead.convidados || lead.guests || "0");
   const leadMes = lead.mes_casamento || lead.mesCasamento || lead.wedding_month || "breve";
+  const complementoMes = leadMes && leadMes !== "breve" ? ` no mês de ${leadMes}` : " em breve";
+  const leadData = lead.data_casamento || lead.dataCasamento || "";
+  const leadStatus = lead.status_funil || lead.status || "";
+  const leadTemperatura = lead.temperatura || "";
+  const leadOrigem = lead.origem_portal || lead.origem || "";
 
-  // Substituições básicas (suporta tanto {variavel} quanto {{variavel}})
+  let diasRestantesStr = "N/A";
+  if (leadData) {
+    try {
+      let weddingDate: Date | null = null;
+      if (leadData.includes("/")) {
+        const parts = leadData.split("/");
+        if (parts.length === 3) {
+          weddingDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+      } else {
+        weddingDate = new Date(leadData);
+      }
+      
+      if (weddingDate && !isNaN(weddingDate.getTime())) {
+        const diffTime = weddingDate.getTime() - new Date().getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        diasRestantesStr = String(diffDays);
+      }
+    } catch (e) {}
+  }
+
+  // Basic replacements
   text = text
-    .replace(/{{nome}}/g, leadName)
-    .replace(/{nome}/g, leadName)
-    .replace(/{{local}}/g, leadLocal)
-    .replace(/{local}/g, leadLocal)
-    .replace(/{{servicos}}/g, leadServicos)
-    .replace(/{servicos}/g, leadServicos)
-    .replace(/{{convidados}}/g, leadConvidados)
-    .replace(/{convidados}/g, leadConvidados)
-    .replace(/{{mes_casamento}}/g, leadMes)
-    .replace(/{mes_casamento}/g, leadMes)
-    .replace(/{{mesCasamento}}/g, leadMes)
-    .replace(/{mesCasamento}/g, leadMes);
+    .replace(/\{\{nome\}\}/gi, leadName)
+    .replace(/\{nome\}/gi, leadName)
+    .replace(/\{\{email\}\}/gi, leadEmail)
+    .replace(/\{email\}/gi, leadEmail)
+    .replace(/\{\{local\}\}/gi, leadLocal)
+    .replace(/\{local\}/gi, leadLocal)
+    .replace(/\{\{servicos\}\}/gi, leadServicos)
+    .replace(/\{servicos\}/gi, leadServicos)
+    .replace(/\{\{convidados\}\}/gi, leadConvidados)
+    .replace(/\{convidados\}/gi, leadConvidados)
+    .replace(/\{\{mes_casamento\}\}/gi, leadMes)
+    .replace(/\{mes_casamento\}/gi, leadMes)
+    .replace(/\{\{mesCasamento\}\}/gi, leadMes)
+    .replace(/\{mesCasamento\}/gi, leadMes)
+    .replace(/\{\{complementoMesCasamento\}\}/gi, complementoMes)
+    .replace(/\{complementoMesCasamento\}/gi, complementoMes)
+    .replace(/\{\{complemento_mes_casamento\}\}/gi, complementoMes)
+    .replace(/\{complemento_mes_casamento\}/gi, complementoMes)
+    .replace(/\{\{data_casamento\}\}/gi, leadData)
+    .replace(/\{data_casamento\}/gi, leadData)
+    .replace(/\{\{dataCasamento\}\}/gi, leadData)
+    .replace(/\{dataCasamento\}/gi, leadData)
+    .replace(/\{\{dias_casamento\}\}/gi, diasRestantesStr)
+    .replace(/\{dias_casamento\}/gi, diasRestantesStr)
+    .replace(/\{\{diasCasamento\}\}/gi, diasRestantesStr)
+    .replace(/\{diasCasamento\}/gi, diasRestantesStr)
+    .replace(/\{\{status\}\}/gi, leadStatus)
+    .replace(/\{status\}/gi, leadStatus)
+    .replace(/\{\{status_funil\}\}/gi, leadStatus)
+    .replace(/\{status_funil\}/gi, leadStatus)
+    .replace(/\{\{temperatura\}\}/gi, leadTemperatura)
+    .replace(/\{temperatura\}/gi, leadTemperatura)
+    .replace(/\{\{origem_portal\}\}/gi, leadOrigem)
+    .replace(/\{origem_portal\}/gi, leadOrigem);
 
-  // Substituições de produtos do banco
+  // Dynamic Product Replacements
   try {
     const products = await getProducts();
     const guests = Number(lead.convidados) || 100;
@@ -2130,32 +2179,35 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
       const valPrecoUnit = formatarBRL(Number(prod.valor_unitario) || 0);
       const valDesc = prod.descricao || "";
       
+      const escapedId = id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      
       text = text
-        .replace(new RegExp(`{{orcamento_${id}}}`, "g"), valTotal)
-        .replace(new RegExp(`{orcamento_${id}}`, "g"), valTotal)
-        .replace(new RegExp(`{{imagem_${id}}}`, "g"), valImg)
-        .replace(new RegExp(`{imagem_${id}}`, "g"), valImg)
-        .replace(new RegExp(`{{preco_unitario_${id}}}`, "g"), valPrecoUnit)
-        .replace(new RegExp(`{preco_unitario_${id}}`, "g"), valPrecoUnit)
-        .replace(new RegExp(`{{descricao_${id}}}`, "g"), valDesc)
-        .replace(new RegExp(`{descricao_${id}}`, "g"), valDesc);
+        .replace(new RegExp(`\\{\\{\\s*orcamento_${escapedId}\\s*\\}\\}`, "gi"), valTotal)
+        .replace(new RegExp(`\\{\\s*orcamento_${escapedId}\\s*\\}`, "gi"), valTotal)
+        .replace(new RegExp(`\\{\\{\\s*imagem_${escapedId}\\s*\\}\\}`, "gi"), valImg)
+        .replace(new RegExp(`\\{\\s*imagem_${escapedId}\\s*\\}`, "gi"), valImg)
+        .replace(new RegExp(`\\{\\{\\s*preco_unitario_${escapedId}\\s*\\}\\}`, "gi"), valPrecoUnit)
+        .replace(new RegExp(`\\{\\s*preco_unitario_${escapedId}\\s*\\}`, "gi"), valPrecoUnit)
+        .replace(new RegExp(`\\{\\{\\s*descricao_${escapedId}\\s*\\}\\}`, "gi"), valDesc)
+        .replace(new RegExp(`\\{\\s*descricao_${escapedId}\\s*\\}`, "gi"), valDesc);
     }
   } catch (err) {
     console.error("Erro ao processar variáveis de produtos no template:", err);
   }
 
-  // Fallback para as variáveis legadas de soma
+  // Fallback for legacy sums
+  const fallbackSums = calcularOrcamentos(Number(lead.convidados || 0));
   text = text
-    .replace(/{{soma1}}/g, lead.soma1 || "")
-    .replace(/{soma1}/g, lead.soma1 || "")
-    .replace(/{{soma2}}/g, lead.soma2 || "")
-    .replace(/{soma2}/g, lead.soma2 || "")
-    .replace(/{{soma3}}/g, lead.soma3 || "")
-    .replace(/{soma3}/g, lead.soma3 || "")
-    .replace(/{{soma4}}/g, lead.soma4 || "")
-    .replace(/{soma4}/g, lead.soma4 || "")
-    .replace(/{{soma5}}/g, lead.soma5 || "")
-    .replace(/{soma5}/g, lead.soma5 || "");
+    .replace(/\{\{soma1\}\}/gi, lead.soma1 || fallbackSums.soma1)
+    .replace(/\{soma1\}/gi, lead.soma1 || fallbackSums.soma1)
+    .replace(/\{\{soma2\}\}/gi, lead.soma2 || fallbackSums.soma2)
+    .replace(/\{soma2\}/gi, lead.soma2 || fallbackSums.soma2)
+    .replace(/\{\{soma3\}\}/gi, lead.soma3 || fallbackSums.soma3)
+    .replace(/\{soma3\}/gi, lead.soma3 || fallbackSums.soma3)
+    .replace(/\{\{soma4\}\}/gi, lead.soma4 || fallbackSums.soma4)
+    .replace(/\{soma4\}/gi, lead.soma4 || fallbackSums.soma4)
+    .replace(/\{\{soma5\}\}/gi, lead.soma5 || fallbackSums.soma5)
+    .replace(/\{soma5\}/gi, lead.soma5 || fallbackSums.soma5);
 
   return text;
 }
@@ -2374,55 +2426,9 @@ app.post("/api/leads/:id/notes", async (req, res) => {
   }
 });
 
-// Helper to substitute variables in templates
-function substituteVariables(template: string, lead: any): string {
-  if (!template) return "";
-  let text = template;
-  
-  let diasRestantesStr = "N/A";
-  if (lead.data_casamento) {
-    try {
-      let weddingDate: Date | null = null;
-      if (lead.data_casamento.includes("/")) {
-        const parts = lead.data_casamento.split("/");
-        if (parts.length === 3) {
-          weddingDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-        }
-      } else {
-        weddingDate = new Date(lead.data_casamento);
-      }
-      
-      if (weddingDate && !isNaN(weddingDate.getTime())) {
-        const diffTime = weddingDate.getTime() - new Date().getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        diasRestantesStr = String(diffDays);
-      }
-    } catch (e) {}
-  }
-
-  const leadMes = lead.mes_casamento || lead.mesCasamento || "breve";
-
-  return text
-    .replace(/\{\{nome\}\}/gi, lead.nome || "")
-    .replace(/\{nome\}/gi, lead.nome || "")
-    .replace(/\{\{email\}\}/gi, lead.email || "")
-    .replace(/\{email\}/gi, lead.email || "")
-    .replace(/\{\{local\}\}/gi, lead.local || "")
-    .replace(/\{local\}/gi, lead.local || "")
-    .replace(/\{\{data_casamento\}\}/gi, lead.data_casamento || "")
-    .replace(/\{data_casamento\}/gi, lead.data_casamento || "")
-    .replace(/\{\{mes_casamento\}\}/gi, leadMes)
-    .replace(/\{mes_casamento\}/gi, leadMes)
-    .replace(/\{\{mesCasamento\}\}/gi, leadMes)
-    .replace(/\{mesCasamento\}/gi, leadMes)
-    .replace(/\{\{convidados\}\}/gi, String(lead.convidados || 0))
-    .replace(/\{convidados\}/gi, String(lead.convidados || 0))
-    .replace(/\{\{status\}\}/gi, lead.status_funil || "")
-    .replace(/\{status\}/gi, lead.status_funil || "")
-    .replace(/\{\{temperatura\}\}/gi, lead.temperatura || "")
-    .replace(/\{temperatura\}/gi, lead.temperatura || "")
-    .replace(/\{\{dias_casamento\}\}/gi, diasRestantesStr)
-    .replace(/\{dias_casamento\}/gi, diasRestantesStr);
+// Helper to substitute variables in templates (calls compileTemplate for complete variable resolution)
+async function substituteVariables(template: string, lead: any): Promise<string> {
+  return await compileTemplate(template, lead);
 }
 
 // API - Send custom / special follow-up or broadcast message to Lead
@@ -2449,9 +2455,9 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
       return res.status(400).json({ error: `Envio de mensagem cancelado: O lead está com status do funil '${lead.status_funil}'.` });
     }
 
-    // Substitute variables
-    const finalSubject = substituteVariables(assunto || "", lead);
-    const finalBody = substituteVariables(mensagem, lead);
+    // Substitute variables using compileTemplate (supports all lead, product, and sum variables)
+    const finalSubject = await compileTemplate(assunto || "", lead);
+    const finalBody = await compileTemplate(mensagem, lead);
 
     let updatedLead = { ...lead };
     
