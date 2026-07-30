@@ -28,7 +28,6 @@ export default function App() {
   const [portals, setPortals] = useState<PortalSource[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const [useSupabase, setUseSupabase] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showNegociacaoOnly, setShowNegociacaoOnly] = useState(false);
 
@@ -99,11 +98,6 @@ export default function App() {
         const dataStats = await resStats.json();
         setStats(dataStats);
       }
-
-      // Check if server is configured with real Supabase connection keys
-      // We check this by verifying process.env-like configurations from our backend
-      setUseSupabase(Boolean(window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"));
-
     } catch (e) {
       console.error("Error fetching data from APIs:", e);
     } finally {
@@ -561,7 +555,7 @@ export default function App() {
         <footer className="bg-zinc-900 border-t border-zinc-850 p-4 text-center text-[10px] text-zinc-500 shrink-0 w-full mt-auto">
           <div className="max-w-[95%] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
             <span>CRM Casa Colombo Artesanal • Todos os direitos reservados.</span>
-            <span>Sincronizado via Automação V2 Engine • Powered by Express Node.js & Supabase</span>
+            <span>Sincronizado via Automação V2 Engine • Powered by Express Node.js & PostgreSQL</span>
           </div>
         </footer>
 

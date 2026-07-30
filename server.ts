@@ -9,7 +9,6 @@ import fs from "fs";
 import net from "net";
 import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
-import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import pg from "pg";
@@ -36,31 +35,6 @@ if (process.env.GEMINI_API_KEY) {
   }
 }
 
-// Supabase client initialization with graceful checks
-const supabaseUrl = process.env.SUPABASE_URL || "https://wkwhhkdpwmmtnuxroagz.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_DvNDiZbbc0hD8CobJ3pAWQ_TmOcRXcF";
-const supabaseServiceKey = process.env.SUPABASE_SECRET_KEY || "sb_secret_Yl9jOdZsh6QvJFZEcFcMeA_I_ktTlvZ";
-
-let supabase: any = null;
-let useSupabase = false;
-
-if (supabaseUrl && supabaseServiceKey && !supabaseServiceKey.includes("sb_secret_Yl9jOdZsh6QvJFZEcFcMeA_I_ktTlvZ")) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
-    });
-    useSupabase = true;
-    console.log("Supabase Client initialized using provided custom keys.");
-  } catch (err) {
-    console.error("Failed to initialize Supabase:", err);
-  }
-} else {
-  console.log("Using local JSON-file database fallback (Supabase credentials missing or set to placeholder).");
-}
-
 // Local Database File Fallback
 const DB_FILE = path.join(process.cwd(), "database.json");
 
@@ -73,17 +47,19 @@ if (databaseUrl) {
   try {
     pgPool = new Pool({
       connectionString: databaseUrl,
-      ssl: databaseUrl.includes("supabase.co") || databaseUrl.includes("render.com") || databaseUrl.includes("elephantsql.com") || databaseUrl.includes("127.0.0.1") || databaseUrl.includes("localhost")
-        ? false
-        : { rejectUnauthorized: false }
+      ssl: databaseUrl.includes("render.com") || databaseUrl.includes("elephantsql.com")
+        ? { rejectUnauthorized: false }
+        : false
     });
     usePg = true;
-    console.log("PostgreSQL Pool initialized using DATABASE_URL.");
+    console.log("Running in Production mode (PostgreSQL)");
+    console.log("PostgreSQL connection established");
   } catch (err) {
     console.error("Failed to initialize PostgreSQL:", err);
   }
 } else {
-  console.log("No DATABASE_URL found. PostgreSQL is disabled.");
+  console.log("Running in Development mode (JSON database)");
+  console.log("Local JSON database initialized");
 }
 
 // Default workflow configuration based on the n8n follow-up logic
@@ -318,6 +294,12 @@ async function initPgDatabase() {
       `);
       await client.query(`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS whatsapp_validated_at VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS ultima_interacao_acao VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS ultima_interacao_origem VARCHAR(255);
       `);
 
       // 1.1 Index for Negotiation Leads filtering
@@ -554,7 +536,40 @@ function normalizeTemperatura(temp?: string): string {
   return s;
 }
 
-// Database Helper methods that abstract Supabase vs. Local JSON
+// Database Helper methods (PostgreSQL or Local JSON)
+async function getLatestHistoryMap(): Promise<Record<string, any>> {
+  const map: Record<string, any> = {};
+  if (usePg && pgPool) {
+    try {
+      const res = await pgPool.query(`
+        SELECT DISTINCT ON (lead_id) lead_id, id, canal, tipo, titulo, detalhes, created_at
+        FROM lead_history
+        ORDER BY lead_id, created_at DESC
+      `);
+      for (const row of res.rows) {
+        map[row.lead_id] = row;
+      }
+      return map;
+    } catch (e: any) {
+      console.warn("Failed to fetch latest history map from PostgreSQL:", e.message);
+    }
+  }
+
+  try {
+    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    const historyList = db.lead_history || [];
+    const sorted = [...historyList].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    for (const h of sorted) {
+      if (h.lead_id) {
+        map[h.lead_id] = h;
+      }
+    }
+  } catch (e: any) {
+    console.warn("Failed to fetch latest history map from file DB:", e.message);
+  }
+  return map;
+}
+
 async function getLeads(): Promise<any[]> {
   let list: any[] = [];
   if (usePg && pgPool) {
@@ -563,17 +578,6 @@ async function getLeads(): Promise<any[]> {
       list = res.rows;
     } catch (e: any) {
       console.warn("PostgreSQL leads fetch failed:", e.message);
-    }
-  } else if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
-      if (!error && data) {
-        list = data;
-      } else {
-        console.warn("Supabase lead fetch error (checking if table exists):", error?.message);
-      }
-    } catch (e: any) {
-      console.warn("Supabase fetch failed, falling back to local file:", e.message);
     }
   }
 
@@ -586,10 +590,27 @@ async function getLeads(): Promise<any[]> {
     }
   }
 
-  // Normalize temperatura on all leads
+  const latestHistoryMap = await getLatestHistoryMap();
+
+  // Normalize temperatura and synchronize latest interaction timeline data on all leads
   list = list.map((l) => {
     if (l) {
       l.temperatura = normalizeTemperatura(l.temperatura);
+      const hist = latestHistoryMap[l.id];
+      if (hist) {
+        l.ultima_interacao_em = hist.created_at;
+        l.ultima_interacao_acao = hist.titulo || hist.tipo;
+        l.ultima_interacao_origem = (
+          hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+          hist.canal === "EMAIL" ? "Automação / E-mail" :
+          hist.canal === "MANUAL" ? "Manual / CRM" :
+          (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
+        );
+      } else {
+        l.ultima_interacao_em = l.ultima_interacao_em || l.updated_at || l.created_at || new Date().toISOString();
+        l.ultima_interacao_acao = l.ultima_interacao_acao || "Lead Cadastrado";
+        l.ultima_interacao_origem = l.ultima_interacao_origem || l.origem_portal || "Portal / Manual";
+      }
     }
     return l;
   });
@@ -607,23 +628,45 @@ async function getLeads(): Promise<any[]> {
 }
 
 async function getLeadById(id: string): Promise<any | null> {
+  let lead: any = null;
   if (usePg && pgPool) {
     try {
       const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
-      if (res.rows.length > 0) return res.rows[0];
-      return null;
+      if (res.rows.length > 0) lead = res.rows[0];
     } catch (e: any) {
       console.warn("PostgreSQL lead fetch failed:", e.message);
     }
   }
-  if (useSupabase) {
+  if (!lead) {
     try {
-      const { data, error } = await supabase.from("leads").select("*").eq("id", id).maybeSingle();
-      if (!error && data) return data;
-    } catch (e) {}
+      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+      lead = db.leads.find((l: any) => l.id === id) || null;
+    } catch (e) {
+      lead = null;
+    }
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return db.leads.find((l: any) => l.id === id) || null;
+
+  if (lead) {
+    lead.temperatura = normalizeTemperatura(lead.temperatura);
+    const historyList = await getLeadHistory(id);
+    if (historyList && historyList.length > 0) {
+      const hist = historyList[0];
+      lead.ultima_interacao_em = hist.created_at;
+      lead.ultima_interacao_acao = hist.titulo || hist.tipo;
+      lead.ultima_interacao_origem = (
+        hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+        hist.canal === "EMAIL" ? "Automação / E-mail" :
+        hist.canal === "MANUAL" ? "Manual / CRM" :
+        (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
+      );
+    } else {
+      lead.ultima_interacao_em = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
+      lead.ultima_interacao_acao = lead.ultima_interacao_acao || "Lead Cadastrado";
+      lead.ultima_interacao_origem = lead.ultima_interacao_origem || lead.origem_portal || "Portal / Manual";
+    }
+  }
+
+  return lead;
 }
 
 async function getAllLeadsUnfiltered(): Promise<any[]> {
@@ -635,13 +678,6 @@ async function getAllLeadsUnfiltered(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL leads fetch failed:", e.message);
     }
-  } else if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
-      if (!error && data) {
-        list = data;
-      }
-    } catch (e: any) {}
   }
 
   if (list.length === 0) {
@@ -653,7 +689,24 @@ async function getAllLeadsUnfiltered(): Promise<any[]> {
     }
   }
 
-  return list;
+  const latestHistoryMap = await getLatestHistoryMap();
+  return list.map((l) => {
+    if (l) {
+      l.temperatura = normalizeTemperatura(l.temperatura);
+      const hist = latestHistoryMap[l.id];
+      if (hist) {
+        l.ultima_interacao_em = hist.created_at;
+        l.ultima_interacao_acao = hist.titulo || hist.tipo;
+        l.ultima_interacao_origem = (
+          hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+          hist.canal === "EMAIL" ? "Automação / E-mail" :
+          hist.canal === "MANUAL" ? "Manual / CRM" :
+          (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
+        );
+      }
+    }
+    return l;
+  });
 }
 
 async function findDuplicateLead(email?: string, phone?: string): Promise<any | null> {
@@ -749,8 +802,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             followup_especial_1m, followup_especial_2m, followup_especial_3m,
             whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
             whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
+            ultima_interacao_acao, ultima_interacao_origem,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42)
           RETURNING *
         `;
         const values = [
@@ -760,6 +814,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null,
           lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -774,7 +829,8 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
             whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
             whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
-            updated_at = $39
+            ultima_interacao_acao = $39, ultima_interacao_origem = $40,
+            updated_at = $41
           WHERE id = $1
           RETURNING *
         `;
@@ -787,6 +843,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null,
           lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -794,23 +851,6 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
       }
     } catch (e: any) {
       console.warn("PostgreSQL lead save failed:", e.message);
-    }
-  }
-
-  if (useSupabase) {
-    try {
-      let result;
-      if (isNew) {
-        result = await supabase.from("leads").insert(lead).select().single();
-      } else {
-        result = await supabase.from("leads").update(lead).eq("id", lead.id).select().single();
-      }
-      if (!result.error && result.data) {
-        return result.data;
-      }
-      console.warn("Supabase lead save failed (reverting to local JSON):", result.error?.message);
-    } catch (e: any) {
-      console.warn("Supabase insert/update exception, saving locally:", e.message);
     }
   }
 
@@ -840,12 +880,6 @@ async function deleteLeadById(id: string): Promise<boolean> {
       console.warn("PostgreSQL lead delete failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("leads").delete().eq("id", id);
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   const lengthBefore = db.leads.length;
   db.leads = db.leads.filter((l: any) => l.id !== id);
@@ -861,14 +895,6 @@ async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<
       return;
     } catch (e: any) {
       console.warn("PostgreSQL lead stage remapping failed:", e.message);
-    }
-  }
-  if (useSupabase) {
-    try {
-      await supabase.from("leads").update({ etapa_contato: newStage }).eq("etapa_contato", oldStage);
-      return;
-    } catch (e: any) {
-      console.warn("Supabase lead stage remapping failed:", e.message);
     }
   }
   // Local JSON DB
@@ -901,11 +927,6 @@ async function getWorkflowConfigs(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL workflow config fetch failed:", e.message);
     }
-  } else if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("workflow_config").select("*").order("ordem", { ascending: true });
-      if (!error && data && data.length > 0) configs = data;
-    } catch (e) {}
   }
   
   if (configs.length === 0) {
@@ -969,18 +990,6 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
       console.warn("PostgreSQL workflow config save failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const stageEtapas = configs.map(c => c.etapa);
-      if (stageEtapas.length > 0) {
-        await supabase.from("workflow_config").delete().not("etapa", "in", `(${stageEtapas.join(",")})`);
-      }
-      // Upsert in Supabase
-      const { error } = await supabase.from("workflow_config").upsert(configs);
-      if (!error) return true;
-      console.warn("Supabase workflow upsert failed:", error?.message);
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   db.workflow_config = configs;
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
@@ -998,17 +1007,6 @@ async function getPortalConfigs(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL portal config fetch failed:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("portal_config").select("*");
-      if (!error && data && data.length > 0) {
-        return data.map(row => ({
-          ...row,
-          ativo: row.automacao_ativa ?? row.ativo ?? true
-        }));
-      }
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return (db.portal_config || []).map((p: any) => ({
@@ -1043,17 +1041,6 @@ async function savePortalConfigs(configs: any[]): Promise<boolean> {
       console.warn("PostgreSQL portal config save failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const mapped = configs.map(p => ({
-        ...p,
-        automacao_ativa: p.ativo ?? p.automacao_ativa ?? true,
-        ativo: p.ativo ?? p.automacao_ativa ?? true
-      }));
-      const { error } = await supabase.from("portal_config").upsert(mapped);
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   db.portal_config = configs.map(p => ({
     ...p,
@@ -1074,17 +1061,6 @@ async function getProducts(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL products fetch failed, attempting schema fallback:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("products").select("*").order("id", { ascending: true });
-      if (!error && data && data.length > 0) {
-        return data.map(p => ({
-          ...p,
-          valor_unitario: Number(p.valor_unitario)
-        }));
-      }
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return (db.products || defaultProducts).map((p: any) => ({
@@ -1115,18 +1091,6 @@ async function saveProduct(p: any): Promise<boolean> {
       console.warn("PostgreSQL product save failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("products").upsert({
-        id: p.id,
-        descricao: p.descricao,
-        valor_unitario: Number(p.valor_unitario),
-        link_imagem: p.link_imagem,
-        created_at: new Date().toISOString()
-      });
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (!db.products) db.products = [];
   const idx = db.products.findIndex((item: any) => item.id === p.id);
@@ -1147,12 +1111,6 @@ async function deleteProduct(id: string): Promise<boolean> {
     } catch (e: any) {
       console.warn("PostgreSQL product delete failed:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (!error) return true;
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (db.products) {
@@ -1187,14 +1145,6 @@ async function getFinancialContracts(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL contracts fetch failed:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("financial_contracts").select("*").order("created_at", { ascending: false });
-      if (!error && data) {
-        return data.map(parseContract);
-      }
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return (db.financial_contracts || []).map(parseContract);
@@ -1247,28 +1197,6 @@ async function saveFinancialContract(c: any): Promise<boolean> {
       console.warn("PostgreSQL contract save failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("financial_contracts").upsert({
-        id: c.id,
-        lead_id: c.lead_id,
-        contract_number: c.contract_number,
-        contract_date: c.contract_date,
-        total_value: totalVal,
-        freight_value: freightVal,
-        discount_value: discountVal,
-        final_value: finalVal,
-        payment_method: c.payment_method,
-        installments_count: Number(c.installments_count),
-        down_payment: Number(c.down_payment),
-        status: c.status || 'active',
-        observations: c.observations || '',
-        created_at: c.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (!db.financial_contracts) db.financial_contracts = [];
   const idx = db.financial_contracts.findIndex((item: any) => item.id === c.id);
@@ -1302,12 +1230,6 @@ async function deleteFinancialContract(id: string): Promise<boolean> {
       console.warn("PostgreSQL contract delete failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("financial_contracts").delete().eq("id", id);
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (db.financial_contracts) {
     db.financial_contracts = db.financial_contracts.filter((c: any) => c.id !== id);
@@ -1332,19 +1254,6 @@ async function getFinancialInstallments(): Promise<any[]> {
     } catch (e: any) {
       console.warn("PostgreSQL installments fetch failed:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("financial_installments").select("*").order("due_date", { ascending: true });
-      if (!error && data) {
-        return data.map(i => ({
-          ...i,
-          installment_number: Number(i.installment_number),
-          value: Number(i.value),
-          paid_value: i.paid_value ? Number(i.paid_value) : null
-        }));
-      }
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return (db.financial_installments || []).map((i: any) => ({
@@ -1393,26 +1302,6 @@ async function saveFinancialInstallment(i: any): Promise<boolean> {
       console.warn("PostgreSQL installment save failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("financial_installments").upsert({
-        id: i.id,
-        contract_id: i.contract_id,
-        installment_number: Number(i.installment_number),
-        due_date: i.due_date,
-        value: Number(i.value),
-        status: i.status || 'pending',
-        paid_date: i.paid_date || null,
-        paid_value: i.paid_value !== undefined && i.paid_value !== null ? Number(i.paid_value) : null,
-        payment_method: i.payment_method || null,
-        payment_observations: i.payment_observations || null,
-        receipt_number: i.receipt_number || null,
-        created_at: i.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (!db.financial_installments) db.financial_installments = [];
   const idx = db.financial_installments.findIndex((item: any) => item.id === i.id);
@@ -1441,12 +1330,6 @@ async function deleteFinancialInstallmentsByContract(contractId: string): Promis
       console.warn("PostgreSQL installments delete failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("financial_installments").delete().eq("contract_id", contractId);
-      if (!error) return true;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (db.financial_installments) {
     db.financial_installments = db.financial_installments.filter((i: any) => i.contract_id !== contractId);
@@ -1464,26 +1347,26 @@ async function getLeadHistory(leadId: string): Promise<any[]> {
       console.warn("PostgreSQL lead history fetch failed:", e.message);
     }
   }
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("lead_history").select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
-      if (!error && data) return data;
-    } catch (e) {}
-  }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   return db.lead_history.filter((h: any) => h.lead_id === leadId).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string }): Promise<any> {
+async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }): Promise<any> {
   const newEntry = {
     id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     lead_id: leadId,
     canal: entry.canal,
     tipo: entry.tipo,
     titulo: entry.titulo,
-    detalhes: entry.detalhes,
+    detalhes: entry.detalhes || "",
     created_at: new Date().toISOString()
   };
+
+  const calcOrigem = entry.origem || (
+    entry.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+    entry.canal === "EMAIL" ? "Automação / E-mail" :
+    entry.canal === "MANUAL" ? "Manual / CRM" : "Sistema"
+  );
 
   if (usePg && pgPool) {
     try {
@@ -1491,21 +1374,36 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
         INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
       `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
+
+      await pgPool.query(`
+        UPDATE leads
+        SET ultima_interacao_em = $1,
+            ultima_interacao_acao = $2,
+            ultima_interacao_origem = $3,
+            updated_at = $1
+        WHERE id = $4
+      `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
+
       return newEntry;
     } catch (e: any) {
       console.warn("PostgreSQL add history failed:", e.message);
     }
   }
 
-  if (useSupabase) {
-    try {
-      const { data, error } = await supabase.from("lead_history").insert({ ...newEntry, id: undefined }).select().single();
-      if (!error && data) return data;
-    } catch (e) {}
+  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  if (!db.lead_history) db.lead_history = [];
+  db.lead_history.unshift(newEntry);
+
+  if (db.leads) {
+    const idx = db.leads.findIndex((l: any) => l.id === leadId);
+    if (idx !== -1) {
+      db.leads[idx].ultima_interacao_em = newEntry.created_at;
+      db.leads[idx].ultima_interacao_acao = newEntry.titulo || newEntry.tipo;
+      db.leads[idx].ultima_interacao_origem = calcOrigem;
+      db.leads[idx].updated_at = newEntry.created_at;
+    }
   }
 
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  db.lead_history.unshift(newEntry);
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
   return newEntry;
 }
@@ -1522,14 +1420,6 @@ async function getGeneralSettings(): Promise<any> {
     } catch (e: any) {
       console.warn("PostgreSQL get general settings failed:", e.message);
     }
-  }
-  if (!settings && useSupabase) {
-    try {
-      const { data, error } = await supabase.from("general_settings").select("*").maybeSingle();
-      if (!error && data) {
-        settings = data.settings;
-      }
-    } catch (e) {}
   }
   if (!settings) {
     const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
@@ -1650,12 +1540,6 @@ async function saveGeneralSettings(settings: any): Promise<boolean> {
     } catch (e: any) {
       console.warn("PostgreSQL save general settings failed:", e.message);
     }
-  }
-  if (useSupabase) {
-    try {
-      const { error } = await supabase.from("general_settings").upsert({ id: 1, settings });
-      if (!error) return true;
-    } catch (e) {}
   }
   const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   db.general_settings = settings;
@@ -2655,6 +2539,8 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
     }
 
     updatedLead.ultima_interacao_em = new Date().toISOString();
+    updatedLead.ultima_interacao_acao = titulo_historico || (canal === "WHATSAPP" ? "Mensagem Especial WhatsApp" : "Mensagem Especial E-mail");
+    updatedLead.ultima_interacao_origem = canal === "WHATSAPP" ? "Automação / WhatsApp" : "Automação / E-mail";
     updatedLead.updated_at = new Date().toISOString();
     await saveLead(updatedLead, false);
 

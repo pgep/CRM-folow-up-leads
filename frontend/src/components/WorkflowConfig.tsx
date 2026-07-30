@@ -4,23 +4,46 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Settings, Save, RefreshCw, MessageSquare, Mail, Play, AlertCircle, HelpCircle, Eye, EyeOff, Sliders, Server, Link2, ShieldCheck, Lock } from "lucide-react";
+import { 
+  Settings, Save, RefreshCw, MessageSquare, Mail, Play, AlertCircle, HelpCircle, 
+  Eye, EyeOff, Sliders, Server, Link2, ShieldCheck, Lock,
+  Plus, ArrowUp, ArrowDown, Trash2, Bold, Italic, Link, Smile, ListOrdered, CheckSquare, X,
+  GripVertical, Clock, Sparkles
+} from "lucide-react";
 import { WorkflowStage, LeadStatus, LeadEtapa, LeadTemperatura } from "../types";
+import CommunicationSetup from "./CommunicationSetup";
+import AutoTriggerSetup from "./AutoTriggerSetup";
+import OptionsListsSetup from "./OptionsListsSetup";
+import { useToast } from "./Toast";
+
+const generateIdFromFriendlyName = (name: string): string => {
+  return name
+    .trim()
+    .normalize("NFD") // Decomposes accented characters into base letters + accents
+    .replace(/[\u0300-\u036f]/g, "") // Removes accent markings
+    .toUpperCase()
+    .replace(/\s+/g, "_") // Replaces spaces with underscores
+    .replace(/[^A-Z0-9_]/g, "") // Removes any remaining non-alphanumeric/non-underscore characters
+    .replace(/_+/g, "_") // Collapses multiple consecutive underscores
+    .replace(/(^_|_$)/g, ""); // Trims leading/trailing underscores
+};
 
 interface WorkflowConfigProps {
   stages: WorkflowStage[];
-  onUpdateStage: (stage: WorkflowStage) => Promise<void>;
+  onUpdateStage: (stage: WorkflowStage | WorkflowStage[]) => Promise<void>;
   onReset: () => Promise<void>;
 }
 
 export default function WorkflowConfig({ stages, onUpdateStage, onReset }: WorkflowConfigProps) {
+  const { toast, confirm } = useToast();
   // Tabs
-  const [activeSubTab, setActiveSubTab] = useState<"followup" | "general">("followup");
+  const [activeSubTab, setActiveSubTab] = useState<"followup" | "scheduler" | "general" | "lists">("followup");
 
   // --- STAGES / FOLLOWUP STATE ---
   const [selectedEtapa, setSelectedEtapa] = useState<LeadEtapa>("SEM_CONTATO");
   const [isSavingStage, setIsSavingStage] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Find the selected stage configuration
   const currentStage = stages.find((s) => s.etapa === selectedEtapa);
@@ -33,6 +56,26 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   const [temperatura, setTemperatura] = useState<LeadTemperatura>("FRIA");
   const [mensagemTemplate, setMensagemTemplate] = useState("");
   const [assuntoTemplate, setAssuntoTemplate] = useState("");
+  const [ordem, setOrdem] = useState<number>(0);
+
+  // Concurrency notifications and drag & drop states
+  const [concurrencyNotice, setConcurrencyNotice] = useState<string | null>(null);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  // Load products
+  useEffect(() => {
+    fetch("/api/products")
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          return res.json();
+        }
+        return [];
+      })
+      .then(data => setProducts(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Erro ao carregar produtos no workflow:", err));
+  }, []);
 
   // Sync form state when selection changes
   useEffect(() => {
@@ -44,117 +87,405 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
       setTemperatura(currentStage.temperatura || "FRIA");
       setMensagemTemplate(currentStage.mensagem_template || "");
       setAssuntoTemplate(currentStage.assunto_template || "");
+      setOrdem(currentStage.ordem || 0);
     }
   }, [selectedEtapa, stages]);
+
+  // --- HELPERS FOR CURSOR INSERTION & FORMATTING ---
+  const insertTextAtCursor = (text: string, elementId = "mensagem-template-textarea") => {
+    const textarea = document.getElementById(elementId) as HTMLTextAreaElement;
+    if (!textarea) {
+      if (elementId === "mensagem-template-textarea") {
+        setMensagemTemplate(prev => prev + text);
+      } else if (elementId === "new-mensagem-template") {
+        setNewMensagemTemplate(prev => prev + text);
+      }
+      return;
+    }
+    
+    const startPos = textarea.selectionStart;
+    const endPos = textarea.selectionEnd;
+    
+    let currentVal = "";
+    let setValFunc: React.Dispatch<React.SetStateAction<string>> | null = null;
+    
+    if (elementId === "mensagem-template-textarea") {
+      currentVal = mensagemTemplate;
+      setValFunc = setMensagemTemplate;
+    } else if (elementId === "new-mensagem-template") {
+      currentVal = newMensagemTemplate;
+      setValFunc = setNewMensagemTemplate;
+    } else {
+      currentVal = newMensagemTemplate;
+      setValFunc = setNewMensagemTemplate;
+    }
+
+    const beforeText = currentVal.substring(0, startPos);
+    const afterText = currentVal.substring(endPos, currentVal.length);
+    
+    const newText = beforeText + text + afterText;
+    setValFunc(newText);
+    
+    // Refocus and reposition cursor
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = startPos + text.length;
+      textarea.selectionEnd = startPos + text.length;
+    }, 50);
+  };
+
+  const handleFormatText = (type: "bold" | "italic" | "link", elementId = "mensagem-template-textarea") => {
+    const textarea = document.getElementById(elementId) as HTMLTextAreaElement;
+    if (!textarea) return;
+    
+    const startPos = textarea.selectionStart;
+    const endPos = textarea.selectionEnd;
+    
+    const currentVal = elementId === "mensagem-template-textarea" ? mensagemTemplate : newMensagemTemplate;
+    const currentCanal = elementId === "mensagem-template-textarea" ? canal : newCanal;
+    
+    const selectedText = currentVal.substring(startPos, endPos) || "texto";
+    
+    let formatted = "";
+    if (type === "bold") {
+      formatted = currentCanal === "EMAIL" ? `<strong>${selectedText}</strong>` : `*${selectedText}*`;
+    } else if (type === "italic") {
+      formatted = currentCanal === "EMAIL" ? `<em>${selectedText}</em>` : `_${selectedText}_`;
+    } else if (type === "link") {
+      formatted = currentCanal === "EMAIL" 
+        ? `<a href="https://exemplo.com" class="text-amber-500 underline" target="_blank">${selectedText || "link"}</a>` 
+        : `${selectedText || "link"} (https://exemplo.com)`;
+    }
+    
+    insertTextAtCursor(formatted, elementId);
+  };
+
+  // --- WORKFLOW QUEUE BUILDER LOGIC ---
+  const getOrderedStages = (allStages: WorkflowStage[]) => {
+    // If any stages don't have an ordem field or they are all 0, construct their order using the old linked-list traversal
+    const hasOrdem = allStages.some(s => typeof s.ordem === 'number' && s.ordem > 0);
+    
+    if (!hasOrdem) {
+      const ordered: WorkflowStage[] = [];
+      const visited = new Set<string>();
+      let current = allStages.find(s => s.etapa === "SEM_CONTATO") || allStages[0];
+      
+      while (current && !visited.has(current.etapa)) {
+        ordered.push(current);
+        visited.add(current.etapa);
+        if (!current.proxima_etapa || current.proxima_etapa === current.etapa || current.proxima_etapa === "ENCERRADO") {
+          break;
+        }
+        const next = allStages.find(s => s.etapa === current.proxima_etapa);
+        if (next) {
+          current = next;
+        } else {
+          break;
+        }
+      }
+      
+      const encerradoStage = allStages.find(s => s.etapa === "ENCERRADO");
+      if (encerradoStage && !visited.has("ENCERRADO")) {
+        ordered.push(encerradoStage);
+        visited.add("ENCERRADO");
+      }
+      
+      allStages.forEach(s => {
+        if (!visited.has(s.etapa)) {
+          ordered.push(s);
+          visited.add(s.etapa);
+        }
+      });
+
+      // Assign sequential order
+      return ordered.map((s, idx) => ({
+        ...s,
+        ordem: idx + 1
+      }));
+    }
+
+    // Otherwise, simply sort by ordem
+    return [...allStages].sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+  };
+
+  const rebuildSequencePointers = (allStages: WorkflowStage[], preserveInputOrder = false): WorkflowStage[] => {
+    const ordered = preserveInputOrder
+      ? [...allStages]
+      : [...allStages].sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+    return ordered.map((stage, idx) => {
+      const nextStage = ordered[idx + 1];
+      return {
+        ...stage,
+        ordem: idx + 1, // Reset to sequential order clean index
+        proxima_etapa: stage.etapa === "ENCERRADO" ? "ENCERRADO" : (nextStage ? nextStage.etapa : "ENCERRADO")
+      };
+    });
+  };
+
+  const checkAndResolveConcurrency = (chosen: number, excludeEtapa?: string) => {
+    const existingOrders = stages
+      .filter(s => s.etapa !== excludeEtapa)
+      .map(s => Number(s.ordem) || 0)
+      .filter(o => o > 0);
+
+    if (existingOrders.includes(chosen)) {
+      let current = chosen;
+      while (existingOrders.includes(current)) {
+        current++;
+      }
+      return {
+        resolved: current,
+        hasConflict: true
+      };
+    }
+    return {
+      resolved: chosen,
+      hasConflict: false
+    };
+  };
+
+  // HTML5 Drag and Drop events
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIdx !== index) {
+      setDragOverIdx(index);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIndex) {
+      setDraggedIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+
+    const ordered = getOrderedStages(stages);
+    const [draggedItem] = ordered.splice(draggedIdx, 1);
+    ordered.splice(targetIndex, 0, draggedItem);
+
+    // Recalculate ordre and proxima_etapa preserving input order
+    const rebuilt = rebuildSequencePointers(ordered, true);
+    await onUpdateStage(rebuilt);
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleMoveStep = async (index: number, direction: "up" | "down") => {
+    const ordered = getOrderedStages(stages);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= ordered.length) return;
+
+    // Swap elements
+    const temp = ordered[index];
+    ordered[index] = ordered[targetIndex];
+    ordered[targetIndex] = temp;
+
+    const rebuilt = rebuildSequencePointers(ordered, true);
+    await onUpdateStage(rebuilt);
+  };
+
+  const handleDeleteStep = async (etapaToDelete: string) => {
+    if (etapaToDelete === "SEM_CONTATO" || etapaToDelete === "ENCERRADO") {
+      toast.warning("As etapas 'SEM_CONTATO' e 'ENCERRADO' são essenciais para o funcionamento do CRM e não podem ser excluídas.");
+      return;
+    }
+
+    const confirmed = await confirm(`Tem certeza que deseja excluir a etapa "${etapaToDelete}"? Os leads nessa etapa continuarão com seus históricos, mas serão remanejados para a etapa seguinte do fluxo.`);
+    if (!confirmed) {
+      return;
+    }
+
+    const ordered = getOrderedStages(stages).filter(s => s.etapa !== etapaToDelete);
+    const rebuilt = rebuildSequencePointers(ordered, true);
+
+    await onUpdateStage(rebuilt);
+    setSelectedEtapa("SEM_CONTATO");
+    toast.success("Etapa excluída com sucesso!");
+  };
+
+  // --- NEW STEP STATE ---
+  const [isAddingStep, setIsAddingStep] = useState(false);
+  const [newEtapaKey, setNewEtapaKey] = useState("");
+  const [newDescricao, setNewDescricao] = useState("");
+  const [newCanal, setNewCanal] = useState<"WHATSAPP" | "EMAIL" | null>("WHATSAPP");
+  const [newEsperarDias, setNewEsperarDias] = useState(3);
+  const [newProximoStatus, setNewProximoStatus] = useState<LeadStatus>("FOLLOWUP1");
+  const [newTemperatura, setNewTemperatura] = useState<LeadTemperatura>("MORNA");
+  const [newMensagemTemplate, setNewMensagemTemplate] = useState("");
+  const [newAssuntoTemplate, setNewAssuntoTemplate] = useState("");
+  const [newOrdem, setNewOrdem] = useState<number>(1);
+
+  // Sync default next ordem when adding step
+  useEffect(() => {
+    if (isAddingStep) {
+      setNewOrdem(getOrderedStages(stages).length + 1);
+    }
+  }, [isAddingStep, stages]);
+
+  // Sync default next ID when friendly name (newDescricao) changes
+  useEffect(() => {
+    setNewEtapaKey(generateIdFromFriendlyName(newDescricao));
+  }, [newDescricao]);
+
+  const handleCreateStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDescricao.trim()) {
+      toast.warning("Por favor, preencha o nome do passo (descrição).");
+      return;
+    }
+
+    const sanitizedKey = generateIdFromFriendlyName(newDescricao);
+    if (!sanitizedKey) {
+      toast.warning("Por favor, digite uma descrição válida para gerar o identificador do passo.");
+      return;
+    }
+
+    if (stages.some(s => s.etapa === sanitizedKey)) {
+      toast.warning(`Um passo com o identificador "${sanitizedKey}" (gerado a partir de "${newDescricao}") já existe.`);
+      return;
+    }
+
+    // Resolve concomitancy
+    const { resolved, hasConflict } = checkAndResolveConcurrency(Number(newOrdem));
+    if (hasConflict) {
+      setConcurrencyNotice(`A ordem ${newOrdem} já estava ocupada. O sistema atribuiu o primeiro número subsequente livre: ${resolved}.`);
+    } else {
+      setConcurrencyNotice(null);
+    }
+
+    const newStage: WorkflowStage = {
+      etapa: sanitizedKey,
+      descricao: newDescricao.trim(),
+      canal: newCanal,
+      template_name: newCanal ? `${newCanal}_${sanitizedKey}` : null,
+      esperar_dias: Number(newEsperarDias),
+      proxima_etapa: "ENCERRADO",
+      proximo_status: newProximoStatus,
+      temperatura: newTemperatura,
+      mensagem_template: newCanal ? newMensagemTemplate : null,
+      assunto_template: newCanal === "EMAIL" ? newAssuntoTemplate : null,
+      imagens_template: null,
+      ordem: resolved
+    };
+
+    const updated = [...stages, newStage];
+    const rebuilt = rebuildSequencePointers(updated);
+
+    await onUpdateStage(rebuilt);
+    setIsAddingStep(false);
+    setSelectedEtapa(sanitizedKey);
+
+    // Reset fields
+    setNewEtapaKey("");
+    setNewDescricao("");
+    setNewMensagemTemplate("");
+    setNewAssuntoTemplate("");
+  };
 
   const handleSaveStage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentStage) return;
 
+    if (!descricao.trim()) {
+      toast.warning("Por favor, preencha o nome amigável (descrição) da etapa.");
+      return;
+    }
+
     setIsSavingStage(true);
     try {
-      const updated: WorkflowStage = {
+      const isSystemStage = currentStage.etapa === "SEM_CONTATO" || currentStage.etapa === "ENCERRADO";
+      const newEtapaId = isSystemStage ? currentStage.etapa : generateIdFromFriendlyName(descricao);
+
+      if (!newEtapaId) {
+        toast.warning("Por favor, digite uma descrição válida para gerar o identificador.");
+        setIsSavingStage(false);
+        return;
+      }
+
+      if (newEtapaId !== currentStage.etapa && stages.some(s => s.etapa === newEtapaId)) {
+        toast.warning(`Um passo com o identificador "${newEtapaId}" já existe.`);
+        setIsSavingStage(false);
+        return;
+      }
+
+      // Resolve concomitancy
+      const { resolved, hasConflict } = checkAndResolveConcurrency(Number(ordem), currentStage.etapa);
+      if (hasConflict) {
+        setConcurrencyNotice(`A ordem ${ordem} já estava ocupada. O sistema atribuiu o primeiro número subsequente livre: ${resolved}.`);
+      } else {
+        setConcurrencyNotice(null);
+      }
+
+      const updatedStage: WorkflowStage = {
         ...currentStage,
-        descricao,
+        etapa: newEtapaId,
+        descricao: descricao.trim(),
         canal,
+        template_name: canal ? `${canal}_${newEtapaId}` : null,
         esperar_dias: Number(esperarDias),
         proximo_status: (proximoStatus === "" ? null : proximoStatus) as LeadStatus | null,
         temperatura,
         mensagem_template: canal ? mensagemTemplate : null,
-        assunto_template: canal === "EMAIL" ? assuntoTemplate : null
+        assunto_template: canal === "EMAIL" ? assuntoTemplate : null,
+        imagens_template: null,
+        ordem: resolved
       };
-      await onUpdateStage(updated);
+
+      const currentConfigs = [...stages];
+      const idx = currentConfigs.findIndex((s) => s.etapa === currentStage.etapa);
+      if (idx !== -1) {
+        currentConfigs[idx] = updatedStage;
+      } else {
+        currentConfigs.push(updatedStage);
+      }
+
+      const rebuilt = rebuildSequencePointers(currentConfigs);
+      await onUpdateStage(rebuilt);
+      setSelectedEtapa(newEtapaId);
+      toast.success("Etapa salva com sucesso!");
     } catch (e) {
       console.error(e);
+      toast.error("Erro ao salvar etapa.");
     } finally {
       setIsSavingStage(false);
     }
   };
 
   const handleReset = async () => {
-    if (!window.confirm("Deseja redefinir as configurações de templates e prazos para o padrão original da Casa Colombo? Suas alterações serão perdidas.")) return;
+    const confirmed = await confirm("Deseja redefinir as configurações de templates e prazos para o padrão original da Casa Colombo? Suas alterações serão perdidas.");
+    if (!confirmed) return;
     setIsResetting(true);
     try {
       await onReset();
       setSelectedEtapa("SEM_CONTATO");
+      toast.success("Configurações redefinidas para o padrão com sucesso!");
     } catch (e) {
       console.error(e);
+      toast.error("Erro ao redefinir configurações.");
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  // --- GENERAL PARAMETER SETTINGS STATE ---
-  const [settings, setSettings] = useState<any>({
-    zoho_mail: {
-      smtp_host: "smtp.zoho.com",
-      smtp_port: 465,
-      user: "contato@casacolomboartesanal.com.br",
-      pass: "",
-      from_name: "Luciana - Casa Colombo",
-      use_ssl: true
-    },
-    waha_whatsapp: {
-      api_url: "http://localhost:3000",
-      api_key: "",
-      session_name: "default",
-      delay_seconds: 5
-    }
-  });
-  const [loadingSettings, setLoadingSettings] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsSuccess, setSettingsSuccess] = useState(false);
-  const [showZohoPass, setShowZohoPass] = useState(false);
-  const [showWahaKey, setShowWahaKey] = useState(false);
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      setLoadingSettings(true);
-      try {
-        const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.zoho_mail || data.waha_whatsapp)) {
-            setSettings(data);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load generic settings:", e);
-      } finally {
-        setLoadingSettings(false);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingSettings(true);
-    setSettingsSuccess(false);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings)
-      });
-      if (res.ok) {
-        setSettingsSuccess(true);
-        setTimeout(() => setSettingsSuccess(false), 4000);
-      }
-    } catch (e) {
-      console.error("Failed to save settings:", e);
-    } finally {
-      setSavingSettings(false);
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Tab Selector */}
-      <div className="flex border-b border-zinc-850 gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800/60 rounded-xl w-fit">
+      <div className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap border-b border-zinc-850 gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800/60 rounded-xl w-fit">
         <button
           onClick={() => setActiveSubTab("followup")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "followup"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
@@ -164,15 +495,37 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           Esteira de Automação (Follow-up)
         </button>
         <button
+          onClick={() => setActiveSubTab("scheduler")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+            activeSubTab === "scheduler"
+              ? "bg-amber-500 text-zinc-950 font-bold"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          Disparo Automático
+        </button>
+        <button
           onClick={() => setActiveSubTab("general")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "general"
               ? "bg-amber-500 text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
           }`}
         >
           <Settings className="w-3.5 h-3.5" />
-          Parâmetros de Envio (Zoho & Waha)
+          Parâmetros Zoho & WAHA
+        </button>
+        <button
+          onClick={() => setActiveSubTab("lists")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+            activeSubTab === "lists"
+              ? "bg-amber-500 text-zinc-950 font-bold"
+              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+          }`}
+        >
+          <ListOrdered className="w-3.5 h-3.5" />
+          Listas de Opções (Etapas, Status, Temp)
         </button>
       </div>
 
@@ -202,51 +555,150 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Stages Sidebar list */}
-            <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2 h-fit">
-              <span className="text-xs font-semibold text-zinc-500 tracking-wider uppercase px-2 block mb-3">
-                Passos do Follow-up
-              </span>
+            {/* Stages Sidebar list (Visual Contact Queue) */}
+            <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col h-fit">
+              <div className="flex items-center justify-between mb-3 px-2">
+                <span className="text-xs font-semibold text-zinc-400 tracking-wider uppercase flex items-center gap-1.5">
+                  <ListOrdered className="w-3.5 h-3.5 text-amber-500" />
+                  Sequência do Fluxo (Fila)
+                </span>
+                <span className="text-[10px] font-mono text-zinc-500 font-bold bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-850">
+                  {stages.length} Passos
+                </span>
+              </div>
 
-              <div className="space-y-1.5">
-                {stages.map((stage) => {
+              {/* Step Sequence Timeline container */}
+              <div className="relative pl-3 space-y-4">
+                {/* Dotted connector line running down */}
+                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-amber-500/30 via-zinc-800 to-zinc-800/20 border-l border-dashed border-zinc-800 pointer-events-none" />
+
+                {getOrderedStages(stages).map((stage, idx, arr) => {
                   const isSelected = selectedEtapa === stage.etapa;
+                  const isSystemStage = stage.etapa === "SEM_CONTATO" || stage.etapa === "ENCERRADO";
+                  const orderNum = String(idx + 1).padStart(2, "0");
+                  const isDragOver = dragOverIdx === idx;
+                  const isDragged = draggedIdx === idx;
+
                   return (
-                    <button
+                    <div
                       key={stage.etapa}
                       onClick={() => setSelectedEtapa(stage.etapa)}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition ${
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      onDragEnd={handleDragEnd}
+                      className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
                         isSelected
-                          ? "bg-amber-500/10 border-l-4 border-l-amber-500 text-white"
-                          : "text-zinc-400 hover:bg-zinc-800/60 hover:text-white"
+                          ? "bg-amber-500/5 border-amber-500/30 shadow-md shadow-amber-950/10"
+                          : "bg-zinc-950/20 border-zinc-850 hover:bg-zinc-900/40 hover:border-zinc-800"
+                      } ${
+                        isDragOver ? "border-amber-500/50 bg-amber-500/10 scale-[1.01]" : ""
+                      } ${
+                        isDragged ? "opacity-40 border-dashed" : ""
                       }`}
                     >
-                      <div className="truncate pr-2">
-                        <div className="font-semibold text-xs text-zinc-500 font-mono tracking-wide">{stage.etapa}</div>
-                        <div className="text-sm font-medium mt-0.5 truncate">{stage.descricao}</div>
+                      {/* Drag Handle Icon */}
+                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-amber-500/60 transition-colors">
+                        <GripVertical className="w-3.5 h-3.5" />
                       </div>
 
-                      <div className="shrink-0 flex items-center">
-                        {stage.canal === "WHATSAPP" && (
-                          <span className="p-1 rounded bg-emerald-500/10 text-emerald-400">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                          </span>
-                        )}
-                        {stage.canal === "EMAIL" && (
-                          <span className="p-1 rounded bg-blue-500/10 text-blue-400">
-                            <Mail className="w-3.5 h-3.5" />
-                          </span>
-                        )}
-                        {!stage.canal && (
-                          <span className="text-[10px] text-zinc-600 font-medium font-mono border border-zinc-800 px-1 rounded">
-                            FIM
-                          </span>
-                        )}
+                      {/* Step Number Circle */}
+                      <div className={`relative z-10 shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono transition-all border ${
+                        isSelected
+                          ? "bg-amber-500 text-zinc-950 border-amber-400"
+                          : "bg-zinc-900 text-zinc-400 border-zinc-800 group-hover:border-zinc-700"
+                      }`}>
+                        {orderNum}
                       </div>
-                    </button>
+
+                      {/* Info & Description */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className={`text-[10px] font-bold font-mono tracking-wide truncate flex items-center gap-1 ${
+                            isSelected ? "text-amber-400" : "text-zinc-500"
+                          }`}>
+                            {stage.etapa}
+                            {stage.ordem ? (
+                              <span className="text-[9px] bg-zinc-950 px-1 py-0.2 rounded border border-zinc-850 text-zinc-400">
+                                #{stage.ordem}
+                              </span>
+                            ) : null}
+                          </span>
+                          
+                          {/* Channel icon */}
+                          <div className="shrink-0">
+                            {stage.canal === "WHATSAPP" && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-0.5 font-semibold">
+                                <MessageSquare className="w-2.5 h-2.5" /> WhatsApp
+                              </span>
+                            )}
+                            {stage.canal === "EMAIL" && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/25 flex items-center gap-0.5 font-semibold">
+                                <Mail className="w-2.5 h-2.5" /> E-mail
+                              </span>
+                            )}
+                            {!stage.canal && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-750 flex items-center gap-0.5 font-mono font-bold">
+                                FIM
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={`text-xs font-semibold mt-1 truncate ${
+                          isSelected ? "text-white" : "text-zinc-300"
+                        }`}>
+                          {stage.descricao}
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[10px] text-zinc-500 flex items-center gap-1 font-mono bg-zinc-950/60 px-1 py-0.5 rounded border border-zinc-900">
+                            ⏰ {stage.esperar_dias} {stage.esperar_dias === 1 ? "dia" : "dias"}
+                          </span>
+                          {stage.temperatura && (
+                            <span className={`text-[9px] px-1 py-0.5 rounded font-bold uppercase ${
+                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                              String(stage.temperatura).toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                              String(stage.temperatura).toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                              "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                            }`}>
+                              {String(stage.temperatura).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Delete Actions hover-revealed */}
+                      {!isSystemStage && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-lg shadow-lg">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteStep(stage.etapa);
+                            }}
+                            title="Excluir este passo"
+                            className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+
+              {/* Add New Step Dotted Button */}
+              <button
+                type="button"
+                onClick={() => setIsAddingStep(true)}
+                className="mt-5 w-full py-2.5 border border-dashed border-zinc-800 hover:border-amber-500/40 hover:bg-amber-500/5 text-zinc-400 hover:text-amber-400 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar Passo de Follow-up
+              </button>
             </div>
 
             {/* Form Editor Panel */}
@@ -264,6 +716,19 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               </div>
 
               <form onSubmit={handleSaveStage} className="p-6 space-y-5">
+                {concurrencyNotice && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5 text-xs text-amber-400">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold">Concomitância de Sequência Ajustada</p>
+                      <p className="mt-0.5">{concurrencyNotice}</p>
+                    </div>
+                    <button type="button" onClick={() => setConcurrencyNotice(null)} className="text-zinc-500 hover:text-zinc-300">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Descricao */}
                   <div className="space-y-1.5">
@@ -273,6 +738,18 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       value={descricao}
                       onChange={(e) => setDescricao(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  {/* Número de Sequência (Ordem) */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Posição na Sequência (Ordem)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={ordem}
+                      onChange={(e) => setOrdem(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 font-mono"
                     />
                   </div>
 
@@ -314,10 +791,10 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       onChange={(e) => setTemperatura(e.target.value as LeadTemperatura)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
                     >
-                      <option value="FRIA">Fria</option>
-                      <option value="MORNA">Morna</option>
-                      <option value="QUENTE">Quente</option>
-                      <option value="CLIENTE">Cliente</option>
+                      <option value="FRIA">FRIA</option>
+                      <option value="MORNA">MORNA</option>
+                      <option value="QUENTE">QUENTE</option>
+                      <option value="CLIENTE">CLIENTE</option>
                     </select>
                   </div>
 
@@ -368,7 +845,57 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                           Variáveis: {"{{nome}}"}, {"{{mesCasamento}}"}, {"{{local}}"}
                         </span>
                       </div>
+
+                      {/* Enhanced Formatting Toolbar & Emoji Selector */}
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-t-lg p-2 flex flex-wrap gap-2 items-center justify-between border-b-0">
+                        {/* Rich Styling Tools */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleFormatText("bold")}
+                            title="Negrito"
+                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center"
+                          >
+                            <Bold className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleFormatText("italic")}
+                            title="Itálico"
+                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center"
+                          >
+                            <Italic className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleFormatText("link")}
+                            title="Inserir Hiperlink"
+                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center gap-1 px-2 text-[10px] font-semibold"
+                          >
+                            <Link className="w-3 h-3" /> Link
+                          </button>
+                        </div>
+
+                        {/* Quick Emoji Tray */}
+                        <div className="flex items-center gap-1 border-l border-zinc-850 pl-2">
+                          <span className="text-[9px] text-zinc-500 font-bold uppercase select-none mr-1">Rápido:</span>
+                          <div className="flex items-center gap-1">
+                            {["💍", "✨", "💌", "❤️", "📅", "🚨", "⚠️", "💬", "🌸", "🥂", "👰", "🎁"].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => insertTextAtCursor(emoji)}
+                                className="w-6 h-6 flex items-center justify-center hover:scale-125 transition text-xs hover:bg-zinc-900 rounded"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
                       <textarea
+                        id="mensagem-template-textarea"
                         rows={canal === "EMAIL" ? 10 : 5}
                         value={mensagemTemplate}
                         onChange={(e) => setMensagemTemplate(e.target.value)}
@@ -377,8 +904,110 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             ? "Escreva o corpo do e-mail em formato HTML..."
                             : "Escreva a mensagem do WhatsApp..."
                         }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600 resize-y"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-b-none p-3 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600 resize-y"
                       />
+
+                      {/* Dynamic Variable Quick Insert Panel */}
+                      <div className="bg-zinc-950 border border-t-0 border-zinc-800 rounded-b-lg p-4 space-y-4">
+                        <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
+                          <Sparkles className="w-4 h-4" />
+                          <span>Clique para Inserir Campo Variável no Texto:</span>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {/* 1. Basic Fields */}
+                          <div>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">Dados Principais do Lead:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {[
+                                { label: "Nome do Noivo(a)", value: "{nome}" },
+                                { label: "Mês do Casamento", value: "{mesCasamento}" },
+                                { label: "Local do Casamento", value: "{local}" },
+                                { label: "Qtd Convidados", value: "{convidados}" },
+                                { label: "Data de Casamento (Completa)", value: "{dataCasamento}" },
+                                { label: "Serviços Solicitados", value: "{servicos}" }
+                              ].map((item) => (
+                                <button
+                                  key={item.value}
+                                  type="button"
+                                  onClick={() => insertTextAtCursor(item.value)}
+                                  className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-amber-500 rounded border border-zinc-850 hover:border-amber-500/30 text-[10px] font-semibold transition flex items-center gap-1"
+                                >
+                                  <span>{item.label}</span>
+                                  <code className="text-amber-500/80 font-mono font-normal bg-zinc-950 px-1 py-0.5 rounded text-[9px]">{item.value}</code>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* 2. Product Fields */}
+                          {products.length > 0 && (
+                            <div className="pt-2 border-t border-zinc-900/60">
+                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">Produtos Cadastrados (Valores Calculados):</span>
+                              <div className="grid grid-cols-1 gap-2">
+                                {products.map((prod) => (
+                                  <div key={prod.id} className="bg-zinc-900/40 border border-zinc-850/60 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                      {prod.link_imagem && (
+                                        <img
+                                          src={prod.link_imagem}
+                                          alt=""
+                                          className="w-8 h-8 object-cover rounded cursor-pointer hover:scale-110 active:scale-95 transition-all duration-150 border border-zinc-800 hover:border-amber-500"
+                                          referrerPolicy="no-referrer"
+                                          title="Clique para inserir esta imagem"
+                                          onClick={() => {
+                                            insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
+                                          }}
+                                        />
+                                      )}
+                                      <div>
+                                        <span className="text-xs font-bold text-zinc-300 block">{prod.descricao}</span>
+                                        <span className="text-[10px] text-amber-500 font-mono">{prod.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / unitário</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 justify-end">
+                                      <button
+                                        type="button"
+                                        title="Insere o orçamento total calculado (Convidados x Valor)"
+                                        onClick={() => insertTextAtCursor(`{orcamento_${prod.id}}`)}
+                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                      >
+                                        Orçamento ({"{"}orcamento_{prod.id}{"}"})
+                                      </button>
+                                      <button
+                                        type="button"
+                                        title="Insere o link da imagem do produto"
+                                        onClick={() => {
+                                          insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
+                                        }}
+                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                      >
+                                        Imagem ({"{"}imagem_{prod.id}{"}"})
+                                      </button>
+                                      <button
+                                        type="button"
+                                        title="Insere o preço unitário"
+                                        onClick={() => insertTextAtCursor(`{preco_unitario_${prod.id}}`)}
+                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                      >
+                                        Preço ({"{"}preco_unitario_{prod.id}{"}"})
+                                      </button>
+                                      <button
+                                        type="button"
+                                        title="Insere a descrição"
+                                        onClick={() => insertTextAtCursor(`{descricao_${prod.id}}`)}
+                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                      >
+                                        Descrição ({"{"}descricao_{prod.id}{"}"})
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -393,7 +1022,18 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 )}
 
                 {/* Save Button */}
-                <div className="flex justify-end pt-3 border-t border-zinc-800">
+                <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+                  {selectedEtapa !== "SEM_CONTATO" && selectedEtapa !== "ENCERRADO" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStep(selectedEtapa)}
+                      className="flex items-center gap-2 px-4 py-2 bg-rose-950/25 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 border border-rose-900/30 font-semibold text-xs rounded-lg transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Excluir Etapa
+                    </button>
+                  )}
+                  <div className="flex-1"></div>
                   <button
                     type="submit"
                     disabled={isSavingStage}
@@ -407,312 +1047,236 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
             </div>
           </div>
         </div>
+      ) : activeSubTab === "scheduler" ? (
+        <AutoTriggerSetup />
+      ) : activeSubTab === "general" ? (
+        <CommunicationSetup />
       ) : (
-        // --- VIEW 2: GENERAL PARAMETERS CONFIG (ZOHO MAIL & WAHA WHATSAPP) ---
-        <div className="space-y-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2">
-              <Settings className="w-5 h-5 text-amber-500" />
-              Configuração Geral de Ferramentas de Envio
-            </h3>
-            <p className="text-sm text-zinc-400 mt-1 leading-relaxed">
-              Defina as credenciais e parâmetros de conexão para o <strong>Zoho Mail</strong> (para envio de e-mails automatizados) e para o <strong>Waha API</strong> (para envio de WhatsApp). O CRM utilizará esses parâmetros durante a varredura automática do fluxo.
-            </p>
-          </div>
+        <OptionsListsSetup />
+      )}
 
-          {loadingSettings ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-zinc-900 border border-zinc-800 rounded-xl h-64">
-              <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
-              <p className="text-sm text-zinc-500">Carregando parâmetros do banco...</p>
+      {/* ADD STEP MODAL */}
+      {isAddingStep && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ListOrdered className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-white text-base">Adicionar Novo Passo de Follow-up</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddingStep(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          ) : (
-            <form onSubmit={handleSaveSettings} className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Zoho Mail Configuration Card */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between">
-                  <div>
-                    <div className="p-4 border-b border-zinc-800 bg-zinc-950/40 flex items-center gap-2.5">
-                      <div className="p-2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-white">Zoho Mail SMTP</h4>
-                        <p className="text-[10px] text-zinc-400">Credenciais para envio de e-mails de follow-up</p>
-                      </div>
-                    </div>
 
-                    <div className="p-6 space-y-4">
-                      {/* Host */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-2 space-y-1.5">
-                          <label className="text-xs font-semibold text-zinc-400">Servidor SMTP</label>
-                          <input
-                            type="text"
-                            value={settings.zoho_mail?.smtp_host || ""}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                zoho_mail: { ...settings.zoho_mail, smtp_host: e.target.value }
-                              })
-                            }
-                            required
-                            placeholder="smtp.zoho.com"
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                          />
-                        </div>
-                        <div className="col-span-1 space-y-1.5">
-                          <label className="text-xs font-semibold text-zinc-400">Porta</label>
-                          <input
-                            type="number"
-                            value={settings.zoho_mail?.smtp_port || 465}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                zoho_mail: { ...settings.zoho_mail, smtp_port: Number(e.target.value) }
-                              })
-                            }
-                            required
-                            placeholder="465"
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Nome do Remetente */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400">Nome do Remetente</label>
-                        <input
-                          type="text"
-                          value={settings.zoho_mail?.from_name || ""}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              zoho_mail: { ...settings.zoho_mail, from_name: e.target.value }
-                            })
-                          }
-                          required
-                          placeholder="Luciana - Casa Colombo"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
-
-                      {/* Username */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400">E-mail (Username Zoho)</label>
-                        <input
-                          type="email"
-                          value={settings.zoho_mail?.user || ""}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              zoho_mail: { ...settings.zoho_mail, user: e.target.value }
-                            })
-                          }
-                          required
-                          placeholder="exemplo@casacolombo.com"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                        />
-                      </div>
-
-                      {/* Password */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400 flex items-center justify-between">
-                          <span>Senha ou Token de App Zoho</span>
-                          <span className="text-[9px] text-zinc-500 font-medium">Recomendado: App Password</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showZohoPass ? "text" : "password"}
-                            value={settings.zoho_mail?.pass || ""}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                zoho_mail: { ...settings.zoho_mail, pass: e.target.value }
-                              })
-                            }
-                            placeholder="••••••••••••••••"
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowZohoPass(!showZohoPass)}
-                            className="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 transition"
-                          >
-                            {showZohoPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Use SSL/TLS Toggle */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="checkbox"
-                          id="use_ssl"
-                          checked={settings.zoho_mail?.use_ssl ?? true}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              zoho_mail: { ...settings.zoho_mail, use_ssl: e.target.checked }
-                            })
-                          }
-                          className="rounded bg-zinc-950 border-zinc-800 text-amber-500 focus:ring-0 w-3.5 h-3.5 cursor-pointer"
-                        />
-                        <label htmlFor="use_ssl" className="text-xs text-zinc-400 select-none cursor-pointer">
-                          Utilizar conexão segura (SSL/TLS recomendado)
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-zinc-950/20 border-t border-zinc-850 flex gap-2 text-zinc-500 items-start">
-                    <Lock className="w-4 h-4 text-zinc-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] leading-relaxed">
-                      Seus dados de acesso SMTP são armazenados com criptografia local e são protegidos de vazamento para o navegador. Use a ferramenta oficial do Zoho para obter uma senha de aplicativo de 16 dígitos se tiver a verificação em duas etapas ativa.
-                    </p>
-                  </div>
+            {/* Modal Form */}
+            <form onSubmit={handleCreateStep} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Descrição / Nome Amigável */}
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Nome do Passo (Nome Amigável / Descrição)</label>
+                  <input
+                    type="text"
+                    required
+                    value={newDescricao}
+                    onChange={(e) => setNewDescricao(e.target.value)}
+                    placeholder="Ex: Terceiro WhatsApp de follow-up"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                  />
                 </div>
 
-                {/* Waha Whatsapp API Configuration Card */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between">
-                  <div>
-                    <div className="p-4 border-b border-zinc-800 bg-zinc-950/40 flex items-center gap-2.5">
-                      <div className="p-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-white">Waha WhatsApp API</h4>
-                        <p className="text-[10px] text-zinc-400">Configuração de endpoints e sessões do Waha</p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 space-y-4">
-                      {/* API URL */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400 flex items-center gap-1">
-                          <Link2 className="w-3.5 h-3.5 text-zinc-500" />
-                          Endpoint da API Waha (URL)
-                        </label>
-                        <input
-                          type="text"
-                          value={settings.waha_whatsapp?.api_url || ""}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              waha_whatsapp: { ...settings.waha_whatsapp, api_url: e.target.value }
-                            })
-                          }
-                          required
-                          placeholder="http://localhost:3000 ou https://sua-api.waha.com"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                        />
-                      </div>
-
-                      {/* Session Name */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400">Nome da Sessão (Waha Session)</label>
-                        <input
-                          type="text"
-                          value={settings.waha_whatsapp?.session_name || ""}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              waha_whatsapp: { ...settings.waha_whatsapp, session_name: e.target.value }
-                            })
-                          }
-                          required
-                          placeholder="default"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                        />
-                      </div>
-
-                      {/* API Key / Bearer Token */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400">Chave da API (Waha Security Token)</label>
-                        <div className="relative">
-                          <input
-                            type={showWahaKey ? "text" : "password"}
-                            value={settings.waha_whatsapp?.api_key || ""}
-                            onChange={(e) =>
-                              setSettings({
-                                ...settings,
-                                waha_whatsapp: { ...settings.waha_whatsapp, api_key: e.target.value }
-                              })
-                            }
-                            placeholder="waha_secret_token_key..."
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowWahaKey(!showWahaKey)}
-                            className="absolute right-2.5 top-2.5 text-zinc-500 hover:text-zinc-300 transition"
-                          >
-                            {showWahaKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Delay between messages */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-400">Intervalo de Segurança (Segundos de delay)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={settings.waha_whatsapp?.delay_seconds || 5}
-                          onChange={(e) =>
-                            setSettings({
-                              ...settings,
-                              waha_whatsapp: { ...settings.waha_whatsapp, delay_seconds: Number(e.target.value) }
-                            })
-                          }
-                          required
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
-                        />
-                        <span className="text-[10px] text-zinc-500 block">
-                          Delay adicionado entre mensagens sequenciais para evitar bloqueios ou banimento de spam pelo WhatsApp.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-zinc-950/20 border-t border-zinc-850 flex gap-2 text-zinc-500 items-start">
-                    <Server className="w-4 h-4 text-zinc-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] leading-relaxed">
-                      O Waha é um motor de WhatsApp integrado de nível profissional. Certifique-se de que o container do Waha esteja rodando, saudável, e com a sessão QR-Code autenticada ativamente no seu aparelho celular.
-                    </p>
-                  </div>
+                {/* ID da Etapa (Nome Técnico) */}
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Identificador do Passo (Gerado Automaticamente)</label>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={newEtapaKey}
+                    placeholder="Gerado automaticamente com base no nome do passo..."
+                    className="w-full bg-zinc-950/50 border border-zinc-850 rounded-lg px-3 py-2 text-xs text-zinc-500 font-mono uppercase cursor-not-allowed"
+                  />
+                  <span className="text-[10px] text-zinc-500 block">
+                    ID único do sistema gerado automaticamente a partir do nome amigável.
+                  </span>
                 </div>
 
+                {/* Posição na Sequência (Ordem) */}
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Posição na Sequência (Ordem)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newOrdem}
+                    onChange={(e) => setNewOrdem(Number(e.target.value))}
+                    placeholder="Ex: 5"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <span className="text-[10px] text-zinc-500 block">
+                    Define a ordem de execução. Se escolher uma ordem existente, ela será deslocada por concomitância.
+                  </span>
+                </div>
+
+                {/* Canal */}
+                <div className="col-span-1 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Canal de Envio</label>
+                  <select
+                    value={newCanal || ""}
+                    onChange={(e) => setNewCanal((e.target.value === "" ? null : e.target.value) as "WHATSAPP" | "EMAIL" | null)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="WHATSAPP">WhatsApp</option>
+                    <option value="EMAIL">E-mail</option>
+                    <option value="">Fim de Funil (Sem Envio)</option>
+                  </select>
+                </div>
+
+                {/* Esperar Dias */}
+                <div className="col-span-1 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Tempo de Espera (Dias)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    required
+                    value={newEsperarDias}
+                    onChange={(e) => setNewEsperarDias(Number(e.target.value))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                {/* Próximo Status */}
+                <div className="col-span-1 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Status do Funil</label>
+                  <select
+                    value={newProximoStatus}
+                    onChange={(e) => setNewProximoStatus(e.target.value as LeadStatus)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="FOLLOWUP1">Follow-up 1</option>
+                    <option value="FOLLOWUP2">Follow-up 2</option>
+                    <option value="FOLLOWUP3">Follow-up 3</option>
+                    <option value="FOLLOWUPFINAL">Follow-up Final</option>
+                    <option value="RESPONDIDO">Respondido</option>
+                    <option value="SEM_RETORNO">Sem Retorno / Encerrado</option>
+                  </select>
+                </div>
+
+                {/* Temperatura */}
+                <div className="col-span-1 space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-400">Temperatura</label>
+                  <select
+                    value={newTemperatura}
+                    onChange={(e) => setNewTemperatura(e.target.value as LeadTemperatura)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="FRIA">Fria</option>
+                    <option value="MORNA">Morna</option>
+                    <option value="QUENTE">Quente</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Save Panel */}
-              <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <div>
-                  {settingsSuccess && (
-                    <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 animate-bounce" />
-                      Parâmetros gerais salvos e validados com sucesso no CRM!
-                    </span>
+              {newCanal && (
+                <div className="space-y-3 pt-3 border-t border-zinc-800">
+                  {newCanal === "EMAIL" && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-zinc-400">Assunto do E-mail</label>
+                      <input
+                        type="text"
+                        required
+                        value={newAssuntoTemplate}
+                        onChange={(e) => setNewAssuntoTemplate(e.target.value)}
+                        placeholder="Ex: Último contato sobre as lembrancinhas"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                      />
+                    </div>
                   )}
-                  {!settingsSuccess && (
-                    <span className="text-xs text-zinc-500">
-                      Revise todas as configurações antes de salvar.
-                    </span>
-                  )}
-                </div>
 
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-zinc-400">Mensagem Template</label>
+                      <span className="text-[10px] text-amber-500 font-bold">
+                        Variáveis: {"{{nome}}"}
+                      </span>
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-t-lg p-2 flex items-center justify-between border-b-0">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFormatText("bold", "new-mensagem-template")}
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center w-6 h-6"
+                        >
+                          <Bold className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormatText("italic", "new-mensagem-template")}
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center w-6 h-6"
+                        >
+                          <Italic className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleFormatText("link", "new-mensagem-template")}
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-1.5 text-[9px] font-bold flex items-center gap-0.5 h-6"
+                        >
+                          <Link className="w-2.5 h-2.5" /> Link
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {["💍", "✨", "💌", "❤️", "🌸", "🥂"].map(emoji => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => insertTextAtCursor(emoji, "new-mensagem-template")}
+                            className="w-5 h-5 flex items-center justify-center hover:scale-125 transition text-xs"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <textarea
+                      id="new-mensagem-template"
+                      rows={4}
+                      value={newMensagemTemplate}
+                      onChange={(e) => setNewMensagemTemplate(e.target.value)}
+                      placeholder="Escreva a mensagem..."
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-b-lg p-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingStep(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition"
+                >
+                  Cancelar
+                </button>
                 <button
                   type="submit"
-                  disabled={savingSettings}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs rounded-lg transition shadow-md uppercase tracking-wider"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md animate-pulse"
                 >
-                  <Save className="w-4 h-4" />
-                  {savingSettings ? "Salvando..." : "Salvar Parâmetros Gerais"}
+                  <Plus className="w-4 h-4" />
+                  Criar Passo
                 </button>
               </div>
             </form>
-          )}
+          </div>
         </div>
       )}
     </div>

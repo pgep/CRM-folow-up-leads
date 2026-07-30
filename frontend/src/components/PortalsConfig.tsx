@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from "react";
-import { Plus, Globe, Check, Power, PowerOff, ShieldCheck, Link, Trash2 } from "lucide-react";
+import { Plus, Globe, Check, Power, PowerOff, ShieldCheck, Link, Trash2, Zap, Code, HelpCircle } from "lucide-react";
 import { PortalSource } from "../types";
+import { useToast } from "./Toast";
 
 interface PortalsConfigProps {
   portals: PortalSource[];
@@ -14,6 +15,7 @@ interface PortalsConfigProps {
 }
 
 export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfigProps) {
+  const { toast } = useToast();
   const [newPortalName, setNewPortalName] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
           Gerenciamento de Portais & Integrações Dinâmicas
         </h3>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-          Atualmente o CRM recebe leads do <strong>Portal Noivas</strong> via automação Zoho E-mail. No entanto, você pode expandir o ecossistema adicionando novos canais dinâmicos de captura (como Casamentos.com.br, formulário próprio do seu site, ou Zankyou). Ative ou desative cada portal, e utilize a URL do Webhook correspondente para integrar com ferramentas externas de automação como <strong>n8n</strong> ou <strong>Zapier</strong>.
+          Atualmente o CRM recebe leads de portais parceiros via automação Zoho E-mail. No entanto, você pode expandir o ecossistema adicionando novos canais dinâmicos de captura (como Casamentos.com.br, formulário próprio do seu site, ou Zankyou). Ative ou desative cada portal, e utilize a URL do Webhook correspondente para integrar com ferramentas externas de automação como <strong>n8n</strong> ou <strong>Zapier</strong>.
         </p>
       </div>
 
@@ -145,6 +147,101 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
               Adicionar
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* NEW: Dedicated n8n Webhook Integration Guide */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mt-6" id="n8n-webhook-guide">
+        <div className="p-5 border-b border-zinc-850 bg-zinc-950/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+              Guia de Integração n8n & Zoho Mail
+            </h3>
+          </div>
+          <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+            Recomendado
+          </span>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Como funciona o fluxo?</h4>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Quando um e-mail de noiva chega à caixa do Zoho Mail, seu fluxo do <strong>n8n</strong> lê a mensagem, extrai os dados fundamentais e faz uma chamada HTTP <code className="bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850 text-amber-400 font-mono text-[11px]">POST</code> para a URL do webhook abaixo.
+            </p>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              O CRM Casa Colombo receberá esses dados, criará automaticamente o lead, efetuará o cálculo de orçamento correspondente ao número de convidados fornecido e **iniciará imediatamente a esteira de follow-up** (disparando o e-mail ou WhatsApp de boas-vindas com o orçamento sem qualquer espera).
+            </p>
+          </div>
+
+          {/* Webhook Endpoint */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Link className="w-3.5 h-3.5 text-amber-500" />
+                URL Única do Webhook para n8n
+              </span>
+              <button
+                onClick={() => {
+                  const fullUrl = `${window.location.origin}/api/leads/n8n-webhook`;
+                  navigator.clipboard.writeText(fullUrl);
+                  toast.success("URL de integração do n8n copiada com sucesso!");
+                }}
+                className="text-xs text-amber-400 hover:text-amber-300 font-medium transition"
+              >
+                Copiar URL
+              </button>
+            </div>
+            <div className="font-mono text-xs text-amber-400 bg-zinc-950 p-3 rounded border border-zinc-850 truncate select-all">
+              {window.location.origin}/api/leads/n8n-webhook
+            </div>
+          </div>
+
+          {/* JSON Schema Preview */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Code className="w-3.5 h-3.5 text-amber-500" />
+              Estrutura JSON Esperada (Exemplo de Payload)
+            </span>
+            <div className="bg-zinc-950 p-4 rounded border border-zinc-850 text-xs font-mono text-zinc-400 overflow-x-auto max-h-72">
+              <pre>{JSON.stringify({
+  "nome": "Amanda Silva",
+  "email": "amanda.silva@exemplo.com",
+  "link_celular": "5511999998888",
+  "data_casamento": "25/09/2026",
+  "mes_casamento": "Setembro",
+  "local": "Espaço Quintal, São Paulo",
+  "servicos": "Mini Velas Aromáticas & Home Sprays",
+  "convidados": 150,
+  "status_funil": "Primeiro Contato",
+  "etapa_contato": "Orçamento Enviado",
+  "temperatura": "Fria",
+  "observacoes": "Solitictou orçamento urgente para lembrancinhas aromáticas de casamento.",
+  "origem_portal": "Zoho Mail - n8n"
+}, null, 2)}</pre>
+            </div>
+            <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+              * Nota: O sistema possui mapeamento inteligente. Se enviar os campos em inglês (como <code className="text-zinc-400">name</code>, <code className="text-zinc-400">email</code>, <code className="text-zinc-400">phone</code>, <code className="text-zinc-400">wedding_date</code>, <code className="text-zinc-400">guests</code>), o CRM irá traduzir e salvar os dados corretamente sem erros.
+            </p>
+          </div>
+
+          {/* n8n Implementation Checklist */}
+          <div className="space-y-3 bg-zinc-950/40 p-4 rounded-lg border border-zinc-850">
+            <h5 className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-amber-500" />
+              Como configurar no n8n (Passo a Passo)
+            </h5>
+            <ul className="text-xs text-zinc-400 space-y-2 pl-4 list-decimal leading-relaxed">
+              <li>Adicione um nó <strong>HTTP Request</strong> no seu fluxo n8n logo após a extração dos dados do e-mail.</li>
+              <li>Configure o método como <strong className="text-amber-400">POST</strong>.</li>
+              <li>No campo <strong>URL</strong>, cole o link copiado acima.</li>
+              <li>Configure o <strong>Authentication</strong> como <strong className="text-zinc-300">None</strong> (o webhook é público para facilitar a recepção).</li>
+              <li>Em <strong>Send Body</strong>, selecione <strong className="text-zinc-300">true</strong>, formato <strong className="text-zinc-300">JSON</strong>.</li>
+              <li>Mapeie as propriedades do e-mail extraído para as chaves do JSON correspondente (como <code className="text-zinc-300">nome</code>, <code className="text-zinc-300">email</code>, <code className="text-zinc-300">link_celular</code>, etc.).</li>
+              <li>Execute o teste e veja o lead aparecer instantaneamente no painel com o histórico preenchido!</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

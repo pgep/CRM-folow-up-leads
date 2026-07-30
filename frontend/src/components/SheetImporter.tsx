@@ -130,7 +130,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
             Importador de Leads via Planilha Google Sheets
           </h3>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            Sincronize o CRM diretamente com a planilha oficial do <strong>Portal Noivas</strong>. O sistema realiza uma varredura automática, valida se o lead já foi importado através do identificador único <code className="text-amber-400 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[10px]">lead_id</code> para evitar duplicidades e exibe os registros em tempo real.
+            Sincronize o CRM diretamente com a planilha oficial de captação de leads. O sistema realiza uma varredura automática, valida se o lead já foi importado através do identificador único <code className="text-amber-400 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[10px]">lead_id</code> para evitar duplicidades e exibe os registros em tempo real.
           </p>
           <div className="pt-2 flex items-center gap-4 text-[11px] font-mono">
             <a
@@ -249,7 +249,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-950/40 text-zinc-400 font-mono text-[10px] uppercase">
                   <th className="py-3 px-4 font-semibold">Lead ID / Origem</th>
-                  <th className="py-3 px-4 font-semibold">Noiva</th>
+                  <th className="py-3 px-4 font-semibold">Lead</th>
                   <th className="py-3 px-4 font-semibold">Casamento</th>
                   <th className="py-3 px-4 font-semibold">Local & Convidados</th>
                   <th className="py-3 px-4 font-semibold">Status Planilha</th>

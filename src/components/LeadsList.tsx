@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Download, Flame, MessageCircle, MapPin } from "lucide-react";
+import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Download, Flame, MessageCircle, MapPin, Clock, Zap } from "lucide-react";
 import { Lead, LeadStatus, LeadTemperatura, PortalSource } from "../types";
 
 interface LeadsListProps {
@@ -17,6 +17,103 @@ interface LeadsListProps {
   onSwitchTab?: (tab: "sheet_import") => void;
   initialNegociacaoOnly?: boolean;
   onClearNegociacaoOnly?: () => void;
+}
+
+export interface LastInteractionDetails {
+  dateStr: string;
+  formattedDate: string;
+  acao: string;
+  origem: string;
+  canalIcon: "whatsapp" | "email" | "manual" | "system";
+}
+
+export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
+  if (lead.ultima_interacao_acao) {
+    const rawDate = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
+    const d = new Date(rawDate);
+    const formattedDate = !isNaN(d.getTime())
+      ? `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+      : rawDate;
+
+    let canalIcon: "whatsapp" | "email" | "manual" | "system" = "system";
+    const acaoLower = (lead.ultima_interacao_acao || "").toLowerCase();
+    if (acaoLower.includes("whatsapp") || acaoLower.includes("wa")) canalIcon = "whatsapp";
+    else if (acaoLower.includes("email") || acaoLower.includes("e-mail")) canalIcon = "email";
+    else if (acaoLower.includes("manual") || acaoLower.includes("crm")) canalIcon = "manual";
+
+    return {
+      dateStr: rawDate,
+      formattedDate,
+      acao: lead.ultima_interacao_acao,
+      origem: lead.ultima_interacao_origem || "CRM",
+      canalIcon
+    };
+  }
+
+  // Legacy fallback calculations (no data loss for production records)
+  const createdTime = lead.created_at ? new Date(lead.created_at).getTime() : 0;
+  const updatedTime = lead.updated_at ? new Date(lead.updated_at).getTime() : 0;
+  const waTime = lead.ultimo_whatsapp_em ? new Date(lead.ultimo_whatsapp_em).getTime() : 0;
+  const emailTime = lead.ultimo_email_em ? new Date(lead.ultimo_email_em).getTime() : 0;
+  const lastTime = lead.ultima_interacao_em ? new Date(lead.ultima_interacao_em).getTime() : 0;
+
+  const maxTime = Math.max(createdTime, updatedTime, waTime, emailTime, lastTime);
+  const eventDate = maxTime > 0 ? new Date(maxTime) : new Date();
+  const formattedDate = !isNaN(eventDate.getTime())
+    ? `${eventDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })} ${eventDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : "";
+
+  if (waTime > 0 && waTime === maxTime && waTime > createdTime + 1000) {
+    return {
+      dateStr: lead.ultimo_whatsapp_em!,
+      formattedDate,
+      acao: `WhatsApp Enviado (${lead.etapa_contato || 'Disparo'})`,
+      origem: "Automação V2",
+      canalIcon: "whatsapp"
+    };
+  }
+
+  if (emailTime > 0 && emailTime === maxTime && emailTime > createdTime + 1000) {
+    return {
+      dateStr: lead.ultimo_email_em!,
+      formattedDate,
+      acao: `E-mail Enviado (${lead.etapa_contato || 'Envio'})`,
+      origem: "Automação V2",
+      canalIcon: "email"
+    };
+  }
+
+  if (updatedTime > createdTime + 60000 && updatedTime === maxTime) {
+    return {
+      dateStr: lead.updated_at,
+      formattedDate,
+      acao: "Atualização de Status",
+      origem: "Manual / CRM",
+      canalIcon: "manual"
+    };
+  }
+
+  const rawPortal = lead.origem_portal || "Portal / Manual";
+  let origemDisplay = rawPortal;
+  if (rawPortal.toLowerCase().includes("sheet") || rawPortal.toLowerCase().includes("planilha")) {
+    origemDisplay = "Importação Planilha";
+  } else if (rawPortal.toLowerCase().includes("noivas")) {
+    origemDisplay = "Portal Noivas";
+  } else if (rawPortal.toLowerCase().includes("casamentos")) {
+    origemDisplay = "Casamentos.com.br";
+  } else if (rawPortal.toLowerCase().includes("zankyou")) {
+    origemDisplay = "Zankyou";
+  } else if (rawPortal.toLowerCase().includes("manual")) {
+    origemDisplay = "Cadastro Manual";
+  }
+
+  return {
+    dateStr: lead.created_at || new Date().toISOString(),
+    formattedDate,
+    acao: "Lead Cadastrado",
+    origem: origemDisplay,
+    canalIcon: "system"
+  };
 }
 
 export default function LeadsList({ 
@@ -35,7 +132,7 @@ export default function LeadsList({
   const [selectedPortal, setSelectedPortal] = useState<string | "ALL">("ALL");
   const [negociacaoFilterOnly, setNegociacaoFilterOnly] = useState(initialNegociacaoOnly || false);
   const [isAddingLead, setIsAddingLead] = useState(false);
-  const [sortField, setSortField] = useState<"created_at" | "nome" | "convidados" | "data_casamento">("created_at");
+  const [sortField, setSortField] = useState<"ultima_interacao" | "nome" | "convidados" | "data_casamento">("ultima_interacao");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   React.useEffect(() => {
@@ -141,7 +238,7 @@ export default function LeadsList({
     }
   };
 
-  const toggleSort = (field: "created_at" | "nome" | "convidados" | "data_casamento") => {
+  const toggleSort = (field: "ultima_interacao" | "nome" | "convidados" | "data_casamento") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -291,8 +388,10 @@ export default function LeadsList({
     })
     .sort((a, b) => {
       let comparison = 0;
-      if (sortField === "created_at") {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortField === "ultima_interacao") {
+        const timeA = new Date(getLastInteractionInfo(a).dateStr).getTime();
+        const timeB = new Date(getLastInteractionInfo(b).dateStr).getTime();
+        comparison = timeA - timeB;
       } else if (sortField === "nome") {
         comparison = a.nome.localeCompare(b.nome);
       } else if (sortField === "convidados") {
@@ -478,18 +577,18 @@ export default function LeadsList({
           Lead
           <ArrowUpDown className="w-3 h-3" />
         </button>
-        <span className="col-span-3">Email • Telefone</span>
+        <span className="col-span-2">Email • Telefone</span>
         <button onClick={() => toggleSort("convidados")} className="col-span-1 flex items-center gap-1 hover:text-white">
-          Convidados
+          Conv.
           <ArrowUpDown className="w-3 h-3" />
         </button>
-        <button onClick={() => toggleSort("data_casamento")} className="col-span-2 flex items-center gap-1 text-left hover:text-white">
-          DATA EVENTO
+        <button onClick={() => toggleSort("data_casamento")} className="col-span-1 flex items-center gap-1 text-left hover:text-white">
+          EVENTO
           <ArrowUpDown className="w-3 h-3" />
         </button>
         <span className="col-span-2">Status / Etapa</span>
-        <button onClick={() => toggleSort("created_at")} className="col-span-1 flex items-center gap-1 hover:text-white justify-end">
-          Criado
+        <button onClick={() => toggleSort("ultima_interacao")} className="col-span-3 flex items-center gap-1 text-left hover:text-white justify-between">
+          <span>ÚLTIMA INTERAÇÃO E AÇÃO</span>
           <ArrowUpDown className="w-3 h-3" />
         </button>
       </div>
@@ -498,7 +597,7 @@ export default function LeadsList({
       <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
         {filteredLeads.length > 0 ? (
           filteredLeads.map((lead) => {
-            const date = new Date(lead.created_at || Date.now());
+            const interaction = getLastInteractionInfo(lead);
             const isEmNegociacao = isNegociacaoLead(lead);
             
             return (
@@ -535,7 +634,7 @@ export default function LeadsList({
                 </div>
 
                 {/* Email / phone contact & location & 1-Click Quick Actions */}
-                <div className="md:col-span-3 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate space-y-1">
+                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate space-y-1">
                   <div className="flex items-center gap-1.5 text-zinc-400">
                     <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                     <span className="truncate">{lead.email}</span>
@@ -587,10 +686,10 @@ export default function LeadsList({
                 </div>
 
                 {/* Event Date */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate flex items-center pr-2">
-                  <div className="flex items-center gap-1.5 text-zinc-300">
+                <div className="md:col-span-1 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate flex items-center pr-1">
+                  <div className="flex items-center gap-1 text-zinc-300">
                     <Calendar className="w-3.5 h-3.5 text-amber-500/80 shrink-0" />
-                    <span className="truncate font-medium">{lead.data_casamento || "Não inf."}</span>
+                    <span className="truncate font-medium">{lead.data_casamento || "N/I"}</span>
                   </div>
                 </div>
 
@@ -607,12 +706,31 @@ export default function LeadsList({
                   <span className="text-[10px] text-zinc-500 truncate block">Etapa: {lead.etapa_contato}</span>
                 </div>
 
-                {/* Date created & arrow */}
-                <div className="md:col-span-1 w-full flex items-center justify-between md:justify-end gap-1 font-mono text-[10px] text-zinc-500 border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0">
-                  <span className="md:hidden text-zinc-500 font-sans">Data de criação:</span>
-                  <div className="flex items-center gap-1">
-                    {date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-                    <ChevronRight className="w-4 h-4 text-zinc-600 hidden md:block" />
+                {/* Last Interaction, Action & Source */}
+                <div className="md:col-span-3 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1.5">
+                  <div className="flex items-center justify-between md:justify-start gap-1.5">
+                    <span className="md:hidden text-zinc-500 font-medium">Última Interação:</span>
+                    <div className="flex items-center gap-1.5 text-zinc-200 font-mono text-[10px] font-semibold">
+                      <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>{interaction.formattedDate}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-200 font-medium truncate" title={interaction.acao}>
+                      {interaction.canalIcon === "whatsapp" && <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      {interaction.canalIcon === "email" && <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                      {interaction.canalIcon === "manual" && <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                      {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      <span className="truncate">{interaction.acao}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[9px] font-medium border border-zinc-700/60 truncate">
+                        {interaction.origem}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-zinc-600 hidden md:block shrink-0" />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -16,9 +16,6 @@ services:
       - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/leads_db
       # Inject other credentials/secrets from your local .env file
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
-      - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
     depends_on:
       postgres:
         condition: service_healthy

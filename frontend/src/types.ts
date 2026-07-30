@@ -13,16 +13,11 @@ export type LeadStatus =
   | 'RESPONDIDO'
   | 'FECHOU'
   | 'PERDIDO'
-  | 'SEM_RETORNO';
+  | 'SEM_RETORNO'
+  | 'SEM_WHATSAPP'
+  | 'Sem WhatsApp';
 
-export type LeadEtapa =
-  | 'SEM_CONTATO'
-  | 'WHATSAPP_ENVIADO'
-  | 'EMAIL_FOLLOWUP_1'
-  | 'WHATSAPP_FOLLOWUP_2'
-  | 'EMAIL_FOLLOWUP_2'
-  | 'EMAIL_FINAL'
-  | 'ENCERRADO';
+export type LeadEtapa = string;
 
 export type LeadTemperatura = 'FRIA' | 'MORNA' | 'QUENTE' | 'CLIENTE';
 
@@ -53,7 +48,16 @@ export interface Lead {
   ultimo_email_em?: string;
   ultimo_whatsapp_em?: string;
   ultima_interacao_em: string;
+  ultima_interacao_acao?: string;
+  ultima_interacao_origem?: string;
   proxima_acao_em: string;
+  followup_especial_1m?: boolean;
+  followup_especial_2m?: boolean;
+  followup_especial_3m?: boolean;
+  whatsapp_validation_status?: 'NUMERO_SEM_WHATSAPP' | 'ERRO_TEMPORARIO_WAHA' | 'ERRO_COMUNICACAO' | 'ENVIADO_SUCESSO' | string;
+  whatsapp_validation_http_code?: number;
+  whatsapp_validation_error?: string;
+  whatsapp_validated_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +73,8 @@ export interface WorkflowStage {
   temperatura: LeadTemperatura;
   mensagem_template: string | null;
   assunto_template: string | null;
+  imagens_template?: string | null;
+  ordem?: number;
 }
 
 export interface PortalSource {
@@ -77,6 +83,13 @@ export interface PortalSource {
   ativo: boolean;
   url_webhook?: string;
   created_at?: string;
+}
+
+export interface Product {
+  id: string;
+  descricao: string;
+  valor_unitario: number;
+  link_imagem: string;
 }
 
 export interface LeadHistory {
@@ -95,6 +108,7 @@ export interface DashboardStats {
   leadsAtivos: number;
   leadsConvertidos: number;
   leadsPerdidos: number;
+  leadsEmNegociacao?: number;
   taxaConversao: number; // percentage
   leadsPorStatus: Record<LeadStatus, number>;
   leadsPorEtapa: Record<LeadEtapa, number>;
@@ -105,5 +119,10 @@ export interface DashboardStats {
     oneMonth: any[];
     twoMonths: any[];
     threeMonths: any[];
+  };
+  systemStatus?: {
+    usePg: boolean;
+    pgConnected: boolean;
+    schedulerPaused: boolean;
   };
 }
