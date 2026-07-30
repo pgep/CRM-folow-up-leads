@@ -487,7 +487,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           onClick={() => setActiveSubTab("followup")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "followup"
-              ? "bg-amber-500 text-zinc-950 font-bold"
+              ? "bg-[#89F0B2] text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
           }`}
         >
@@ -498,7 +498,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           onClick={() => setActiveSubTab("scheduler")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "scheduler"
-              ? "bg-amber-500 text-zinc-950 font-bold"
+              ? "bg-[#89F0B2] text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
           }`}
         >
@@ -509,7 +509,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           onClick={() => setActiveSubTab("general")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "general"
-              ? "bg-amber-500 text-zinc-950 font-bold"
+              ? "bg-[#89F0B2] text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
           }`}
         >
@@ -520,7 +520,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           onClick={() => setActiveSubTab("lists")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
             activeSubTab === "lists"
-              ? "bg-amber-500 text-zinc-950 font-bold"
+              ? "bg-[#89F0B2] text-zinc-950 font-bold"
               : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
           }`}
         >
@@ -536,7 +536,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col md:flex-row gap-6 items-start justify-between">
             <div className="space-y-1">
               <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-amber-500" />
+                <Sliders className="w-5 h-5 text-[#89F0B2]" />
                 Configurador de Mensagens & Prazos
               </h3>
               <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
@@ -559,7 +559,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
             <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col h-fit">
               <div className="flex items-center justify-between mb-3 px-2">
                 <span className="text-xs font-semibold text-zinc-400 tracking-wider uppercase flex items-center gap-1.5">
-                  <ListOrdered className="w-3.5 h-3.5 text-amber-500" />
+                  <ListOrdered className="w-3.5 h-3.5 text-[#89F0B2]" />
                   Sequência do Fluxo (Fila)
                 </span>
                 <span className="text-[10px] font-mono text-zinc-500 font-bold bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-850">
@@ -570,7 +570,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               {/* Step Sequence Timeline container */}
               <div className="relative pl-3 space-y-4">
                 {/* Dotted connector line running down */}
-                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-amber-500/30 via-zinc-800 to-zinc-800/20 border-l border-dashed border-zinc-800 pointer-events-none" />
+                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-[#89F0B2]/30 via-zinc-800 to-zinc-800/20 border-l border-dashed border-zinc-800 pointer-events-none" />
 
                 {getOrderedStages(stages).map((stage, idx, arr) => {
                   const isSelected = selectedEtapa === stage.etapa;
@@ -590,23 +590,23 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       onDragEnd={handleDragEnd}
                       className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
                         isSelected
-                          ? "bg-amber-500/5 border-amber-500/30 shadow-md shadow-amber-950/10"
+                          ? "bg-[#89F0B2]/5 border-[#89F0B2]/30 shadow-md shadow-emerald-950/10"
                           : "bg-zinc-950/20 border-zinc-850 hover:bg-zinc-900/40 hover:border-zinc-800"
                       } ${
-                        isDragOver ? "border-amber-500/50 bg-amber-500/10 scale-[1.01]" : ""
+                        isDragOver ? "border-[#89F0B2]/50 bg-[#89F0B2]/10 scale-[1.01]" : ""
                       } ${
                         isDragged ? "opacity-40 border-dashed" : ""
                       }`}
                     >
                       {/* Drag Handle Icon */}
-                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-amber-500/60 transition-colors">
+                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-[#89F0B2]/60 transition-colors">
                         <GripVertical className="w-3.5 h-3.5" />
                       </div>
 
                       {/* Step Number Circle */}
                       <div className={`relative z-10 shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono transition-all border ${
                         isSelected
-                          ? "bg-amber-500 text-zinc-950 border-amber-400"
+                          ? "bg-[#89F0B2] text-zinc-950 border-[#89F0B2]"
                           : "bg-zinc-900 text-zinc-400 border-zinc-800 group-hover:border-zinc-700"
                       }`}>
                         {orderNum}
@@ -616,7 +616,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       <div className="flex-1 min-w-0 pr-1">
                         <div className="flex items-center justify-between gap-1.5">
                           <span className={`text-[10px] font-bold font-mono tracking-wide truncate flex items-center gap-1 ${
-                            isSelected ? "text-amber-400" : "text-zinc-500"
+                            isSelected ? "text-[#89F0B2]" : "text-zinc-500"
                           }`}>
                             {stage.etapa}
                             {stage.ordem ? (

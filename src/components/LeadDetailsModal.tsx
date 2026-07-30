@@ -218,7 +218,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-sm w-full text-center">
-          <Clock className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
+          <Clock className="w-8 h-8 text-[#89F0B2] animate-spin mx-auto mb-3" />
           <p className="text-sm text-zinc-400">Carregando detalhes do lead...</p>
         </div>
       </div>
@@ -234,7 +234,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
         {/* Header bar */}
         <div className="p-3.5 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50 shrink-0 gap-2">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold font-mono text-xs sm:text-base shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#89F0B2]/10 flex items-center justify-center text-[#89F0B2] font-bold font-mono text-xs sm:text-base shrink-0">
               {lead.nome.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -463,7 +463,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   <div className="flex justify-end pt-2">
                     <button
                       onClick={handleSaveMetadata}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-xs transition"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold rounded-lg text-xs transition"
                     >
                       <Check className="w-3.5 h-3.5" />
                       Salvar Dados
@@ -610,7 +610,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
             {/* Note Creator form */}
             <form onSubmit={handleAddNote} className="space-y-2 shrink-0">
               <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                <Tag className="w-4 h-4 text-amber-500" />
+                <Tag className="w-4 h-4 text-[#89F0B2]" />
                 Registrar Atendimento Manual
               </h4>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -619,12 +619,12 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Escreva nota: 'Lead ligou solicitando caixinha...'"
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#89F0B2]"
                 />
                 <button
                   type="submit"
                   disabled={isSubmittingNote || !newNote.trim()}
-                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 rounded-lg text-black font-semibold text-xs transition flex items-center justify-center gap-1 shrink-0"
+                  className="px-3.5 py-2 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-40 rounded-lg text-black font-semibold text-xs transition flex items-center justify-center gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Salvar Note

@@ -126,18 +126,18 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1.5 max-w-2xl">
           <h3 className="text-base font-semibold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-amber-500" />
+            <Users className="w-5 h-5 text-[#89F0B2]" />
             Importador de Leads via Planilha Google Sheets
           </h3>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            Sincronize o CRM diretamente com a planilha oficial de captação de leads. O sistema realiza uma varredura automática, valida se o lead já foi importado através do identificador único <code className="text-amber-400 font-mono bg-zinc-950 px-1 py-0.5 rounded text-[10px]">lead_id</code> para evitar duplicidades e exibe os registros em tempo real.
+            Sincronize o CRM diretamente com a planilha oficial de captação de leads. O sistema realiza uma varredura automática, valida se o lead já foi importado através do identificador único <code className="text-[#89F0B2] font-mono bg-zinc-950 px-1 py-0.5 rounded text-[10px]">lead_id</code> para evitar duplicidades e exibe os registros em tempo real.
           </p>
           <div className="pt-2 flex items-center gap-4 text-[11px] font-mono">
             <a
               href="https://docs.google.com/spreadsheets/d/16_gt6qo7fT9r2WMxLUwWxhYT4HKOrhvjoD--CdDz124/edit?gid=0#gid=0"
               target="_blank"
               referrerPolicy="no-referrer"
-              className="text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 bg-amber-500/5 px-2.5 py-1 rounded border border-amber-500/10 transition"
+              className="text-[#89F0B2] hover:text-[#72e29e] font-medium flex items-center gap-1 bg-[#89F0B2]/10 px-2.5 py-1 rounded border border-[#89F0B2]/20 transition"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Visualizar Planilha Google original
@@ -161,7 +161,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
           <button
             onClick={handleImportAllPending}
             disabled={loading || importing || pendingCount === 0}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-zinc-950 font-bold text-xs rounded-lg transition shadow-sm shadow-amber-500/10"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-40 text-zinc-950 font-bold text-xs rounded-lg transition shadow-sm"
           >
             <Download className="w-3.5 h-3.5" />
             Importar {pendingCount} Pendentes
@@ -200,7 +200,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
             placeholder="Buscar por nome, e-mail ou lead_id da planilha..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500"
+            className="w-full bg-zinc-950 border border-zinc-850 rounded-lg pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#89F0B2]"
           />
         </div>
 
@@ -209,7 +209,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
           <button
             onClick={() => setFilterStatus("ALL")}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-[11px] font-semibold transition ${
-              filterStatus === "ALL" ? "bg-amber-500 text-black font-bold" : "text-zinc-400 hover:text-white"
+              filterStatus === "ALL" ? "bg-[#89F0B2] text-black font-bold" : "text-zinc-400 hover:text-white"
             }`}
           >
             Todos ({sheetLeads.length})
@@ -217,7 +217,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
           <button
             onClick={() => setFilterStatus("PENDING")}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-[11px] font-semibold transition ${
-              filterStatus === "PENDING" ? "bg-amber-500 text-black font-bold" : "text-zinc-400 hover:text-white"
+              filterStatus === "PENDING" ? "bg-[#89F0B2] text-black font-bold" : "text-zinc-400 hover:text-white"
             }`}
           >
             Pendentes ({pendingCount})
@@ -225,7 +225,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
           <button
             onClick={() => setFilterStatus("IMPORTED")}
             className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-[11px] font-semibold transition ${
-              filterStatus === "IMPORTED" ? "bg-amber-500 text-black font-bold" : "text-zinc-400 hover:text-white"
+              filterStatus === "IMPORTED" ? "bg-[#89F0B2] text-black font-bold" : "text-zinc-400 hover:text-white"
             }`}
           >
             Já Importados ({importedCount})
@@ -239,7 +239,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
         
         {loading && sheetLeads.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center h-[300px]">
-            <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+            <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />
             <span className="text-zinc-500 text-xs">Acessando Google Sheets e sincronizando dados...</span>
           </div>
         ) : filteredLeads.length > 0 ? (
@@ -315,7 +315,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
                           Importado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-[#89F0B2]/10 border border-[#89F0B2]/20 text-[#89F0B2]">
                           Pendente
                         </span>
                       )}
@@ -329,7 +329,7 @@ export default function SheetImporter({ onImportComplete }: SheetImporterProps) 
                         <button
                           onClick={() => handleImportSingle(lead.lead_id)}
                           disabled={importing}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-semibold text-[10px] rounded transition"
+                          className="px-2.5 py-1 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-40 text-black font-semibold text-[10px] rounded transition"
                         >
                           Importar
                         </button>

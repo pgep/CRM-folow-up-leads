@@ -211,7 +211,7 @@ export default function AutoTriggerSetup() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-zinc-900 border border-zinc-800 rounded-xl h-64">
-        <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+        <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />
         <p className="text-sm text-zinc-500">Carregando cronograma de disparo...</p>
       </div>
     );
@@ -225,7 +225,7 @@ export default function AutoTriggerSetup() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-500" />
+              <Clock className="w-5 h-5 text-[#89F0B2]" />
               Configuração de Disparo Automático (Scheduler CRM)
             </h3>
             <p className="text-sm text-zinc-400 leading-relaxed">
@@ -285,14 +285,14 @@ export default function AutoTriggerSetup() {
                       type="time"
                       value={newHour}
                       onChange={(e) => setNewHour(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 font-mono"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] font-mono"
                       required
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-1 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-xs rounded-lg transition"
+                    className="flex items-center gap-1 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-50 text-black font-semibold text-xs rounded-lg transition"
                     id="add-hour-button"
                   >
                     <Plus className="w-4 h-4" />
@@ -317,7 +317,7 @@ export default function AutoTriggerSetup() {
                         className="flex items-center justify-between bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300"
                       >
                         <span className="flex items-center gap-1.5 text-zinc-200">
-                          <Clock className="w-3.5 h-3.5 text-amber-500/70" />
+                          <Clock className="w-3.5 h-3.5 text-[#89F0B2]/70" />
                           {hour}
                         </span>
                         <button
@@ -349,7 +349,7 @@ export default function AutoTriggerSetup() {
         <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col" id="manual-trigger-panel">
           <div className="p-4 border-b border-zinc-850 bg-zinc-950/40 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-500" />
+              <Zap className="w-4 h-4 text-[#89F0B2]" />
               Disparo Manual Ad-Hoc
             </span>
             <span className="text-[10px] text-zinc-500">Executável a qualquer momento</span>
@@ -387,7 +387,7 @@ export default function AutoTriggerSetup() {
                     </div>
                     <div className="bg-zinc-950/40 p-2.5 rounded border border-zinc-850/40">
                       <span className="text-zinc-500 block text-[10px] uppercase">Disparos Efetuados</span>
-                      <strong className="text-base text-amber-500">{manualResult.actions_taken}</strong>
+                      <strong className="text-base text-[#89F0B2]">{manualResult.actions_taken}</strong>
                     </div>
                   </div>
                 </div>
@@ -399,7 +399,7 @@ export default function AutoTriggerSetup() {
                 type="button"
                 onClick={handleRunManual}
                 disabled={runningManual}
-                className="flex items-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-55 text-black font-bold text-xs rounded-lg transition shadow-md uppercase tracking-wider"
+                className="flex items-center gap-2 px-5 py-3 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-55 text-black font-bold text-xs rounded-lg transition shadow-md uppercase tracking-wider"
                 id="run-manual-button"
               >
                 {runningManual ? (
@@ -458,7 +458,7 @@ export default function AutoTriggerSetup() {
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden font-mono" id="scheduler-console-logs">
           <div className="p-3 border-b border-zinc-850 bg-zinc-900/60 flex items-center justify-between text-xs text-zinc-400">
             <span className="flex items-center gap-2 text-zinc-300">
-              <List className="w-3.5 h-3.5 text-amber-500" />
+              <List className="w-3.5 h-3.5 text-[#89F0B2]" />
               Console de Varredura - Logs de Execução em Tempo Real
             </span>
             <button 
@@ -476,7 +476,7 @@ export default function AutoTriggerSetup() {
                   logLine.includes("[ERRO]") || logLine.includes("FALHA") 
                     ? "text-red-400" 
                     : logLine.includes("Enviando") || logLine.includes("Ajustando")
-                      ? "text-amber-400 font-medium"
+                      ? "text-[#89F0B2] font-medium"
                       : logLine.startsWith("------")
                         ? "text-zinc-600 my-1 font-bold"
                         : logLine.includes("Resultado do Disparo: OK") || logLine.includes("concluída")

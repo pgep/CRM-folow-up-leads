@@ -116,6 +116,54 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
   };
 }
 
+// Helper to calculate days until wedding/event
+export function getDaysUntilWedding(dateStr?: string): { days: number | null; label: string; badgeColor: string } {
+  if (!dateStr) return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+
+  const cleanStr = dateStr.trim();
+  if (!cleanStr) return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+
+  let d: Date | null = null;
+  const parts = cleanStr.split("/");
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+      const fullYear = year < 100 ? 2000 + year : year;
+      d = new Date(fullYear, month - 1, day);
+    }
+  } else {
+    const parsed = Date.parse(cleanStr);
+    if (!isNaN(parsed)) {
+      d = new Date(parsed);
+    }
+  }
+
+  if (!d || isNaN(d.getTime())) {
+    return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+
+  const diffTime = d.getTime() - today.getTime();
+  const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (days === 0) {
+    return { days: 0, label: "Hoje!", badgeColor: "bg-[#89F0B2]/20 text-[#89F0B2] border-[#89F0B2]/40 font-bold animate-pulse" };
+  } else if (days < 0) {
+    return { days, label: `${Math.abs(days)}d atrás`, badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+  } else if (days <= 30) {
+    return { days, label: `${days}d (Urgente)`, badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold" };
+  } else if (days <= 90) {
+    return { days, label: `${days}d restantes`, badgeColor: "bg-sky-500/15 text-sky-300 border-sky-500/30 font-semibold" };
+  } else {
+    return { days, label: `${days}d restantes`, badgeColor: "bg-[#89F0B2]/15 text-[#89F0B2] border-[#89F0B2]/30 font-semibold" };
+  }
+}
+
 export default function LeadsList({ 
   leads, 
   portals, 
@@ -132,7 +180,7 @@ export default function LeadsList({
   const [selectedPortal, setSelectedPortal] = useState<string | "ALL">("ALL");
   const [negociacaoFilterOnly, setNegociacaoFilterOnly] = useState(initialNegociacaoOnly || false);
   const [isAddingLead, setIsAddingLead] = useState(false);
-  const [sortField, setSortField] = useState<"ultima_interacao" | "nome" | "convidados" | "data_casamento">("ultima_interacao");
+  const [sortField, setSortField] = useState<"ultima_interacao" | "nome" | "convidados" | "data_casamento" | "dias_evento">("ultima_interacao");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   React.useEffect(() => {
@@ -238,12 +286,12 @@ export default function LeadsList({
     }
   };
 
-  const toggleSort = (field: "ultima_interacao" | "nome" | "convidados" | "data_casamento") => {
+  const toggleSort = (field: "ultima_interacao" | "nome" | "convidados" | "data_casamento" | "dias_evento") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection("desc");
+      setSortDirection(field === "dias_evento" ? "asc" : "desc");
     }
   };
 
@@ -402,6 +450,12 @@ export default function LeadsList({
         const timeA = dateA ? dateA.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
         const timeB = dateB ? dateB.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
         comparison = timeA - timeB;
+      } else if (sortField === "dias_evento") {
+        const daysA = getDaysUntilWedding(a.data_casamento).days;
+        const daysB = getDaysUntilWedding(b.data_casamento).days;
+        const valA = daysA !== null ? daysA : (sortDirection === "asc" ? Infinity : -Infinity);
+        const valB = daysB !== null ? daysB : (sortDirection === "asc" ? Infinity : -Infinity);
+        comparison = valA - valB;
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
@@ -437,27 +491,27 @@ export default function LeadsList({
             onClick={() => setNegociacaoFilterOnly(true)}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition ${
               negociacaoFilterOnly
-                ? "bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm"
-                : "bg-zinc-900 text-zinc-400 hover:text-amber-300 hover:bg-amber-500/10 border border-zinc-800"
+                ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/50 shadow-sm"
+                : "bg-zinc-900 text-zinc-400 hover:text-[#89F0B2] hover:bg-[#89F0B2]/10 border border-zinc-800"
             }`}
           >
-            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
+            <Flame className="w-3.5 h-3.5 text-[#89F0B2] fill-[#89F0B2] animate-pulse" />
             <span>🔥 Visão Leads em Negociação</span>
-            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-500/40">
+            <span className="bg-[#89F0B2]/20 text-[#89F0B2] px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-[#89F0B2]/40">
               {negociacaoCount}
             </span>
           </button>
         </div>
 
         {negociacaoFilterOnly && (
-          <div className="text-xs text-amber-300/80 font-medium flex items-center gap-1.5 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+          <div className="text-xs text-[#89F0B2]/90 font-medium flex items-center gap-1.5 bg-[#89F0B2]/10 px-3 py-1 rounded-lg border border-[#89F0B2]/20">
             <span>Exibindo apenas leads com <strong>Status: Respondido</strong> e <strong>Temperatura: Quente</strong></span>
             <button 
               onClick={() => {
                 setNegociacaoFilterOnly(false);
                 if (onClearNegociacaoOnly) onClearNegociacaoOnly();
               }} 
-              className="text-amber-400 hover:text-amber-200 underline font-semibold ml-1"
+              className="text-[#89F0B2] hover:text-[#78e0a1] underline font-semibold ml-1"
             >
               Limpar filtro
             </button>
@@ -476,7 +530,7 @@ export default function LeadsList({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Pesquisar por nome, email, celular ou ID..."
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
           />
         </div>
 
@@ -486,7 +540,7 @@ export default function LeadsList({
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-amber-500"
+            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
           >
             <option value="ALL">Todos Status Ativos ({activeLeadsCount})</option>
             {statusList.length > 0 ? (
@@ -512,7 +566,7 @@ export default function LeadsList({
           <select
             value={selectedTemp}
             onChange={(e) => setSelectedTemp(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-amber-500"
+            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
           >
             <option value="ALL">Todas Temperaturas</option>
             {tempsList.length > 0 ? (
@@ -534,7 +588,7 @@ export default function LeadsList({
           <select
             value={selectedPortal}
             onChange={(e) => setSelectedPortal(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-amber-500"
+            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
           >
             <option value="ALL">Todos Portais</option>
             <option value="Portal Noivas">Portal Noivas</option>
@@ -555,14 +609,14 @@ export default function LeadsList({
               onClick={() => onSwitchTab("sheet_import")}
               className="flex items-center gap-1.5 px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 hover:border-zinc-700 font-semibold text-xs rounded-lg transition"
             >
-              <Download className="w-4 h-4 text-amber-500" />
+              <Download className="w-4 h-4 text-[#89F0B2]" />
               Importar Planilha
             </button>
           )}
 
           <button
             onClick={() => setIsAddingLead(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs rounded-lg transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold text-xs rounded-lg transition shadow-md"
           >
             <Plus className="w-4 h-4" />
             Criar Lead
@@ -573,7 +627,7 @@ export default function LeadsList({
 
       {/* Database table header sort indicators */}
       <div className="bg-zinc-950 border border-zinc-900 rounded-lg px-4 py-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hidden md:grid grid-cols-12 gap-4 items-center shrink-0">
-        <button onClick={() => toggleSort("nome")} className="col-span-3 flex items-center gap-1 text-left hover:text-white">
+        <button onClick={() => toggleSort("nome")} className="col-span-2 flex items-center gap-1 text-left hover:text-white">
           Lead
           <ArrowUpDown className="w-3 h-3" />
         </button>
@@ -587,8 +641,12 @@ export default function LeadsList({
           <ArrowUpDown className="w-3 h-3" />
         </button>
         <span className="col-span-2">Status / Etapa</span>
-        <button onClick={() => toggleSort("ultima_interacao")} className="col-span-3 flex items-center gap-1 text-left hover:text-white justify-between">
-          <span>ÚLTIMA INTERAÇÃO E AÇÃO</span>
+        <button onClick={() => toggleSort("ultima_interacao")} className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between">
+          <span>ÚLTIMA INTERAÇÃO</span>
+          <ArrowUpDown className="w-3 h-3" />
+        </button>
+        <button onClick={() => toggleSort("dias_evento")} className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between">
+          <span>DIAS P/ EVENTO</span>
           <ArrowUpDown className="w-3 h-3" />
         </button>
       </div>
@@ -599,6 +657,7 @@ export default function LeadsList({
           filteredLeads.map((lead) => {
             const interaction = getLastInteractionInfo(lead);
             const isEmNegociacao = isNegociacaoLead(lead);
+            const weddingDays = getDaysUntilWedding(lead.data_casamento);
             
             return (
               <div
@@ -606,14 +665,14 @@ export default function LeadsList({
                 onClick={() => onSelectLead(lead.id)}
                 className={`w-full cursor-pointer rounded-xl p-4 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3.5 items-start md:items-center text-xs text-zinc-300 text-left transition ${
                   isEmNegociacao
-                    ? "bg-amber-950/20 hover:bg-amber-950/35 border border-amber-500/40 hover:border-amber-400 shadow-sm shadow-amber-500/5"
+                    ? "bg-emerald-950/20 hover:bg-emerald-950/35 border border-[#89F0B2]/40 hover:border-[#89F0B2] shadow-sm shadow-emerald-500/5"
                     : "bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700"
                 }`}
               >
                 {/* Bride identity */}
-                <div className="md:col-span-3 w-full flex items-center gap-3">
+                <div className="md:col-span-2 w-full flex items-center gap-2.5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                    isEmNegociacao ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-zinc-800 text-zinc-300"
+                    isEmNegociacao ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/30" : "bg-zinc-800 text-zinc-300"
                   }`}>
                     {lead.nome.charAt(0).toUpperCase()}
                   </div>
@@ -624,8 +683,8 @@ export default function LeadsList({
                     <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">{lead.id}</span>
                     {isEmNegociacao && (
                       <div className="mt-1">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm animate-pulse">
-                          <Flame className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/40 shadow-sm animate-pulse">
+                          <Flame className="w-2.5 h-2.5 text-[#89F0B2] fill-[#89F0B2]" />
                           Em Negociação
                         </span>
                       </div>
@@ -645,7 +704,7 @@ export default function LeadsList({
                   </div>
                   {lead.local && (
                     <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] truncate" title={lead.local}>
-                      <MapPin className="w-3.5 h-3.5 text-amber-500/80 shrink-0" />
+                      <MapPin className="w-3.5 h-3.5 text-[#89F0B2]/80 shrink-0" />
                       <span className="truncate">{lead.local}</span>
                     </div>
                   )}
@@ -688,7 +747,7 @@ export default function LeadsList({
                 {/* Event Date */}
                 <div className="md:col-span-1 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate flex items-center pr-1">
                   <div className="flex items-center gap-1 text-zinc-300">
-                    <Calendar className="w-3.5 h-3.5 text-amber-500/80 shrink-0" />
+                    <Calendar className="w-3.5 h-3.5 text-[#89F0B2]/80 shrink-0" />
                     <span className="truncate font-medium">{lead.data_casamento || "N/I"}</span>
                   </div>
                 </div>
@@ -707,31 +766,39 @@ export default function LeadsList({
                 </div>
 
                 {/* Last Interaction, Action & Source */}
-                <div className="md:col-span-3 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1.5">
+                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1">
                   <div className="flex items-center justify-between md:justify-start gap-1.5">
                     <span className="md:hidden text-zinc-500 font-medium">Última Interação:</span>
-                    <div className="flex items-center gap-1.5 text-zinc-200 font-mono text-[10px] font-semibold">
-                      <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <div className="flex items-center gap-1 text-zinc-200 font-mono text-[10px] font-semibold">
+                      <Clock className="w-3 h-3 text-[#89F0B2] shrink-0" />
                       <span>{interaction.formattedDate}</span>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-200 font-medium truncate" title={interaction.acao}>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1 text-[11px] text-zinc-200 font-medium truncate" title={interaction.acao}>
                       {interaction.canalIcon === "whatsapp" && <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                       {interaction.canalIcon === "email" && <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
                       {interaction.canalIcon === "manual" && <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                      {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-[#89F0B2] shrink-0" />}
                       <span className="truncate">{interaction.acao}</span>
                     </div>
 
                     <div className="flex items-center justify-between gap-1">
-                      <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[9px] font-medium border border-zinc-700/60 truncate">
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[9px] font-medium border border-zinc-700/60 truncate">
                         {interaction.origem}
                       </span>
-                      <ChevronRight className="w-4 h-4 text-zinc-600 hidden md:block shrink-0" />
                     </div>
                   </div>
+                </div>
+
+                {/* Days Until Wedding/Event Column */}
+                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center items-start">
+                  <span className="md:hidden text-zinc-500 font-medium text-[10px] block mb-1">Dias p/ Evento:</span>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${weddingDays.badgeColor}`}>
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>{weddingDays.label}</span>
+                  </span>
                 </div>
               </div>
             );
@@ -754,7 +821,7 @@ export default function LeadsList({
             {/* Modal Header */}
             <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/40 shrink-0">
               <div className="flex items-center gap-2">
-                <Plus className="w-5 h-5 text-amber-500" />
+                <Plus className="w-5 h-5 text-[#89F0B2]" />
                 <h3 className="text-base font-semibold text-white">Cadastrar Novo Lead</h3>
               </div>
               <button
@@ -778,7 +845,7 @@ export default function LeadsList({
                     value={formNome}
                     onChange={(e) => setFormNome(e.target.value)}
                     placeholder="Larissa Souza"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
                 <div className="space-y-1">
@@ -789,7 +856,7 @@ export default function LeadsList({
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
                     placeholder="larissa@gmail.com"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
               </div>
@@ -802,7 +869,7 @@ export default function LeadsList({
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
                     placeholder="(13) 99655-1212"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
                 <div className="space-y-1">
@@ -812,7 +879,7 @@ export default function LeadsList({
                     min="0"
                     value={formGuests}
                     onChange={(e) => setFormGuests(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2]"
                   />
                 </div>
               </div>
@@ -825,7 +892,7 @@ export default function LeadsList({
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
                     placeholder="12/10/2026"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
                 <div className="space-y-1">
@@ -835,7 +902,7 @@ export default function LeadsList({
                     value={formMonth}
                     onChange={(e) => setFormMonth(e.target.value)}
                     placeholder="Outubro"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
               </div>
@@ -848,7 +915,7 @@ export default function LeadsList({
                     value={formVenue}
                     onChange={(e) => setFormVenue(e.target.value)}
                     placeholder="Recanto dos Sonhos, Santos"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
                 <div className="space-y-1">
@@ -856,7 +923,7 @@ export default function LeadsList({
                   <select
                     value={formPortal}
                     onChange={(e) => setFormPortal(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2]"
                   >
                     <option value="Manual">Manual / CRM Interior</option>
                     <option value="Portal Noivas">Portal Noivas</option>
@@ -874,7 +941,7 @@ export default function LeadsList({
                   value={formServices}
                   onChange={(e) => setFormServices(e.target.value)}
                   placeholder="Lembrancinhas Mini Velas, Difusores etc."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                 />
               </div>
 
@@ -885,7 +952,7 @@ export default function LeadsList({
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   placeholder="Lead solicitou rótulo personalizado rústico."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-amber-500 placeholder-zinc-700 resize-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700 resize-none"
                 />
               </div>
 
@@ -908,7 +975,7 @@ export default function LeadsList({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg transition"
+                className="px-5 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold rounded-lg transition"
               >
                 Cadastrar Lead
               </button>

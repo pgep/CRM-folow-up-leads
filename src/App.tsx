@@ -235,7 +235,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen md:h-screen md:overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/30 selection:text-white w-full">
+    <div className="min-h-screen md:h-screen md:overflow-hidden bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-[#89F0B2]/30 selection:text-white w-full">
       
       {/* Mobile Top Header */}
       <header className="md:hidden bg-zinc-900 border-b border-zinc-850 p-4 sticky top-0 z-40 flex items-center justify-between shrink-0 w-full">
@@ -259,7 +259,7 @@ export default function App() {
                   if (fallback) fallback.classList.remove("hidden");
                 }}
               />
-              <Home id="mobile-logo-fallback" className="hidden w-4 h-4 text-amber-500" />
+              <Home id="mobile-logo-fallback" className="hidden w-4 h-4 text-[#89F0B2]" />
             </div>
             <span className="text-xs font-bold tracking-wide text-white font-mono">CASA COLOMBO</span>
           </div>
@@ -307,7 +307,7 @@ export default function App() {
                     if (fallback) fallback.classList.remove("hidden");
                   }}
                 />
-                <Home id="aside-logo-fallback" className="hidden w-4.5 h-4.5 text-amber-500" />
+                <Home id="aside-logo-fallback" className="hidden w-4.5 h-4.5 text-[#89F0B2]" />
               </div>
               <div>
                 <h1 className="text-xs font-bold tracking-wider text-white font-mono uppercase">
@@ -332,7 +332,7 @@ export default function App() {
               onClick={() => handleTabChange("dashboard")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "dashboard"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -344,13 +344,13 @@ export default function App() {
               onClick={() => handleTabChange("leads")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "leads"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
               <Users className="w-4 h-4 shrink-0" />
               <span className="flex-1">Lista de Leads</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${activeTab === "leads" ? "bg-zinc-950 text-amber-400" : "bg-zinc-850 text-zinc-400"}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${activeTab === "leads" ? "bg-zinc-950 text-[#89F0B2]" : "bg-zinc-850 text-zinc-400"}`}>
                 {leads.length}
               </span>
             </button>
@@ -359,7 +359,7 @@ export default function App() {
               onClick={() => handleTabChange("financial")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "financial"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -371,7 +371,7 @@ export default function App() {
               onClick={() => handleTabChange("broadcast")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "broadcast"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -383,7 +383,7 @@ export default function App() {
               onClick={() => handleTabChange("sheet_import")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "sheet_import"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -395,7 +395,7 @@ export default function App() {
               onClick={() => handleTabChange("portals")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "portals"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -407,7 +407,7 @@ export default function App() {
               onClick={() => handleTabChange("products")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "products"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -419,7 +419,7 @@ export default function App() {
               onClick={() => handleTabChange("workflow")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "workflow"
-                  ? "bg-amber-500 text-zinc-950 font-bold shadow-lg shadow-amber-500/10"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
                   : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
               }`}
             >
@@ -437,9 +437,9 @@ export default function App() {
                 <span className="truncate">Postgres Ativo</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-850 text-[10px] text-amber-500 font-mono" title="Banco database.json ativo">
-                <Database className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-850 text-[10px] text-[#89F0B2] font-mono" title="Banco database.json ativo">
+                <Database className="w-3.5 h-3.5 text-[#89F0B2] shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#89F0B2] shrink-0"></span>
                 <span className="truncate">Banco Local</span>
               </div>
             )}
@@ -479,7 +479,7 @@ export default function App() {
           
           {loading && leads.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center h-[400px]">
-              <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+              <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />
               <p className="text-zinc-500 text-sm font-medium">Sincronizando banco de dados...</p>
             </div>
           ) : (

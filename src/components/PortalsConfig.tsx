@@ -46,7 +46,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
       {/* Banner explanation */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
-          <Globe className="w-5 h-5 text-amber-500" />
+          <Globe className="w-5 h-5 text-[#89F0B2]" />
           Gerenciamento de Portais & Integrações Dinâmicas
         </h3>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
@@ -68,7 +68,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className={`p-2 rounded-lg ${portal.ativo ? "bg-amber-500/10 text-amber-400" : "bg-zinc-800 text-zinc-500"}`}>
+                  <div className={`p-2 rounded-lg ${portal.ativo ? "bg-[#89F0B2]/10 text-[#89F0B2]" : "bg-zinc-800 text-zinc-500"}`}>
                     <Globe className="w-5 h-5" />
                   </div>
                   <div>
@@ -108,7 +108,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
                   </span>
                   <button
                     onClick={() => copyWebhookUrl(portal.id)}
-                    className="text-xs text-amber-400 hover:text-amber-300 font-medium transition"
+                    className="text-xs text-[#89F0B2] hover:text-[#72e29e] font-medium transition"
                   >
                     {copiedId === portal.id ? "Copiado!" : "Copiar URL"}
                   </button>
@@ -124,7 +124,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
         {/* Quick portal addition */}
         <div className="bg-zinc-900/50 border border-zinc-800 border-dashed rounded-xl p-5 flex flex-col justify-center min-h-[175px]">
           <h4 className="text-sm font-medium text-white mb-2 flex items-center gap-1.5">
-            <Plus className="w-4 h-4 text-amber-400" />
+            <Plus className="w-4 h-4 text-[#89F0B2]" />
             Cadastrar Novo Portal
           </h4>
           <p className="text-xs text-zinc-500 mb-4">
@@ -137,12 +137,12 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
               value={newPortalName}
               onChange={(e) => setNewPortalName(e.target.value)}
               placeholder="Ex: casamentos_com_br"
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
             />
             <button
               type="submit"
               disabled={loading || !newPortalName.trim()}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-sm rounded-lg transition shrink-0"
+              className="px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-50 text-black font-semibold text-sm rounded-lg transition shrink-0"
             >
               Adicionar
             </button>
@@ -154,7 +154,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mt-6" id="n8n-webhook-guide">
         <div className="p-5 border-b border-zinc-850 bg-zinc-950/40 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-500" />
+            <Zap className="w-5 h-5 text-[#89F0B2]" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-white">
               Guia de Integração n8n & Zoho Mail
             </h3>
@@ -168,7 +168,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Como funciona o fluxo?</h4>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Quando um e-mail de noiva chega à caixa do Zoho Mail, seu fluxo do <strong>n8n</strong> lê a mensagem, extrai os dados fundamentais e faz uma chamada HTTP <code className="bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850 text-amber-400 font-mono text-[11px]">POST</code> para a URL do webhook abaixo.
+              Quando um e-mail de noiva chega à caixa do Zoho Mail, seu fluxo do <strong>n8n</strong> lê a mensagem, extrai os dados fundamentais e faz uma chamada HTTP <code className="bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850 text-[#89F0B2] font-mono text-[11px]">POST</code> para a URL do webhook abaixo.
             </p>
             <p className="text-xs text-zinc-400 leading-relaxed">
               O CRM Casa Colombo receberá esses dados, criará automaticamente o lead, efetuará o cálculo de orçamento correspondente ao número de convidados fornecido e **iniciará imediatamente a esteira de follow-up** (disparando o e-mail ou WhatsApp de boas-vindas com o orçamento sem qualquer espera).
@@ -179,7 +179,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Link className="w-3.5 h-3.5 text-amber-500" />
+                <Link className="w-3.5 h-3.5 text-[#89F0B2]" />
                 URL Única do Webhook para n8n
               </span>
               <button
@@ -188,12 +188,12 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
                   navigator.clipboard.writeText(fullUrl);
                   toast.success("URL de integração do n8n copiada com sucesso!");
                 }}
-                className="text-xs text-amber-400 hover:text-amber-300 font-medium transition"
+                className="text-xs text-[#89F0B2] hover:text-[#72e29e] font-medium transition"
               >
                 Copiar URL
               </button>
             </div>
-            <div className="font-mono text-xs text-amber-400 bg-zinc-950 p-3 rounded border border-zinc-850 truncate select-all">
+            <div className="font-mono text-xs text-[#89F0B2] bg-zinc-950 p-3 rounded border border-zinc-850 truncate select-all">
               {window.location.origin}/api/leads/n8n-webhook
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
           {/* JSON Schema Preview */}
           <div className="space-y-2">
             <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Code className="w-3.5 h-3.5 text-amber-500" />
+              <Code className="w-3.5 h-3.5 text-[#89F0B2]" />
               Estrutura JSON Esperada (Exemplo de Payload)
             </span>
             <div className="bg-zinc-950 p-4 rounded border border-zinc-850 text-xs font-mono text-zinc-400 overflow-x-auto max-h-72">
@@ -229,12 +229,12 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
           {/* n8n Implementation Checklist */}
           <div className="space-y-3 bg-zinc-950/40 p-4 rounded-lg border border-zinc-850">
             <h5 className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-              <HelpCircle className="w-4 h-4 text-amber-500" />
+              <HelpCircle className="w-4 h-4 text-[#89F0B2]" />
               Como configurar no n8n (Passo a Passo)
             </h5>
             <ul className="text-xs text-zinc-400 space-y-2 pl-4 list-decimal leading-relaxed">
               <li>Adicione um nó <strong>HTTP Request</strong> no seu fluxo n8n logo após a extração dos dados do e-mail.</li>
-              <li>Configure o método como <strong className="text-amber-400">POST</strong>.</li>
+              <li>Configure o método como <strong className="text-[#89F0B2]">POST</strong>.</li>
               <li>No campo <strong>URL</strong>, cole o link copiado acima.</li>
               <li>Configure o <strong>Authentication</strong> como <strong className="text-zinc-300">None</strong> (o webhook é público para facilitar a recepção).</li>
               <li>Em <strong>Send Body</strong>, selecione <strong className="text-zinc-300">true</strong>, formato <strong className="text-zinc-300">JSON</strong>.</li>

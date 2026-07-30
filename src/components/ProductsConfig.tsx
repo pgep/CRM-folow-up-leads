@@ -140,7 +140,7 @@ export default function ProductsConfig() {
     <div id="products-config-screen" className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl text-white">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-amber-500 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[#89F0B2] flex items-center gap-2">
             <Package className="w-6 h-6" />
             Catálogo de Produtos (Orçamento)
           </h2>
@@ -150,7 +150,7 @@ export default function ProductsConfig() {
         </div>
         <button
           onClick={handleOpenCreate}
-          className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs tracking-wide transition flex items-center justify-center gap-2"
+          className="bg-[#89F0B2] hover:bg-[#78e0a1] text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs tracking-wide transition flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Cadastrar Produto
@@ -176,7 +176,7 @@ export default function ProductsConfig() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-zinc-950 border border-zinc-800 w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
             <div className="bg-zinc-900/60 border-b border-zinc-850 px-5 py-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-[#89F0B2] flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 {isEdit ? `Editar Produto: ${id}` : "Cadastrar Novo Produto"}
               </h3>
@@ -199,7 +199,7 @@ export default function ProductsConfig() {
                   placeholder="Ex: vela_vidro, mini_vela, home_spray"
                   value={id}
                   onChange={(e) => setId(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                  className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] disabled:opacity-50"
                   required
                 />
                 <span className="text-[10px] text-zinc-500 mt-1 block">
@@ -216,7 +216,7 @@ export default function ProductsConfig() {
                   placeholder="Ex: Vela Aromática Premium em Vidro de 100g"
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                  className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2]"
                   required
                 />
               </div>
@@ -235,7 +235,7 @@ export default function ProductsConfig() {
                     placeholder="0.00"
                     value={valorUnitario}
                     onChange={(e) => setValorUnitario(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-900 border border-zinc-850 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2]"
                     required
                   />
                 </div>
@@ -254,7 +254,7 @@ export default function ProductsConfig() {
                     placeholder="https://..."
                     value={linkImagem}
                     onChange={(e) => setLinkImagem(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-zinc-900 border border-zinc-850 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2]"
                   />
                 </div>
                 {linkImagem && (
@@ -282,7 +282,7 @@ export default function ProductsConfig() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold px-5 py-2 rounded-lg text-xs transition"
+                  className="bg-[#89F0B2] hover:bg-[#78e0a1] text-zinc-950 font-bold px-5 py-2 rounded-lg text-xs transition"
                 >
                   {isEdit ? "Salvar Alterações" : "Adicionar Produto"}
                 </button>
@@ -294,7 +294,7 @@ export default function ProductsConfig() {
 
       {loading ? (
         <div className="py-12 flex justify-center items-center">
-          <RefreshCw className="w-6 h-6 text-amber-500 animate-spin" />
+          <RefreshCw className="w-6 h-6 text-[#89F0B2] animate-spin" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -304,7 +304,7 @@ export default function ProductsConfig() {
               <p className="text-sm">Nenhum produto cadastrado no catálogo.</p>
               <button
                 onClick={handleOpenCreate}
-                className="mt-3 text-xs font-semibold text-amber-500 hover:underline"
+                className="mt-3 text-xs font-semibold text-[#89F0B2] hover:underline"
               >
                 Cadastrar primeiro produto agora
               </button>
@@ -333,7 +333,7 @@ export default function ProductsConfig() {
                         <span className="text-[9px]">Sem imagem</span>
                       </div>
                     )}
-                    <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wide text-amber-500">
+                    <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm border border-zinc-800 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wide text-[#89F0B2]">
                       ID: {prod.id}
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default function ProductsConfig() {
                       <h4 className="text-xs font-bold text-zinc-200 line-clamp-2 leading-snug">
                         {prod.descricao}
                       </h4>
-                      <p className="text-sm font-extrabold text-amber-400 mt-1">
+                      <p className="text-sm font-extrabold text-[#89F0B2] mt-1">
                         {prod.valor_unitario.toLocaleString("pt-BR", {
                           style: "currency",
                           currency: "BRL"
@@ -359,25 +359,25 @@ export default function ProductsConfig() {
                       <div className="grid grid-cols-1 gap-1 text-[9px]">
                         <div className="flex items-center justify-between text-zinc-400">
                           <span>Total:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
+                          <code className="text-[#89F0B2] font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}orcamento_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
                           <span>Preço:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
+                          <code className="text-[#89F0B2] font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}preco_unitario_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
                           <span>Nome:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
+                          <code className="text-[#89F0B2] font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}descricao_{prod.id}{"}"}
                           </code>
                         </div>
                         <div className="flex items-center justify-between text-zinc-400">
                           <span>Imagem:</span>
-                          <code className="text-amber-500 font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
+                          <code className="text-[#89F0B2] font-mono select-all bg-zinc-950 px-1 rounded text-[8px]">
                             {"{"}imagem_{prod.id}{"}"}
                           </code>
                         </div>
@@ -408,7 +408,7 @@ export default function ProductsConfig() {
 
           {/* Dicas de uso */}
           <div className="bg-zinc-950 border border-zinc-850 rounded-xl p-4 mt-6">
-            <h4 className="text-xs font-bold text-amber-500 flex items-center gap-1.5 mb-2.5">
+            <h4 className="text-xs font-bold text-[#89F0B2] flex items-center gap-1.5 mb-2.5">
               <Sparkles className="w-4 h-4" />
               Como usar os orçamentos dinâmicos no texto das mensagens?
             </h4>
@@ -421,10 +421,10 @@ export default function ProductsConfig() {
                 <span className="text-zinc-500">Exemplo de Mensagem:</span>
                 <p className="mt-1.5">
                   Olá {"{"}nome{"}"}, tudo bem? Para o seu casamento com {"{"}convidados{"}"} convidados no local {"{"}local{"}"},
-                  nossa sugestão é o produto <span className="text-amber-400">{"{"}descricao_vela_vidro{"}"}</span>.
+                  nossa sugestão é o produto <span className="text-[#89F0B2]">{"{"}descricao_vela_vidro{"}"}</span>.
                 </p>
                 <p className="mt-1">
-                  O orçamento total para as lembranças ficaria em <span className="text-amber-400">{"{"}orcamento_vela_vidro{"}"}</span> (com o preço unitário especial de {"{"}preco_unitario_vela_vidro{"}"}).
+                  O orçamento total para as lembranças ficaria em <span className="text-[#89F0B2]">{"{"}orcamento_vela_vidro{"}"}</span> (com o preço unitário especial de {"{"}preco_unitario_vela_vidro{"}"}).
                 </p>
                 <p className="mt-1">
                   Você pode dar uma olhada na imagem dele aqui: {"{"}imagem_vela_vidro{"}"}

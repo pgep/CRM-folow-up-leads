@@ -491,7 +491,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
       {/* Upper header banner */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-amber-500 animate-bounce" />
+          <Megaphone className="w-5 h-5 text-[#89F0B2] animate-bounce" />
           Ações Especiais, Campanhas & Disparo em Massa (Broadcast)
         </h3>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
@@ -506,7 +506,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             onClick={() => setSubTab('special')}
             className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
               subTab === 'special'
-                ? 'bg-amber-500 text-zinc-950 font-bold'
+                ? 'bg-[#89F0B2] text-zinc-950 font-bold'
                 : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-750'
             }`}
           >
@@ -518,7 +518,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             onClick={() => setSubTab('bulk')}
             className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
               subTab === 'bulk'
-                ? 'bg-amber-500 text-zinc-950 font-bold'
+                ? 'bg-[#89F0B2] text-zinc-950 font-bold'
                 : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-750'
             }`}
           >
@@ -556,7 +556,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               }}
               className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs font-semibold flex items-center gap-2 transition ml-auto"
             >
-              <Plus className="w-4 h-4 text-amber-500" />
+              <Plus className="w-4 h-4 text-[#89F0B2]" />
               {isAddingRule ? (editingRuleId ? "Cancelar Edição" : "Cancelar Cadastro") : "Cadastrar Nova Regra"}
             </button>
           </div>
@@ -564,7 +564,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
           {/* ADD RULE FORM PANEL */}
           {isAddingRule && (
             <form onSubmit={handleAddRule} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 animate-fade-in">
-              <h5 className="text-sm font-semibold text-amber-500 flex items-center gap-2">
+              <h5 className="text-sm font-semibold text-[#89F0B2] flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 {editingRuleId ? "Editar Gatilho Especial" : "Definição do Gatilho Especial"}
               </h5>
@@ -578,7 +578,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     placeholder="Ex: Casamento em menos de 45 dias"
                     value={ruleName}
                     onChange={e => setRuleName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                   />
                 </div>
 
@@ -587,7 +587,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   <select
                     value={ruleField}
                     onChange={e => setRuleField(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                   >
                     <option value="dias_casamento">📅 Dias Restantes para o Casamento</option>
                     <option value="convidados">👥 Quantidade de Convidados</option>
@@ -603,7 +603,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     <select
                       value={ruleOperator}
                       onChange={e => setRuleOperator(e.target.value as any)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                     >
                       <option value="<">menor que (&lt;)</option>
                       <option value=">">maior que (&gt;)</option>
@@ -621,7 +621,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       placeholder="Ex: 45 ou FECHOU"
                       value={ruleValue}
                       onChange={e => setRuleValue(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                     />
                   </div>
                 </div>
@@ -629,7 +629,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
               <div className="border-t border-zinc-800/80 my-2 pt-3">
                 <h5 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-amber-500" />
+                  <MessageSquare className="w-4 h-4 text-[#89F0B2]" />
                   Mensagem e Canal de Envio
                 </h5>
               </div>
@@ -640,7 +640,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   <select
                     value={ruleCanal}
                     onChange={e => setRuleCanal(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                   >
                     <option value="WHATSAPP">🟢 WhatsApp API (Waha)</option>
                     <option value="EMAIL">📧 E-mail SMTP (Zoho)</option>
@@ -656,7 +656,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       placeholder="Assunto que o lead receberá"
                       value={ruleSubject}
                       onChange={e => setRuleSubject(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                     />
                   </div>
                 )}
@@ -665,7 +665,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400">Template da Mensagem</label>
-                  <span className="text-[10px] text-zinc-500">Substitutos: <code className="text-amber-500">{`{nome}`}</code>, <code className="text-amber-500">{`{local}`}</code>, <code className="text-amber-500">{`{dias_casamento}`}</code>, <code className="text-amber-500">{`{convidados}`}</code></span>
+                  <span className="text-[10px] text-zinc-500">Substitutos: <code className="text-[#89F0B2]">{`{nome}`}</code>, <code className="text-[#89F0B2]">{`{local}`}</code>, <code className="text-[#89F0B2]">{`{dias_casamento}`}</code>, <code className="text-[#89F0B2]">{`{convidados}`}</code></span>
                 </div>
                 <textarea
                   required
@@ -673,7 +673,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Olá {nome}, vimos que falta pouco ({dias_casamento} dias) para o seu grande dia no {local}. Quer fechar as lembrancinhas aromáticas?"
                   value={ruleMessage}
                   onChange={e => setRuleMessage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans focus:outline-none focus:border-amber-500/50 leading-relaxed"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans focus:outline-none focus:border-[#89F0B2]/50 leading-relaxed"
                 />
               </div>
 
@@ -697,7 +697,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs transition"
+                  className="px-4 py-2 rounded-lg bg-[#89F0B2] text-zinc-950 font-bold text-xs transition"
                 >
                   {editingRuleId ? "Salvar Alterações" : "Salvar Regra Especial"}
                 </button>
@@ -733,7 +733,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         <div>
                           <h5 className="text-sm font-semibold text-white flex items-center gap-2">
                             {rule.nome}
-                            <span className="text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded font-mono uppercase">
+                            <span className="text-[10px] bg-[#89F0B2]/10 text-[#89F0B2] px-1.5 py-0.5 rounded font-mono uppercase">
                               {rule.campo_gatilho} {rule.operador} {rule.valor_gatilho}
                             </span>
                           </h5>
@@ -764,7 +764,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                         <button
                           onClick={() => startEditingRule(rule)}
-                          className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-amber-500 rounded transition border border-transparent hover:border-zinc-700/50"
+                          className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-[#89F0B2] rounded transition border border-transparent hover:border-zinc-700/50"
                           title="Editar e visualizar esta regra"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -822,7 +822,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                                     className={`px-3 py-1.5 rounded-md font-bold text-[11px] flex items-center gap-1.5 transition ${
                                       rule.canal === "WHATSAPP" 
                                         ? "bg-emerald-500 hover:bg-emerald-600 text-zinc-950" 
-                                        : "bg-amber-500 hover:bg-amber-600 text-zinc-950"
+                                        : "bg-[#89F0B2] hover:bg-[#72e29e] text-zinc-950"
                                     }`}
                                   >
                                     <Send className={`w-3.5 h-3.5 ${isSendingThis ? "animate-spin" : ""}`} />
@@ -850,7 +850,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
           {/* LEFT COLUMN: CRITERIA, CONFIGURATION & MESSAGE EDITOR */}
           <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
             <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Filter className="w-4 h-4 text-amber-500" />
+              <Filter className="w-4 h-4 text-[#89F0B2]" />
               1. Filtrar Contexto de Disparo
             </h4>
 
@@ -939,7 +939,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
             <div className="border-t border-zinc-800 my-1 pt-3">
               <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-amber-500" />
+                <MessageSquare className="w-4 h-4 text-[#89F0B2]" />
                 2. Configurar Transmissão
               </h4>
             </div>
@@ -954,7 +954,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       name="bulkCanal"
                       checked={bulkCanal === 'WHATSAPP'}
                       onChange={() => setBulkCanal('WHATSAPP')}
-                      className="accent-amber-500"
+                      className="accent-[#89F0B2]"
                     />
                     🟢 WhatsApp API (Waha)
                   </label>
@@ -964,7 +964,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       name="bulkCanal"
                       checked={bulkCanal === 'EMAIL'}
                       onChange={() => setBulkCanal('EMAIL')}
-                      className="accent-amber-500"
+                      className="accent-[#89F0B2]"
                     />
                     📧 E-mail (Zoho SMTP)
                   </label>
@@ -992,7 +992,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   rows={6}
                   value={bulkMessage}
                   onChange={e => setBulkMessage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-[#89F0B2]/50"
                   placeholder="Escreva a mensagem aqui..."
                 />
               </div>
@@ -1002,7 +1002,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 type="button"
                 onClick={handleStartBulkBroadcast}
                 disabled={isDispatching || selectedLeads.length === 0}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:bg-zinc-800 text-zinc-950 disabled:text-zinc-550 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-[#89F0B2] hover:bg-[#72e29e] disabled:bg-zinc-800 text-zinc-950 disabled:text-zinc-550 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2"
               >
                 <Play className="w-4 h-4 fill-zinc-950" />
                 {isDispatching ? "Disparando Lote..." : `Disparar para ${selectedLeads.length} Selecionados`}
@@ -1015,10 +1015,10 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             
             {/* PROGRESS BAR & LIVE RUNS LOGS IF DISPATCHING */}
             {isDispatching && (
-              <div className="bg-zinc-900 border border-amber-500/20 rounded-xl p-5 space-y-3">
+              <div className="bg-zinc-900 border border-[#89F0B2]/20 rounded-xl p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-2">
-                    <Clock className="w-4 h-4 animate-spin text-amber-500" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#89F0B2] flex items-center gap-2">
+                    <Clock className="w-4 h-4 animate-spin text-[#89F0B2]" />
                     Progresso do Disparo
                   </h4>
                   <span className="text-xs text-zinc-400 font-mono">
@@ -1028,7 +1028,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                 <div className="w-full h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800">
                   <div 
-                    className="h-full bg-amber-500 transition-all duration-300" 
+                    className="h-full bg-[#89F0B2] transition-all duration-300" 
                     style={{ width: `${(dispatchProgress.current / dispatchProgress.total) * 100}%` }}
                   />
                 </div>
@@ -1044,14 +1044,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Users className="w-4 h-4 text-amber-500" />
+                  <Users className="w-4 h-4 text-[#89F0B2]" />
                   3. Selecionar Destinatários ({filteredLeadsForBulk.length} Filtrados)
                 </h4>
 
                 <button
                   type="button"
                   onClick={handleToggleSelectAll}
-                  className="text-[11px] font-bold text-amber-400 hover:text-amber-300"
+                  className="text-[11px] font-bold text-[#89F0B2] hover:text-[#72e29e]"
                 >
                   {selectedLeads.length === filteredLeadsForBulk.length ? "Desmarcar Todos" : "Marcar Todos"}
                 </button>
@@ -1064,7 +1064,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Filtrar destinatários por nome..."
                   value={bulkNameSearch}
                   onChange={(e) => setBulkNameSearch(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                 />
                 <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
                 {bulkNameSearch && (
@@ -1093,14 +1093,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         onClick={() => handleToggleLeadSelect(lead.id)}
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
                           isSelected 
-                            ? "bg-zinc-800/80 border-amber-500/30 text-white" 
+                            ? "bg-zinc-800/80 border-[#89F0B2]/30 text-white" 
                             : "bg-zinc-950/40 border-zinc-850 hover:border-zinc-800 text-zinc-400"
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            className={`p-0.5 rounded transition ${isSelected ? "text-amber-500" : "text-zinc-600"}`}
+                            className={`p-0.5 rounded transition ${isSelected ? "text-[#89F0B2]" : "text-zinc-600"}`}
                           >
                             {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                           </button>

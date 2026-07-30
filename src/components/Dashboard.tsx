@@ -192,7 +192,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center h-[500px]">
-        <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
+        <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />
         <p className="text-zinc-500 text-sm">Carregando métricas do CRM...</p>
       </div>
     );
@@ -874,7 +874,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                 type="button"
                 disabled={isSendingBulk || !bulkMessage.trim()}
                 onClick={handleExecuteBulkSend}
-                className="px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black shadow transition flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-[#89F0B2] hover:bg-[#72e29e] disabled:bg-zinc-800 disabled:text-zinc-500 text-black shadow transition flex items-center gap-1.5"
               >
                 {isSendingBulk ? (
                   <>
