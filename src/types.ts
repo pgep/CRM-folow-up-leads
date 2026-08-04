@@ -21,6 +21,16 @@ export type LeadEtapa = string;
 
 export type LeadTemperatura = 'FRIA' | 'MORNA' | 'QUENTE' | 'CLIENTE';
 
+export type StatusConversa =
+  | 'NUNCA_RESPONDEU'
+  | 'RESPONDEU'
+  | 'EM_ATENDIMENTO'
+  | 'ESCOLHENDO_MODELO'
+  | 'ORCAMENTO_ENVIADO'
+  | 'NEGOCIACAO'
+  | 'CLIENTE'
+  | 'PERDIDO';
+
 export interface Lead {
   id: string;
   nome: string;
@@ -40,6 +50,8 @@ export interface Lead {
   status_funil: LeadStatus;
   etapa_contato: LeadEtapa;
   temperatura: LeadTemperatura;
+  status_conversa?: StatusConversa;
+  data_ultima_movimentacao?: string;
   tentativas_email: number;
   tentativas_whatsapp: number;
   observacoes?: string;

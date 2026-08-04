@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { LayoutDashboard, Users, Settings, Globe, Mail, Database, Bell, RefreshCw, Star, Info, Download, Megaphone, Sliders, Package, Home, DollarSign, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Settings, Globe, Mail, Database, Bell, RefreshCw, Star, Info, Download, Megaphone, Sliders, Package, Home, DollarSign, Menu, X, Columns } from "lucide-react";
 import { Lead, WorkflowStage, PortalSource, DashboardStats } from "./types";
 import Dashboard from "./components/Dashboard";
 import LeadsList from "./components/LeadsList";
@@ -15,9 +15,10 @@ import SheetImporter from "./components/SheetImporter";
 import BroadcastManager from "./components/BroadcastManager";
 import ProductsConfig from "./components/ProductsConfig";
 import FinancialManager from "./components/FinancialManager";
+import KanbanBoard from "./components/KanbanBoard";
 import { useToast } from "./components/Toast";
 
-type TabType = "dashboard" | "leads" | "sheet_import" | "workflow" | "portals" | "broadcast" | "products" | "financial";
+type TabType = "dashboard" | "kanban" | "leads" | "sheet_import" | "workflow" | "portals" | "broadcast" | "products" | "financial";
 
 export default function App() {
   const { toast } = useToast();
@@ -341,6 +342,21 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => handleTabChange("kanban")}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
+                activeTab === "kanban"
+                  ? "bg-[#89F0B2] text-zinc-950 font-bold shadow-lg shadow-[#89F0B2]/10"
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-800/40"
+              }`}
+            >
+              <Columns className="w-4 h-4 shrink-0" />
+              <span className="flex-1">Pipeline Comercial</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-[#89F0B2]/20 text-[#89F0B2]">
+                Kanban
+              </span>
+            </button>
+
+            <button
               onClick={() => handleTabChange("leads")}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition text-left ${
                 activeTab === "leads"
@@ -494,6 +510,15 @@ export default function App() {
                     setShowNegociacaoOnly(true);
                     setActiveTab("leads");
                   }}
+                />
+              )}
+
+              {activeTab === "kanban" && (
+                <KanbanBoard
+                  leads={leads}
+                  onSelectLead={setSelectedLeadId}
+                  onUpdateLead={handleUpdateLead}
+                  onRefresh={fetchData}
                 />
               )}
 

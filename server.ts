@@ -301,6 +301,18 @@ async function initPgDatabase() {
       await client.query(`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS ultima_interacao_origem VARCHAR(255);
       `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS status_conversa VARCHAR(255) DEFAULT 'NUNCA_RESPONDEU';
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_ultima_movimentacao VARCHAR(255);
+      `);
+      await client.query(`
+        UPDATE leads SET status_conversa = 'NUNCA_RESPONDEU' WHERE status_conversa IS NULL OR TRIM(status_conversa) = '';
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_leads_status_conversa ON leads (status_conversa);
+      `);
 
       // 1.1 Index for Negotiation Leads filtering
       await client.query(`
@@ -596,6 +608,7 @@ async function getLeads(): Promise<any[]> {
   list = list.map((l) => {
     if (l) {
       l.temperatura = normalizeTemperatura(l.temperatura);
+      l.status_conversa = l.status_conversa || "NUNCA_RESPONDEU";
       const hist = latestHistoryMap[l.id];
       if (hist) {
         l.ultima_interacao_em = hist.created_at;
@@ -648,6 +661,7 @@ async function getLeadById(id: string): Promise<any | null> {
 
   if (lead) {
     lead.temperatura = normalizeTemperatura(lead.temperatura);
+    lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
     const historyList = await getLeadHistory(id);
     if (historyList && historyList.length > 0) {
       const hist = historyList[0];
@@ -693,6 +707,7 @@ async function getAllLeadsUnfiltered(): Promise<any[]> {
   return list.map((l) => {
     if (l) {
       l.temperatura = normalizeTemperatura(l.temperatura);
+      l.status_conversa = l.status_conversa || "NUNCA_RESPONDEU";
       const hist = latestHistoryMap[l.id];
       if (hist) {
         l.ultima_interacao_em = hist.created_at;
@@ -786,6 +801,7 @@ async function handleDuplicateAttempt(existingLead: any, sourceName: string, pay
 
 async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
   lead.temperatura = normalizeTemperatura(lead.temperatura);
+  lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
   lead.updated_at = new Date().toISOString();
   if (isNew) {
     lead.created_at = lead.created_at || new Date().toISOString();
@@ -802,9 +818,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             followup_especial_1m, followup_especial_2m, followup_especial_3m,
             whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
             whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
-            ultima_interacao_acao, ultima_interacao_origem,
+            ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44)
           RETURNING *
         `;
         const values = [
@@ -814,7 +830,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null,
+          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
           lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -829,8 +845,8 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
             whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
             whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
-            ultima_interacao_acao = $39, ultima_interacao_origem = $40,
-            updated_at = $41
+            ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
+            updated_at = $43
           WHERE id = $1
           RETURNING *
         `;
@@ -843,7 +859,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null,
+          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
           lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -1070,6 +1086,12 @@ async function getProducts(): Promise<any[]> {
 }
 
 async function saveProduct(p: any): Promise<boolean> {
+  let existingProducts: any[] = [];
+  try {
+    existingProducts = await getProducts();
+  } catch (e) {}
+  const oldProd = existingProducts.find((item: any) => item.id === p.id);
+
   if (usePg && pgPool) {
     try {
       await pgPool.query(`
@@ -1086,7 +1108,6 @@ async function saveProduct(p: any): Promise<boolean> {
         p.link_imagem,
         new Date().toISOString()
       ]);
-      return true;
     } catch (e: any) {
       console.warn("PostgreSQL product save failed:", e.message);
     }
@@ -1100,6 +1121,52 @@ async function saveProduct(p: any): Promise<boolean> {
     db.products.push(p);
   }
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+
+  // Sync saved workflow templates so they dynamically update if static image URLs or prices were used
+  try {
+    const workflowConfigs = await getWorkflowConfigs();
+    let updated = false;
+
+    for (const stage of workflowConfigs) {
+      let msg = stage.mensagem_template || "";
+      let subj = stage.assunto_template || "";
+      let stageUpdated = false;
+
+      // Replace old image URL with variable tag {imagem_id} or update static link
+      if (oldProd && oldProd.link_imagem && oldProd.link_imagem !== p.link_imagem) {
+        if (msg.includes(oldProd.link_imagem)) {
+          msg = msg.replaceAll(oldProd.link_imagem, `{imagem_${p.id}}`);
+          stageUpdated = true;
+        }
+        if (subj.includes(oldProd.link_imagem)) {
+          subj = subj.replaceAll(oldProd.link_imagem, `{imagem_${p.id}}`);
+          stageUpdated = true;
+        }
+      }
+
+      // Replace old price with variable tag {preco_unitario_id}
+      if (oldProd && oldProd.valor_unitario && oldProd.valor_unitario !== p.valor_unitario) {
+        const oldFormatted = formatarBRL(Number(oldProd.valor_unitario) || 0);
+        if (msg.includes(oldFormatted)) {
+          msg = msg.replaceAll(oldFormatted, `{preco_unitario_${p.id}}`);
+          stageUpdated = true;
+        }
+      }
+
+      if (stageUpdated) {
+        stage.mensagem_template = msg;
+        stage.assunto_template = subj;
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      await saveWorkflowConfigs(workflowConfigs);
+    }
+  } catch (err) {
+    console.error("Erro ao sincronizar templates do fluxo com atualização de produtos:", err);
+  }
+
   return true;
 }
 
@@ -2171,25 +2238,35 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
     const products = await getProducts();
     const guests = Number(lead.convidados) || 100;
     
-    for (const prod of products) {
+    for (let idx = 0; idx < products.length; idx++) {
+      const prod = products[idx];
       const id = prod.id;
+      const indexStr = String(idx + 1);
       const totalCalculado = guests * (Number(prod.valor_unitario) || 0);
       const valTotal = formatarBRL(totalCalculado);
       const valImg = prod.link_imagem || "";
       const valPrecoUnit = formatarBRL(Number(prod.valor_unitario) || 0);
       const valDesc = prod.descricao || "";
       
-      const escapedId = id.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      
-      text = text
-        .replace(new RegExp(`\\{\\{\\s*orcamento_${escapedId}\\s*\\}\\}`, "gi"), valTotal)
-        .replace(new RegExp(`\\{\\s*orcamento_${escapedId}\\s*\\}`, "gi"), valTotal)
-        .replace(new RegExp(`\\{\\{\\s*imagem_${escapedId}\\s*\\}\\}`, "gi"), valImg)
-        .replace(new RegExp(`\\{\\s*imagem_${escapedId}\\s*\\}`, "gi"), valImg)
-        .replace(new RegExp(`\\{\\{\\s*preco_unitario_${escapedId}\\s*\\}\\}`, "gi"), valPrecoUnit)
-        .replace(new RegExp(`\\{\\s*preco_unitario_${escapedId}\\s*\\}`, "gi"), valPrecoUnit)
-        .replace(new RegExp(`\\{\\{\\s*descricao_${escapedId}\\s*\\}\\}`, "gi"), valDesc)
-        .replace(new RegExp(`\\{\\s*descricao_${escapedId}\\s*\\}`, "gi"), valDesc);
+      const keysToMatch = Array.from(new Set([
+        id,
+        id.toLowerCase().replace(/[^a-z0-9_]/g, ""),
+        indexStr,
+        prod.descricao ? prod.descricao.toLowerCase().replace(/[^a-z0-9_]/g, "_") : ""
+      ])).filter(Boolean);
+
+      for (const key of keysToMatch) {
+        const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        text = text
+          .replace(new RegExp(`\\{\\{\\s*orcamento_${escapedKey}\\s*\\}\\}`, "gi"), valTotal)
+          .replace(new RegExp(`\\{\\s*orcamento_${escapedKey}\\s*\\}`, "gi"), valTotal)
+          .replace(new RegExp(`\\{\\{\\s*imagem_${escapedKey}\\s*\\}\\}`, "gi"), valImg)
+          .replace(new RegExp(`\\{\\s*imagem_${escapedKey}\\s*\\}`, "gi"), valImg)
+          .replace(new RegExp(`\\{\\{\\s*preco_unitario_${escapedKey}\\s*\\}\\}`, "gi"), valPrecoUnit)
+          .replace(new RegExp(`\\{\\s*preco_unitario_${escapedKey}\\s*\\}`, "gi"), valPrecoUnit)
+          .replace(new RegExp(`\\{\\{\\s*descricao_${escapedKey}\\s*\\}\\}`, "gi"), valDesc)
+          .replace(new RegExp(`\\{\\s*descricao_${escapedKey}\\s*\\}`, "gi"), valDesc);
+      }
     }
   } catch (err) {
     console.error("Erro ao processar variáveis de produtos no template:", err);
@@ -2344,6 +2421,7 @@ app.put("/api/leads/:id", async (req, res) => {
     // Track status and stage changes for timeline logs
     const statusChanged = req.body.status_funil && req.body.status_funil !== existing.status_funil;
     const stageChanged = req.body.etapa_contato && req.body.etapa_contato !== existing.etapa_contato;
+    const statusConversaChanged = req.body.status_conversa && req.body.status_conversa !== existing.status_conversa;
 
     // Recalculate budgets if guests count changed
     let budgetUpdates = {};
@@ -2357,6 +2435,11 @@ app.put("/api/leads/:id", async (req, res) => {
       ...budgetUpdates,
       id: existing.id // protect ID from changing
     };
+
+    if (statusConversaChanged) {
+      updatedLead.data_ultima_movimentacao = new Date().toISOString();
+      updatedLead.ultima_interacao_em = new Date().toISOString();
+    }
 
     if (req.body.link_celular !== undefined) {
       updatedLead.telefone_limpo = req.body.link_celular.replace(/\D/g, "");
@@ -2381,6 +2464,51 @@ app.put("/api/leads/:id", async (req, res) => {
         detalhes: `De "${existing.etapa_contato}" para "${req.body.etapa_contato}".`
       });
     }
+    if (statusConversaChanged) {
+      await addHistoryEntry(existing.id, {
+        canal: "SISTEMA",
+        tipo: "STATUS_CHANGE",
+        titulo: "Status da Conversa Alterado",
+        detalhes: `Status da conversa alterado de "${existing.status_conversa || 'NUNCA_RESPONDEU'}" para "${req.body.status_conversa}".`
+      });
+    }
+
+    res.json(saved);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Dedicated status_conversa update route (for Drag & Drop in Kanban)
+app.patch("/api/leads/:id/status-conversa", async (req, res) => {
+  try {
+    const { status_conversa } = req.body;
+    if (!status_conversa) return res.status(400).json({ error: "status_conversa é obrigatório" });
+
+    const existing = await getLeadById(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Lead não encontrado" });
+
+    const oldStatus = existing.status_conversa || "NUNCA_RESPONDEU";
+    if (oldStatus === status_conversa) {
+      return res.json(existing);
+    }
+
+    const now = new Date().toISOString();
+    const updatedLead = {
+      ...existing,
+      status_conversa,
+      data_ultima_movimentacao: now,
+      ultima_interacao_em: now
+    };
+
+    const saved = await saveLead(updatedLead, false);
+
+    await addHistoryEntry(existing.id, {
+      canal: "SISTEMA",
+      tipo: "STATUS_CHANGE",
+      titulo: "Status da Conversa Alterado",
+      detalhes: `Status da conversa alterado de "${oldStatus}" para "${status_conversa}".`
+    });
 
     res.json(saved);
   } catch (err: any) {

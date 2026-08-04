@@ -143,7 +143,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
     fetchLeadDetails();
   }, [leadId]);
 
-  const handleUpdateStatus = async (field: "status_funil" | "etapa_contato" | "temperatura", value: string) => {
+  const handleUpdateStatus = async (field: "status_funil" | "etapa_contato" | "temperatura" | "status_conversa", value: string) => {
     if (!lead) return;
     try {
       await onUpdateLead(lead.id, { [field]: value });
@@ -281,10 +281,30 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
           <div className="lg:col-span-7 p-4 sm:p-6 space-y-5 sm:space-y-6">
             
             {/* Quick Status Changers */}
-            <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold text-[#89F0B2] uppercase tracking-wider block">
+                  Status Conversa (Kanban)
+                </span>
+                <select
+                  value={lead.status_conversa || "NUNCA_RESPONDEU"}
+                  onChange={(e) => handleUpdateStatus("status_conversa", e.target.value)}
+                  className="w-full bg-zinc-900 border border-[#89F0B2]/40 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#89F0B2] font-semibold"
+                >
+                  <option value="NUNCA_RESPONDEU">Nunca respondeu</option>
+                  <option value="RESPONDEU">Respondeu</option>
+                  <option value="EM_ATENDIMENTO">Em atendimento</option>
+                  <option value="ESCOLHENDO_MODELO">Escolhendo modelo</option>
+                  <option value="ORCAMENTO_ENVIADO">Orçamento enviado</option>
+                  <option value="NEGOCIACAO">Negociação</option>
+                  <option value="CLIENTE">Cliente (Fechou)</option>
+                  <option value="PERDIDO">Perdido</option>
+                </select>
+              </div>
+
               <div className="space-y-1">
                 <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
-                  Status Funil
+                  Status Funil (Automação)
                 </span>
                 <select
                   value={mapLegacyValue("status_funil", lead.status_funil)}

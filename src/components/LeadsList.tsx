@@ -176,6 +176,7 @@ export default function LeadsList({
 }: LeadsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string | "ALL">("ALL");
+  const [selectedStatusConversa, setSelectedStatusConversa] = useState<string | "ALL">("ALL");
   const [selectedTemp, setSelectedTemp] = useState<string | "ALL">("ALL");
   const [selectedPortal, setSelectedPortal] = useState<string | "ALL">("ALL");
   const [negociacaoFilterOnly, setNegociacaoFilterOnly] = useState(initialNegociacaoOnly || false);
@@ -427,12 +428,13 @@ export default function LeadsList({
       const matchStatus = selectedStatus === "ALL" 
         ? (!isPerdido(lead.status_funil, lead.motivo_perda) && !isConvertido(lead.status_funil))
         : (lead.status_funil === selectedStatus || mapLegacyValue("status_funil", lead.status_funil) === selectedStatus);
+      const matchStatusConversa = selectedStatusConversa === "ALL" || (lead.status_conversa || "NUNCA_RESPONDEU") === selectedStatusConversa;
       const matchTemp = selectedTemp === "ALL" || 
         String(lead.temperatura || "").trim().toUpperCase() === String(selectedTemp).trim().toUpperCase();
       const matchPortal = selectedPortal === "ALL" || normalizePortal(lead.origem_portal) === normalizePortal(selectedPortal);
       const matchNegociacao = !negociacaoFilterOnly || isNegociacaoLead(lead);
 
-      return matchSearch && matchStatus && matchTemp && matchPortal && matchNegociacao;
+      return matchSearch && matchStatus && matchStatusConversa && matchTemp && matchPortal && matchNegociacao;
     })
     .sort((a, b) => {
       let comparison = 0;
@@ -560,6 +562,23 @@ export default function LeadsList({
                 <option value="PERDIDO">Perdidos / Encerrados</option>
               </>
             )}
+          </select>
+
+          {/* Pipeline Status Conversa filter */}
+          <select
+            value={selectedStatusConversa}
+            onChange={(e) => setSelectedStatusConversa(e.target.value)}
+            className="bg-zinc-950 border border-[#89F0B2]/30 rounded-lg px-3 py-1.5 text-xs text-[#89F0B2] focus:outline-none focus:border-[#89F0B2] font-semibold"
+          >
+            <option value="ALL">Status da Conversa (Todos)</option>
+            <option value="NUNCA_RESPONDEU">Nunca respondeu</option>
+            <option value="RESPONDEU">Respondeu</option>
+            <option value="EM_ATENDIMENTO">Em atendimento</option>
+            <option value="ESCOLHENDO_MODELO">Escolhendo modelo</option>
+            <option value="ORCAMENTO_ENVIADO">Orçamento enviado</option>
+            <option value="NEGOCIACAO">Negociação</option>
+            <option value="CLIENTE">Cliente (Fechou)</option>
+            <option value="PERDIDO">Perdido</option>
           </select>
 
           {/* Temperature filter */}
