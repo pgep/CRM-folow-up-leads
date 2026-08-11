@@ -282,10 +282,18 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
         return Number(leadValue) < Number(ruleVal);
       case ">":
         return Number(leadValue) > Number(ruleVal);
-      case "==":
-        return String(leadValue).toUpperCase() === String(ruleVal).toUpperCase();
-      case "!=":
-        return String(leadValue).toUpperCase() !== String(ruleVal).toUpperCase();
+      case "==": {
+        if (String(leadValue).toUpperCase() === String(ruleVal).toUpperCase()) return true;
+        const norm1 = String(leadValue || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const norm2 = String(ruleVal || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        return norm1.length > 0 && norm1 === norm2;
+      }
+      case "!=": {
+        if (String(leadValue).toUpperCase() === String(ruleVal).toUpperCase()) return false;
+        const norm1 = String(leadValue || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const norm2 = String(ruleVal || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        return norm1 !== norm2;
+      }
       case "contem":
         return String(leadValue).toLowerCase().includes(String(ruleVal).toLowerCase());
       default:
@@ -587,7 +595,23 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Selecione o Campo para Filtro</label>
                   <select
                     value={ruleField}
-                    onChange={e => setRuleField(e.target.value as any)}
+                    onChange={e => {
+                      const newField = e.target.value as SpecialRule['campo_gatilho'];
+                      setRuleField(newField);
+                      if (newField === "status_funil") {
+                        if (ruleOperator === "<" || ruleOperator === ">") setRuleOperator("==");
+                        if (!ruleValue || ruleValue === "45") setRuleValue("NOVO");
+                      } else if (newField === "temperatura") {
+                        if (ruleOperator === "<" || ruleOperator === ">") setRuleOperator("==");
+                        if (!ruleValue) setRuleValue("QUENTE");
+                      } else if (newField === "origem_portal") {
+                        if (ruleOperator === "<" || ruleOperator === ">") setRuleOperator("==");
+                        if (!ruleValue) setRuleValue("casamentos");
+                      } else if (newField === "dias_casamento" || newField === "convidados") {
+                        if (ruleOperator === "contem") setRuleOperator("<");
+                        if (!ruleValue || isNaN(Number(ruleValue))) setRuleValue(newField === "dias_casamento" ? "45" : "100");
+                      }
+                    }}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                   >
                     <option value="dias_casamento">📅 Dias Restantes para o Casamento</option>
@@ -606,24 +630,79 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       onChange={e => setRuleOperator(e.target.value as any)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
                     >
-                      <option value="<">menor que (&lt;)</option>
-                      <option value=">">maior que (&gt;)</option>
-                      <option value="==" font-mono="true">igual a (==)</option>
-                      <option value="!=">diferente de (!=)</option>
-                      <option value="contem">contém (busca livre)</option>
+                      {ruleField === "dias_casamento" || ruleField === "convidados" ? (
+                        <>
+                          <option value="<">menor que (&lt;)</option>
+                          <option value=">">maior que (&gt;)</option>
+                          <option value="==">igual a (==)</option>
+                          <option value="!=">diferente de (!=)</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="==">igual a (==)</option>
+                          <option value="!=">diferente de (!=)</option>
+                          <option value="contem">contém (busca livre)</option>
+                          <option value="<">menor que (&lt;)</option>
+                          <option value=">">maior que (&gt;)</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Valor Limite</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: 45 ou FECHOU"
-                      value={ruleValue}
-                      onChange={e => setRuleValue(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
-                    />
+                    <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">
+                      {ruleField === "status_funil" ? "Status Selecionado" : ruleField === "temperatura" ? "Temperatura" : ruleField === "origem_portal" ? "Portal" : "Valor Limite"}
+                    </label>
+                    {ruleField === "status_funil" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={e => setRuleValue(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50 font-semibold"
+                      >
+                        <option value="NOVO">NOVO (Novo Lead)</option>
+                        <option value="PRIMEIRO_CONTATO">PRIMEIRO CONTATO</option>
+                        <option value="FOLLOWUP1">FOLLOW UP 1</option>
+                        <option value="FOLLOWUP2">FOLLOW UP 2</option>
+                        <option value="RESPONDIDO">RESPONDIDO / EM ATENDIMENTO</option>
+                        <option value="ORCAMENTO_ENVIADO">ORÇAMENTO ENVIADO</option>
+                        <option value="NEGOCIACAO">NEGOCIAÇÃO</option>
+                        <option value="FECHOU">FECHOU / CLIENTE</option>
+                        <option value="PERDIDO">PERDIDO</option>
+                      </select>
+                    ) : ruleField === "temperatura" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={e => setRuleValue(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                      >
+                        <option value="QUENTE">🔥 QUENTE</option>
+                        <option value="MORNA">⚡ MORNA</option>
+                        <option value="FRIA">❄️ FRIA</option>
+                      </select>
+                    ) : ruleField === "origem_portal" ? (
+                      <select
+                        value={ruleValue}
+                        onChange={e => setRuleValue(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                      >
+                        <option value="casamentos">Casamentos.com.br</option>
+                        <option value="portal_noivas">Portal de Noivas</option>
+                        <option value="zankyou">Zankyou</option>
+                        <option value="manual">Cadastro Manual / CRM</option>
+                        {portals.map(p => (
+                          <option key={p.id} value={p.id}>{p.nome}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        required
+                        placeholder={ruleField === "dias_casamento" ? "Ex: 45" : "Ex: 100"}
+                        value={ruleValue}
+                        onChange={e => setRuleValue(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -901,7 +980,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Mês do Casamento</label>
+                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Mês / Ano do Casamento</label>
                 <select
                   value={bulkFilterMonth}
                   onChange={e => {

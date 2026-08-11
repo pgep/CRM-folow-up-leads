@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Download, Flame, MessageCircle, MapPin, Clock, Zap } from "lucide-react";
+import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Flame, MessageCircle, MapPin, Clock, Zap, CheckCircle2 } from "lucide-react";
 import { Lead, LeadStatus, LeadTemperatura, PortalSource } from "../types";
 
 interface LeadsListProps {
@@ -14,7 +14,6 @@ interface LeadsListProps {
   onSelectLead: (id: string) => void;
   onAddManualLead: (formData: any) => Promise<void>;
   onRefresh: () => void;
-  onSwitchTab?: (tab: "sheet_import") => void;
   initialNegociacaoOnly?: boolean;
   onClearNegociacaoOnly?: () => void;
 }
@@ -170,7 +169,6 @@ export default function LeadsList({
   onSelectLead, 
   onAddManualLead, 
   onRefresh, 
-  onSwitchTab,
   initialNegociacaoOnly,
   onClearNegociacaoOnly
 }: LeadsListProps) {
@@ -248,9 +246,53 @@ export default function LeadsList({
   const [formDate, setFormDate] = useState("");
   const [formMonth, setFormMonth] = useState("");
   const [formVenue, setFormVenue] = useState("");
-  const [formPortal, setFormPortal] = useState("Manual");
+  const [formPortal, setFormPortal] = useState("Manual (CRM Interior)");
   const [formNotes, setFormNotes] = useState("");
   const [formServices, setFormServices] = useState("");
+  const [enviarPrimeiraMensagem, setEnviarPrimeiraMensagem] = useState<boolean>(true);
+
+  // Auto-mask wedding date DD/MM/AAAA and set Mês / Ano do Casamento (Extenso)
+  const handleWeddingDateChange = (inputVal: string) => {
+    const rawDigits = inputVal.replace(/\D/g, "").slice(0, 8);
+    let masked = rawDigits;
+    if (rawDigits.length > 4) {
+      masked = `${rawDigits.slice(0, 2)}/${rawDigits.slice(2, 4)}/${rawDigits.slice(4)}`;
+    } else if (rawDigits.length > 2) {
+      masked = `${rawDigits.slice(0, 2)}/${rawDigits.slice(2)}`;
+    }
+    setFormDate(masked);
+
+    if (rawDigits.length === 8) {
+      const day = parseInt(rawDigits.slice(0, 2), 10);
+      const monthIdx = parseInt(rawDigits.slice(2, 4), 10) - 1;
+      const year = rawDigits.slice(4);
+
+      const monthNames = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+
+      if (monthIdx >= 0 && monthIdx < 12 && day >= 1 && day <= 31 && year.length === 4) {
+        setFormMonth(`${monthNames[monthIdx]} de ${year}`);
+      }
+    }
+  };
+
+  // Dynamic portal channels for filter dropdown
+  const availablePortalsForFilter = React.useMemo(() => {
+    const set = new Set<string>();
+    if (portals && portals.length > 0) {
+      portals.forEach(p => {
+        if (p.nome && p.nome.trim()) set.add(p.nome.trim());
+      });
+    }
+    if (leads && leads.length > 0) {
+      leads.forEach(l => {
+        if (l.origem_portal && l.origem_portal.trim()) set.add(l.origem_portal.trim());
+      });
+    }
+    return Array.from(set).sort();
+  }, [portals, leads]);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,7 +309,8 @@ export default function LeadsList({
         local: formVenue.trim(),
         origem_portal: formPortal,
         observacoes: formNotes.trim(),
-        servicos: formServices.trim()
+        servicos: formServices.trim(),
+        enviar_primeira_mensagem: enviarPrimeiraMensagem
       });
 
       // Reset Form
@@ -281,6 +324,7 @@ export default function LeadsList({
       setFormPortal("Manual");
       setFormNotes("");
       setFormServices("");
+      setEnviarPrimeiraMensagem(true);
       setIsAddingLead(false);
     } catch (err) {
       console.error(err);
@@ -532,8 +576,17 @@ export default function LeadsList({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Pesquisar por nome, email, celular ou ID..."
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-8 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded transition"
+              title="Limpar pesquisa"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Filters Selects */}
@@ -609,11 +662,10 @@ export default function LeadsList({
             onChange={(e) => setSelectedPortal(e.target.value)}
             className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
           >
-            <option value="ALL">Todos Portais</option>
-            <option value="Portal Noivas">Portal Noivas</option>
-            <option value="Casamentos.com.br">Casamentos.com.br</option>
-            <option value="Zankyou">Zankyou</option>
-            <option value="Manual">Manual / Cadastro CRM</option>
+            <option value="ALL">Todos os Canais Originários</option>
+            {availablePortalsForFilter.map((pName) => (
+              <option key={pName} value={pName}>{pName}</option>
+            ))}
           </select>
 
           <button
@@ -622,16 +674,6 @@ export default function LeadsList({
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-
-          {onSwitchTab && (
-            <button
-              onClick={() => onSwitchTab("sheet_import")}
-              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 hover:border-zinc-700 font-semibold text-xs rounded-lg transition"
-            >
-              <Download className="w-4 h-4 text-[#89F0B2]" />
-              Importar Planilha
-            </button>
-          )}
 
           <button
             onClick={() => setIsAddingLead(true)}
@@ -909,18 +951,18 @@ export default function LeadsList({
                   <input
                     type="text"
                     value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
+                    onChange={(e) => handleWeddingDateChange(e.target.value)}
                     placeholder="12/10/2026"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700 font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Mês do Casamento (Extenso)</label>
+                  <label className="text-zinc-400 font-medium">Mês / Ano do Casamento (Extenso)</label>
                   <input
                     type="text"
                     value={formMonth}
                     onChange={(e) => setFormMonth(e.target.value)}
-                    placeholder="Outubro"
+                    placeholder="Outubro de 2026"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
                   />
                 </div>
@@ -944,11 +986,28 @@ export default function LeadsList({
                     onChange={(e) => setFormPortal(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2]"
                   >
-                    <option value="Manual">Manual / CRM Interior</option>
-                    <option value="Portal Noivas">Portal Noivas</option>
-                    <option value="Casamentos.com.br">Casamentos.com.br</option>
-                    <option value="Zankyou">Zankyou</option>
-                    <option value="site_direto">Site Direto</option>
+                    {portals && portals.length > 0 ? (
+                      portals.filter((p) => p.ativo !== false).map((p) => (
+                        <option key={p.id} value={p.nome}>
+                          {p.nome}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Manual (CRM Interior)">Manual (CRM Interior)</option>
+                        <option value="Portal Noivas">Portal Noivas</option>
+                        <option value="Casamentos.com.br">Casamentos.com.br</option>
+                        <option value="Zankyou">Zankyou</option>
+                        <option value="Instagram / Meta">Instagram / Meta</option>
+                        <option value="Google Ads / Pesquisa">Google Ads / Pesquisa</option>
+                        <option value="Indicação / Recomendação">Indicação / Recomendação</option>
+                        <option value="Formulário Site Direto">Formulário Site Direto</option>
+                        <option value="Outros">Outros</option>
+                      </>
+                    )}
+                    {formPortal && portals && !portals.some((p) => p.nome === formPortal) && (
+                      <option value={formPortal}>{formPortal}</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -973,6 +1032,44 @@ export default function LeadsList({
                   placeholder="Lead solicitou rótulo personalizado rústico."
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700 resize-none"
                 />
+              </div>
+
+              {/* Pergunta: Enviar 1ª mensagem da sequência agora ou agendar para 3 dias */}
+              <div className="p-3.5 bg-zinc-950/90 border border-zinc-800 rounded-xl space-y-2">
+                <label className="text-zinc-300 font-medium text-xs block">
+                  Enviar a 1ª mensagem da sequência de automação agora?
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEnviarPrimeiraMensagem(true)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
+                      enviarPrimeiraMensagem
+                        ? "bg-[#89F0B2]/15 text-[#89F0B2] border-[#89F0B2]/50 font-semibold"
+                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    Sim, enviar agora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEnviarPrimeiraMensagem(false)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
+                      !enviarPrimeiraMensagem
+                        ? "bg-amber-500/15 text-amber-400 border-amber-500/50 font-semibold"
+                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    Não, agendar p/ 3 dias
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-500 leading-snug">
+                  {enviarPrimeiraMensagem
+                    ? "A 1ª mensagem do fluxo será enviada imediatamente ao cadastrar o lead."
+                    : "A 1ª mensagem da sequência será agendada para daqui a 3 dias. O fluxo seguirá o prazo normal a partir de então."}
+                </p>
               </div>
 
               {/* Informative Auto budget calculation */}

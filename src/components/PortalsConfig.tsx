@@ -12,9 +12,10 @@ interface PortalsConfigProps {
   portals: PortalSource[];
   onToggle: (id: string, active: boolean) => void;
   onAdd: (nome: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
 }
 
-export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfigProps) {
+export default function PortalsConfig({ portals, onToggle, onAdd, onDelete }: PortalsConfigProps) {
   const { toast } = useToast();
   const [newPortalName, setNewPortalName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,8 +28,10 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
     try {
       await onAdd(newPortalName.trim());
       setNewPortalName("");
+      toast.success("Canal originário cadastrado com sucesso!");
     } catch (e) {
       console.error(e);
+      toast.error("Erro ao cadastrar canal originário.");
     } finally {
       setLoading(false);
     }
@@ -47,10 +50,10 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
         <h3 className="text-lg font-medium text-white flex items-center gap-2">
           <Globe className="w-5 h-5 text-[#89F0B2]" />
-          Gerenciamento de Portais & Integrações Dinâmicas
+          Cadastro de Canais Originários & Portais de Captura
         </h3>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-          Atualmente o CRM recebe leads de portais parceiros via automação Zoho E-mail. No entanto, você pode expandir o ecossistema adicionando novos canais dinâmicos de captura (como Casamentos.com.br, formulário próprio do seu site, ou Zankyou). Ative ou desative cada portal, e utilize a URL do Webhook correspondente para integrar com ferramentas externas de automação como <strong>n8n</strong> ou <strong>Zapier</strong>.
+          Gerencie e cadastre todos os canais de origem de leads do seu ecossistema (ex: Instagram, Google, Indicação, Casamentos.com.br, Portal Noivas, etc.). Os canais ativos configurados nesta tela alimentam automaticamente os seletores (combos) de cadastro e filtros do CRM. Cada canal possui também uma URL única de Webhook para integrações com <strong>n8n</strong>, <strong>Zapier</strong> ou formulários.
         </p>
       </div>
 
@@ -66,37 +69,54 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
                 portal.ativo ? "border-zinc-800" : "border-zinc-800/40 opacity-60"
               }`}
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className={`p-2 rounded-lg ${portal.ativo ? "bg-[#89F0B2]/10 text-[#89F0B2]" : "bg-zinc-800 text-zinc-500"}`}>
                     <Globe className="w-5 h-5" />
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-white">{portal.nome}</h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">ID: {portal.id}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">ID Identificador: {portal.id}</p>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onToggle(portal.id, !portal.ativo)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition ${
-                    portal.ativo
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                      : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:bg-zinc-700"
-                  }`}
-                >
-                  {portal.ativo ? (
-                    <>
-                      <Power className="w-3.5 h-3.5" />
-                      Ativo
-                    </>
-                  ) : (
-                    <>
-                      <PowerOff className="w-3.5 h-3.5" />
-                      Inativo
-                    </>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => onToggle(portal.id, !portal.ativo)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition ${
+                      portal.ativo
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:bg-zinc-700"
+                    }`}
+                  >
+                    {portal.ativo ? (
+                      <>
+                        <Power className="w-3.5 h-3.5" />
+                        Ativo
+                      </>
+                    ) : (
+                      <>
+                        <PowerOff className="w-3.5 h-3.5" />
+                        Inativo
+                      </>
+                    )}
+                  </button>
+
+                  {onDelete && (
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Deseja remover o canal "${portal.nome}"?`)) {
+                          await onDelete(portal.id);
+                          toast.success("Canal removido!");
+                        }
+                      }}
+                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                      title="Excluir canal"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
 
               {/* Webhook endpoint card */}
@@ -125,10 +145,10 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
         <div className="bg-zinc-900/50 border border-zinc-800 border-dashed rounded-xl p-5 flex flex-col justify-center min-h-[175px]">
           <h4 className="text-sm font-medium text-white mb-2 flex items-center gap-1.5">
             <Plus className="w-4 h-4 text-[#89F0B2]" />
-            Cadastrar Novo Portal
+            Cadastrar Novo Canal Originário
           </h4>
           <p className="text-xs text-zinc-500 mb-4">
-            Crie canais adicionais de venda para rastrear suas taxas de conversão de leads de forma independente.
+            Cadastre canais personalizados de prospecção para que apareçam automaticamente nas listas e seletores do CRM.
           </p>
 
           <form onSubmit={handleSubmit} className="flex gap-2">
@@ -136,7 +156,7 @@ export default function PortalsConfig({ portals, onToggle, onAdd }: PortalsConfi
               type="text"
               value={newPortalName}
               onChange={(e) => setNewPortalName(e.target.value)}
-              placeholder="Ex: casamentos_com_br"
+              placeholder="Ex: Anúncios Instagram, Feiras, Indicação"
               className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
             />
             <button

@@ -924,7 +924,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             <div className="flex flex-wrap gap-1.5">
                               {[
                                 { label: "Nome do Noivo(a)", value: "{nome}" },
-                                { label: "Mês do Casamento", value: "{mesCasamento}" },
+                                { label: "Mês / Ano do Casamento", value: "{mesCasamento}" },
                                 { label: "Local do Casamento", value: "{local}" },
                                 { label: "Qtd Convidados", value: "{convidados}" },
                                 { label: "Data de Casamento (Completa)", value: "{dataCasamento}" },

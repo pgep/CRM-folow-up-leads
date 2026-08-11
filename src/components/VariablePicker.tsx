@@ -37,7 +37,7 @@ export default function VariablePicker({ onInsert, compact = false, className = 
     { tag: "{email}", label: "E-mail", desc: "Ex: ana@email.com" },
     { tag: "{local}", label: "Local / Cidade", desc: "Ex: São Paulo - SP" },
     { tag: "{data_casamento}", label: "Data Casamento", desc: "Ex: 15/10/2026" },
-    { tag: "{mes_casamento}", label: "Mês do Casamento", desc: "Ex: Outubro" },
+    { tag: "{mes_casamento}", label: "Mês / Ano do Casamento", desc: "Ex: Outubro / 2026" },
     { tag: "{complementoMesCasamento}", label: "Frase do Mês", desc: "Ex: 'no mês de Outubro' ou 'em breve'" },
     { tag: "{dias_casamento}", label: "Dias Restantes", desc: "Ex: 45 (dias p/ o evento)" },
     { tag: "{convidados}", label: "Qtd. Convidados", desc: "Ex: 150" },

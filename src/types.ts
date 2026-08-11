@@ -63,6 +63,9 @@ export interface Lead {
   ultima_interacao_acao?: string;
   ultima_interacao_origem?: string;
   proxima_acao_em: string;
+  proxima_atividade_em?: string | null;
+  tipo_proxima_atividade?: 'RESPONDER' | 'ACOMPANHAR' | 'REATIVAR' | 'CATIVAR' | null;
+  observacao_proxima_atividade?: string | null;
   followup_especial_1m?: boolean;
   followup_especial_2m?: boolean;
   followup_especial_3m?: boolean;

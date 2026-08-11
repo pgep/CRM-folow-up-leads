@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend } from "recharts";
 import { DashboardStats, Lead } from "../types";
-import { Users, TrendingUp, AlertCircle, Sparkles, Star, Calendar, RefreshCw, Play, Terminal, ShieldCheck, CheckCircle2, Clock, Mail, MessageSquare, Phone, X, Send, AlertTriangle, Flame, ArrowRight } from "lucide-react";
+import { Users, TrendingUp, AlertCircle, Sparkles, Star, Calendar, RefreshCw, Play, Terminal, ShieldCheck, CheckCircle2, Clock, Mail, MessageSquare, Phone, X, Send, AlertTriangle, Flame, ArrowRight, CalendarCheck } from "lucide-react";
 import { useToast } from "./Toast";
 
 interface DashboardProps {
@@ -14,14 +14,29 @@ interface DashboardProps {
   onRunAutomation: () => Promise<any>;
   onRefresh?: () => Promise<void>;
   onSelectNegociacao?: () => void;
+  onGoToAgenda?: () => void;
 }
 
-export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectNegociacao }: DashboardProps) {
+export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectNegociacao, onGoToAgenda }: DashboardProps) {
   const { toast, confirm } = useToast();
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [automationLogs, setAutomationLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [automationResult, setAutomationResult] = useState<{ processed: number; actions_taken: number } | null>(null);
+
+  const [activitiesSummary, setActivitiesSummary] = useState<{
+    atrasadas: number;
+    hoje: number;
+    proximos7dias: number;
+    semProximoPasso: number;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/activities/summary")
+      .then((res) => res.json())
+      .then((data) => setActivitiesSummary(data))
+      .catch((e) => console.error("Erro ao carregar resumo de atividades:", e));
+  }, []);
 
   // Cohort Bulk Send States
   const [specialRules, setSpecialRules] = useState<any[]>([]);
@@ -342,6 +357,72 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
           </div>
         </div>
 
+      </div>
+
+      {/* CENTRAL DE PRÓXIMAS ATIVIDADES WIDGET (Section 16) */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 font-mono uppercase tracking-wider">
+              <CalendarCheck className="w-4.5 h-4.5 text-[#89F0B2]" />
+              Central de Próximas Atividades
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Acompanhamento comercial manual de leads. Fila de próximos passos.
+            </p>
+          </div>
+          {onGoToAgenda && (
+            <button
+              onClick={onGoToAgenda}
+              className="px-3.5 py-2 bg-[#89F0B2] text-zinc-950 font-bold text-xs rounded-lg hover:bg-[#73e09d] transition flex items-center gap-1.5 shrink-0"
+            >
+              <span>IR PARA MINHA AGENDA</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-400">
+              Atrasadas
+            </span>
+            <p className="text-2xl font-extrabold text-white mt-1">
+              {activitiesSummary?.atrasadas ?? 0}
+            </p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Atenção imediata</p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
+              Hoje
+            </span>
+            <p className="text-2xl font-extrabold text-white mt-1">
+              {activitiesSummary?.hoje ?? 0}
+            </p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Programadas para hoje</p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400">
+              Próximos 7 Dias
+            </span>
+            <p className="text-2xl font-extrabold text-white mt-1">
+              {activitiesSummary?.proximos7dias ?? 0}
+            </p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Sequência programada</p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
+              Sem Próximo Passo
+            </span>
+            <p className="text-2xl font-extrabold text-white mt-1">
+              {activitiesSummary?.semProximoPasso ?? 0}
+            </p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Leads sem agendamento</p>
+          </div>
+        </div>
       </div>
 
       {/* Seção de Casamentos Próximos (Próximos 3 Meses) */}

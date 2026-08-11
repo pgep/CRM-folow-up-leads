@@ -820,8 +820,17 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Buscar por Lead ou Contrato..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
+                  className="w-full pl-9 pr-8 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded transition"
+                    title="Limpar pesquisa"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Start Date */}
@@ -1181,8 +1190,18 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                       setIsLeadDropdownOpen(true);
                     }}
                     onFocus={() => setIsLeadDropdownOpen(true)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
+                    className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
                   />
+                  {leadSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setLeadSearch("")}
+                      className="absolute right-2.5 top-3 p-0.5 text-zinc-400 hover:text-white rounded transition"
+                      title="Limpar pesquisa"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {isLeadDropdownOpen && (
                     <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg bg-zinc-950 border border-zinc-800 shadow-xl z-50 divide-y divide-zinc-900">
                       {filteredLeadOptions.length === 0 ? (

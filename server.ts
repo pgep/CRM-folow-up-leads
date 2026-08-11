@@ -158,10 +158,16 @@ const defaultWorkflowConfig = [
 ];
 
 const defaultPortalConfig = [
+  { id: "manual", nome: "Manual (CRM Interior)", ativo: true },
   { id: "portal_noivas", nome: "Portal Noivas", ativo: true },
   { id: "casamentos_com", nome: "Casamentos.com.br", ativo: true },
   { id: "zankyou", nome: "Zankyou", ativo: true },
-  { id: "site_direto", nome: "Formulário Site Direto", ativo: true }
+  { id: "instagram", nome: "Instagram / Meta", ativo: true },
+  { id: "google", nome: "Google Ads / Pesquisa", ativo: true },
+  { id: "indicacao", nome: "Indicação / Recomendação", ativo: true },
+  { id: "site_direto", nome: "Formulário Site Direto", ativo: true },
+  { id: "n8n_zoho", nome: "n8n Zoho Mail", ativo: true },
+  { id: "outros", nome: "Outros", ativo: true }
 ];
 
 const defaultProducts = [
@@ -306,6 +312,18 @@ async function initPgDatabase() {
       `);
       await client.query(`
         ALTER TABLE leads ADD COLUMN IF NOT EXISTS data_ultima_movimentacao VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS proxima_atividade_em VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS tipo_proxima_atividade VARCHAR(255);
+      `);
+      await client.query(`
+        ALTER TABLE leads ADD COLUMN IF NOT EXISTS observacao_proxima_atividade TEXT;
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_leads_proxima_atividade ON leads (proxima_atividade_em);
       `);
       await client.query(`
         UPDATE leads SET status_conversa = 'NUNCA_RESPONDEU' WHERE status_conversa IS NULL OR TRIM(status_conversa) = '';
@@ -819,8 +837,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
             whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
             ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
+            proxima_atividade_em, tipo_proxima_atividade, observacao_proxima_atividade,
             created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
           RETURNING *
         `;
         const values = [
@@ -831,6 +850,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
           lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+          lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
           lead.created_at, lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -846,7 +866,8 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
             whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
             whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
             ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
-            updated_at = $43
+            proxima_atividade_em = $43, tipo_proxima_atividade = $44, observacao_proxima_atividade = $45,
+            updated_at = $46
           WHERE id = $1
           RETURNING *
         `;
@@ -860,6 +881,9 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
           Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
           lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
           lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+          lead.proxima_atividade_em !== undefined ? lead.proxima_atividade_em : null,
+          lead.tipo_proxima_atividade !== undefined ? lead.tipo_proxima_atividade : null,
+          lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
           lead.updated_at
         ];
         const res = await pgPool.query(query, values);
@@ -1013,22 +1037,39 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
 }
 
 async function getPortalConfigs(): Promise<any[]> {
+  let list: any[] = [];
   if (usePg && pgPool) {
     try {
       const res = await pgPool.query("SELECT * FROM portal_config");
-      return res.rows.map(row => ({
+      list = res.rows.map(row => ({
         ...row,
         ativo: row.automacao_ativa ?? true
       }));
     } catch (e: any) {
       console.warn("PostgreSQL portal config fetch failed:", e.message);
     }
+  } else {
+    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+    list = (db.portal_config || []).map((p: any) => ({
+      ...p,
+      ativo: p.ativo ?? true
+    }));
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return (db.portal_config || []).map((p: any) => ({
-    ...p,
-    ativo: p.ativo ?? true
-  }));
+
+  const existingIds = new Set(list.map(p => p.id));
+  let addedNew = false;
+  for (const def of defaultPortalConfig) {
+    if (!existingIds.has(def.id)) {
+      list.push(def);
+      addedNew = true;
+    }
+  }
+
+  if (addedNew) {
+    savePortalConfigs(list).catch(() => {});
+  }
+
+  return list;
 }
 
 async function savePortalConfigs(configs: any[]): Promise<boolean> {
@@ -2349,7 +2390,7 @@ app.get("/api/leads/:id/history", async (req, res) => {
 // API - Manual Lead Creation
 app.post("/api/leads", async (req, res) => {
   try {
-    const { nome, email, link_celular, data_casamento, mes_casamento, local, servicos, convidados, origem_portal, observacoes } = req.body;
+    const { nome, email, link_celular, data_casamento, mes_casamento, local, servicos, convidados, origem_portal, observacoes, enviar_primeira_mensagem } = req.body;
     
     if (!nome || !email) {
       return res.status(400).json({ error: "Nome e Email são obrigatórios" });
@@ -2372,6 +2413,16 @@ app.post("/api/leads", async (req, res) => {
 
     const phoneDigits = (link_celular || "").replace(/\D/g, "");
 
+    // Determine whether to send sequence 1 immediately or schedule it for 3 days later
+    const shouldSendNow = enviar_primeira_mensagem !== false && enviar_primeira_mensagem !== "false";
+
+    let proximaAcaoEm = new Date().toISOString();
+    if (!shouldSendNow) {
+      const dateIn3Days = new Date();
+      dateIn3Days.setDate(dateIn3Days.getDate() + 3);
+      proximaAcaoEm = dateIn3Days.toISOString();
+    }
+
     const newLead = {
       id: leadId,
       nome,
@@ -2392,19 +2443,30 @@ app.post("/api/leads", async (req, res) => {
       observacoes,
       origem_portal: origem_portal || "Manual",
       ultima_interacao_em: new Date().toISOString(),
-      proxima_acao_em: new Date().toISOString()
+      proxima_acao_em: proximaAcaoEm
     };
 
     const saved = await saveLead(newLead, true);
-    await addHistoryEntry(leadId, {
-      canal: "SISTEMA",
-      tipo: "IMPORT",
-      titulo: "Lead Criado Manualmente",
-      detalhes: `Lead registrado diretamente no CRM. Origem: ${origem_portal || "Manual"}`
-    });
 
-    // Roda a sequência de número 1 do fluxo imediatamente para o novo lead criado manualmente
-    await runAutomationForNewWebhookLead(saved);
+    if (shouldSendNow) {
+      await addHistoryEntry(leadId, {
+        canal: "SISTEMA",
+        tipo: "IMPORT",
+        titulo: "Lead Criado Manualmente",
+        detalhes: `Lead registrado diretamente no CRM. Origem: ${origem_portal || "Manual"}`
+      });
+
+      // Roda a sequência de número 1 do fluxo imediatamente para o novo lead criado manualmente
+      await runAutomationForNewWebhookLead(saved);
+    } else {
+      const date3DaysFormatted = new Date(proximaAcaoEm).toLocaleDateString("pt-BR");
+      await addHistoryEntry(leadId, {
+        canal: "SISTEMA",
+        tipo: "IMPORT",
+        titulo: "Lead Criado Manualmente (1ª Mensagem Agendada)",
+        detalhes: `Lead registrado no CRM. 1ª mensagem da sequência agendada para 3 dias após o cadastro (${date3DaysFormatted}).`
+      });
+    }
 
     res.status(201).json(saved);
   } catch (err: any) {
@@ -2511,6 +2573,118 @@ app.patch("/api/leads/:id/status-conversa", async (req, res) => {
     });
 
     res.json(saved);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Update Manual Next Activity
+app.put("/api/leads/:id/next-activity", async (req, res) => {
+  try {
+    const { tipo_proxima_atividade, proxima_atividade_em, observacao_proxima_atividade } = req.body;
+    const existing = await getLeadById(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Lead não encontrado" });
+
+    const isReagendamento = Boolean(existing.proxima_atividade_em && existing.proxima_atividade_em !== proxima_atividade_em);
+    const isAlteracao = Boolean(existing.proxima_atividade_em && existing.proxima_atividade_em === proxima_atividade_em);
+
+    let logTitle = "Próxima atividade definida";
+    if (isReagendamento) logTitle = "Atividade reagendada";
+    else if (isAlteracao) logTitle = "Próxima atividade alterada";
+
+    const updatedLead = {
+      ...existing,
+      tipo_proxima_atividade: tipo_proxima_atividade || existing.tipo_proxima_atividade || "ACOMPANHAR",
+      proxima_atividade_em: proxima_atividade_em ? String(proxima_atividade_em).trim() : null,
+      observacao_proxima_atividade: observacao_proxima_atividade !== undefined ? observacao_proxima_atividade : existing.observacao_proxima_atividade || ""
+    };
+
+    const saved = await saveLead(updatedLead, false);
+
+    await addHistoryEntry(existing.id, {
+      canal: "MANUAL",
+      tipo: "NOTA_MANUAL",
+      titulo: logTitle,
+      detalhes: `- Tipo: ${updatedLead.tipo_proxima_atividade}\n- Data prevista: ${updatedLead.proxima_atividade_em}\n- Observação: ${updatedLead.observacao_proxima_atividade || "Sem observação"}`
+    });
+
+    res.json(saved);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Complete Manual Next Activity
+app.post("/api/leads/:id/next-activity/complete", async (req, res) => {
+  try {
+    const existing = await getLeadById(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Lead não encontrado" });
+
+    const prevType = existing.tipo_proxima_atividade || "N/A";
+    const prevDate = existing.proxima_atividade_em || "N/A";
+    const prevObs = existing.observacao_proxima_atividade || "Sem observação";
+
+    const updatedLead = {
+      ...existing,
+      tipo_proxima_atividade: null,
+      proxima_atividade_em: null,
+      observacao_proxima_atividade: null
+    };
+
+    const saved = await saveLead(updatedLead, false);
+
+    await addHistoryEntry(existing.id, {
+      canal: "MANUAL",
+      tipo: "NOTA_MANUAL",
+      titulo: "Atividade concluída",
+      detalhes: `- Tipo: ${prevType}\n- Data prevista: ${prevDate}\n- Observação: ${prevObs}`
+    });
+
+    res.json(saved);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Activities Summary (Minha Agenda)
+app.get("/api/activities/summary", async (req, res) => {
+  try {
+    const leads = await getAllLeadsUnfiltered();
+    const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+    const plus7Date = new Date();
+    plus7Date.setDate(plus7Date.getDate() + 7);
+    const plus7Str = plus7Date.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+
+    let atrasadas = 0;
+    let hoje = 0;
+    let proximos7dias = 0;
+    let semProximoPasso = 0;
+
+    const isClosed = (l: any) => {
+      const sf = String(l.status_funil || "").toUpperCase();
+      const sc = String(l.status_conversa || "").toUpperCase();
+      const temp = String(l.temperatura || "").toUpperCase();
+      return (
+        ["PERDIDO", "SEM_RETORNO", "FECHOU", "SEM_WHATSAPP"].includes(sf) ||
+        sf === "SEM WHATSAPP" ||
+        sc === "PERDIDO" ||
+        sc === "CLIENTE" ||
+        temp === "CLIENTE"
+      );
+    };
+
+    leads.forEach((l: any) => {
+      if (l.proxima_atividade_em && String(l.proxima_atividade_em).trim()) {
+        const dt = String(l.proxima_atividade_em).trim().slice(0, 10);
+        if (dt < todayStr) atrasadas++;
+        else if (dt === todayStr) hoje++;
+        else if (dt > todayStr && dt <= plus7Str) proximos7dias++;
+      } else {
+        if (!isClosed(l)) semProximoPasso++;
+      }
+    });
+
+    res.json({ atrasadas, hoje, proximos7dias, semProximoPasso });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -3136,6 +3310,22 @@ app.post("/api/portals", async (req, res) => {
     currentPortals.push(newPortal);
     await savePortalConfigs(currentPortals);
     res.status(201).json(newPortal);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API - Delete Portal Source
+app.delete("/api/portals/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    let currentPortals = await getPortalConfigs();
+    currentPortals = currentPortals.filter((p) => p.id !== id);
+    if (usePg && pgPool) {
+      await pgPool.query("DELETE FROM portal_config WHERE id = $1", [id]);
+    }
+    await savePortalConfigs(currentPortals);
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -4196,234 +4386,6 @@ app.post("/api/leads/zoho-email", async (req, res) => {
       success: true,
       lead: saved,
       parser_details: parsed
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// -------------------------------------------------------------
-// Google Sheets Import Helper and Routes
-// -------------------------------------------------------------
-function parseCSV(csvText: string): any[] {
-  const lines: string[] = [];
-  let currentLine = "";
-  let inQuotes = false;
-  
-  for (let i = 0; i < csvText.length; i++) {
-    const char = csvText[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-      currentLine += char;
-    } else if (char === '\n' && !inQuotes) {
-      lines.push(currentLine);
-      currentLine = "";
-    } else if (char === '\r' && !inQuotes) {
-      // skip CR
-    } else {
-      currentLine += char;
-    }
-  }
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  if (lines.length === 0) return [];
-
-  const splitCSVLine = (line: string): string[] => {
-    const result: string[] = [];
-    let cell = "";
-    let insideQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        insideQuotes = !insideQuotes;
-      } else if (c === ',' && !insideQuotes) {
-        result.push(cell.trim());
-        cell = "";
-      } else {
-        cell += c;
-      }
-    }
-    result.push(cell.trim());
-    return result;
-  };
-
-  const headers = splitCSVLine(lines[0]);
-  const data: any[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    const cells = splitCSVLine(line);
-    const row: any = {};
-    headers.forEach((header, index) => {
-      let val = cells[index] || "";
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.substring(1, val.length - 1);
-      }
-      row[header] = val;
-    });
-    data.push(row);
-  }
-  return data;
-}
-
-function mapSheetRowToLead(row: any): any {
-  const statusMap: any = {
-    'FOLLOWUP_1': 'FOLLOWUP1',
-    'FOLLOWUP_2': 'FOLLOWUP2',
-    'FOLLOWUP_3': 'FOLLOWUP3',
-    'FOLLOWUP_FINAL': 'FOLLOWUPFINAL',
-    'SEM_RETORNO': 'SEM_RETORNO',
-    'PERDIDO': 'PERDIDO',
-    'FECHOU': 'FECHOU',
-    'RESPONDIDO': 'RESPONDIDO',
-    'PRIMEIRO_CONTATO': 'PRIMEIRO_CONTATO',
-    'NOVO': 'NOVO'
-  };
-
-  let status = row.status_funil || 'NOVO';
-  status = status.toUpperCase().trim();
-  status = statusMap[status] || (['NOVO', 'PRIMEIRO_CONTATO', 'FOLLOWUP1', 'FOLLOWUP2', 'FOLLOWUP3', 'FOLLOWUPFINAL', 'RESPONDIDO', 'FECHOU', 'PERDIDO', 'SEM_RETORNO'].includes(status) ? status : 'NOVO');
-
-  const validEtapas = ['SEM_CONTATO', 'WHATSAPP_ENVIADO', 'EMAIL_FOLLOWUP_1', 'WHATSAPP_FOLLOWUP_2', 'EMAIL_FOLLOWUP_2', 'EMAIL_FINAL', 'ENCERRADO'];
-  let etapa = row.etapa_contato || 'SEM_CONTATO';
-  etapa = etapa.toUpperCase().trim();
-  etapa = validEtapas.includes(etapa) ? etapa : 'SEM_CONTATO';
-
-  const validTemps = ['FRIA', 'MORNA', 'QUENTE', 'CLIENTE'];
-  let temp = row.temperatura || 'FRIA';
-  temp = temp.toUpperCase().trim();
-  temp = validTemps.includes(temp) ? temp : 'FRIA';
-
-  const convidados = parseInt(row.convidados, 10) || 0;
-  const orcamentos = calcularOrcamentos(convidados);
-
-  return {
-    id: row.lead_id,
-    nome: row.nome || 'Noiva Importada',
-    email: (row.email || '').trim().toLowerCase(),
-    link_celular: row.linkCelular || '',
-    telefone_limpo: (row.linkCelular || '').replace(/\D/g, ""),
-    data_casamento: row.dataCasamento || '',
-    mes_casamento: row.mesCasamento || 'breve',
-    local: row.local || '',
-    servicos: row.servicos || '',
-    convidados: convidados,
-    soma1: row.soma1 || orcamentos.soma1,
-    soma2: row.soma2 || orcamentos.soma2,
-    soma3: row.soma3 || orcamentos.soma3,
-    soma4: row.soma4 || orcamentos.soma4,
-    soma5: row.soma5 || orcamentos.soma5,
-    status_funil: status,
-    etapa_contato: etapa,
-    temperatura: temp,
-    tentativas_email: parseInt(row.tentativas_email, 10) || 0,
-    tentativas_whatsapp: parseInt(row.tentativas_whatsapp, 10) || 0,
-    observacoes: row.observacoes || 'Importado da planilha de noivas Google Sheets.',
-    motivo_perda: row.motivo_perda || '',
-    origem_portal: row.origem || 'Portal Noivas',
-    ultimo_email_em: row.ultimo_email_em || '',
-    ultimo_whatsapp_em: row.ultimo_whatsapp_em || '',
-    ultima_interacao_em: row.ultima_interacao_em || new Date().toISOString(),
-    proxima_acao_em: row.proxima_acao_em || new Date().toISOString(),
-    created_at: row.data_entrada || new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-}
-
-app.get("/api/leads/import-sheet/preview", async (req, res) => {
-  try {
-    const csvUrl = "https://docs.google.com/spreadsheets/d/16_gt6qo7fT9r2WMxLUwWxhYT4HKOrhvjoD--CdDz124/export?format=csv&gid=0";
-    const response = await fetch(csvUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch spreadsheet. HTTP status: ${response.status}`);
-    }
-    const csvText = await response.text();
-    const sheetRows = parseCSV(csvText);
-    const allLeads = await getAllLeadsUnfiltered();
-
-    const localLeadIds = allLeads.map((l: any) => l.id);
-    const localEmails = allLeads.map((l: any) => l.email ? String(l.email).trim().toLowerCase() : "").filter(Boolean);
-    const localPhones = allLeads.map((l: any) => l.telefone_limpo || (l.link_celular ? String(l.link_celular).replace(/\D/g, "") : "")).filter((p) => p && p.length >= 8);
-
-    const result = sheetRows.map((row: any) => {
-      const rowEmail = row.email ? String(row.email).trim().toLowerCase() : "";
-      const rowPhone = row.linkCelular ? String(row.linkCelular).replace(/\D/g, "") : "";
-      const isDuplicate = localLeadIds.includes(row.lead_id) ||
-        (rowEmail && localEmails.includes(rowEmail)) ||
-        (rowPhone && rowPhone.length >= 8 && localPhones.some((lp) => lp === rowPhone || lp.endsWith(rowPhone) || rowPhone.endsWith(lp)));
-
-      return {
-        ...row,
-        already_imported: isDuplicate
-      };
-    });
-
-    res.json(result);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/leads/import-sheet/execute", async (req, res) => {
-  try {
-    const { lead_ids } = req.body;
-    const csvUrl = "https://docs.google.com/spreadsheets/d/16_gt6qo7fT9r2WMxLUwWxhYT4HKOrhvjoD--CdDz124/export?format=csv&gid=0";
-    const response = await fetch(csvUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch spreadsheet. HTTP status: ${response.status}`);
-    }
-    const csvText = await response.text();
-    const sheetRows = parseCSV(csvText);
-
-    let importedCount = 0;
-    let duplicateCount = 0;
-
-    for (const row of sheetRows) {
-      if (!row.lead_id || !row.nome || !row.email) {
-        continue;
-      }
-      if (lead_ids && Array.isArray(lead_ids) && !lead_ids.includes(row.lead_id)) {
-        continue;
-      }
-
-      // Check if duplicate exists by Email or Phone or ID
-      const existing = (await findDuplicateLead(row.email, row.linkCelular)) || (await getLeadById(row.lead_id));
-      if (existing) {
-        duplicateCount++;
-        await handleDuplicateAttempt(existing, "Google Sheets Import", {
-          lead_id_planilha: row.lead_id,
-          nome: row.nome,
-          email: row.email,
-          celular: row.linkCelular,
-          origem: row.origem || "Google Sheets"
-        });
-        continue;
-      }
-
-      const mappedLead = mapSheetRowToLead(row);
-      const saved = await saveLead(mappedLead, true);
-      await addHistoryEntry(mappedLead.id, {
-        canal: "SISTEMA",
-        tipo: "IMPORT",
-        titulo: "Lead Importado do Google Sheets",
-        detalhes: `Lead '${mappedLead.nome}' importado automaticamente da planilha com status '${mappedLead.status_funil}'.`
-      });
-
-      // Roda a sequência de número 1 do fluxo imediatamente para o novo lead importado da planilha
-      await runAutomationForNewWebhookLead(saved || mappedLead);
-
-      importedCount++;
-    }
-
-    res.json({
-      success: true,
-      imported_count: importedCount,
-      duplicate_count: duplicateCount,
-      total_found: sheetRows.length,
-      message: `${importedCount} novos leads importados. ${duplicateCount} tentativas de duplicidade registradas no histórico.`
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
