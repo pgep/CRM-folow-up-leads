@@ -43,7 +43,7 @@ const databaseUrl = process.env.DATABASE_URL;
 let pgPool: any = null;
 let usePg = false;
 
-if (databaseUrl) {
+if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
   try {
     pgPool = new Pool({
       connectionString: databaseUrl,
@@ -51,13 +51,19 @@ if (databaseUrl) {
         ? { rejectUnauthorized: false }
         : false
     });
+    pgPool.on("error", (err: any) => {
+      console.warn("Unexpected PostgreSQL pool error:", err.message);
+    });
     usePg = true;
-    console.log("Running in Production mode (PostgreSQL)");
-    console.log("PostgreSQL connection established");
-  } catch (err) {
-    console.error("Failed to initialize PostgreSQL:", err);
+    console.log("Running in Production mode (PostgreSQL configured)");
+  } catch (err: any) {
+    console.warn("Failed to initialize PostgreSQL pool:", err.message);
+    usePg = false;
   }
 } else {
+  if (databaseUrl) {
+    console.warn("DATABASE_URL environment variable is set but is not a valid PostgreSQL connection string (must start with postgres:// or postgresql://). Falling back to JSON database.");
+  }
   console.log("Running in Development mode (JSON database)");
   console.log("Local JSON database initialized");
 }
@@ -518,10 +524,9 @@ async function initPgDatabase() {
     } finally {
       client.release();
     }
-  } catch (err) {
-    console.error("Error initializing PostgreSQL schema:", err);
+  } catch (err: any) {
+    console.warn(`PostgreSQL initialization failed (${err.message}). Gracefully falling back to JSON database.`);
     usePg = false;
-    console.log("PostgreSQL initialization failed. Gracefully falling back to other database providers.");
   }
 }
 

@@ -719,6 +719,10 @@ export default function LeadsList({
             const interaction = getLastInteractionInfo(lead);
             const isEmNegociacao = isNegociacaoLead(lead);
             const weddingDays = getDaysUntilWedding(lead.data_casamento);
+            const hasProximoPasso = Boolean(
+              (lead.proxima_atividade_em && String(lead.proxima_atividade_em).trim() !== "") ||
+              (lead.proxima_acao_em && String(lead.proxima_acao_em).trim() !== "")
+            );
             
             return (
               <div
@@ -733,13 +737,24 @@ export default function LeadsList({
                 {/* Bride identity */}
                 <div className="md:col-span-2 w-full flex items-center gap-2.5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                    isEmNegociacao ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/30" : "bg-zinc-800 text-zinc-300"
+                    isEmNegociacao
+                      ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/30"
+                      : hasProximoPasso
+                      ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/30"
+                      : "bg-zinc-800 text-zinc-300"
                   }`}>
                     {lead.nome.charAt(0).toUpperCase()}
                   </div>
                   <div className="truncate">
                     <div className="flex items-center gap-1.5 truncate">
-                      <span className="font-semibold text-white block truncate">{lead.nome}</span>
+                      <span
+                        style={{ color: hasProximoPasso ? "#facc15" : undefined }}
+                        className={`font-semibold block truncate ${
+                          hasProximoPasso ? "text-yellow-400 font-bold" : "text-white"
+                        }`}
+                      >
+                        {lead.nome}
+                      </span>
                     </div>
                     <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">{lead.id}</span>
                     {isEmNegociacao && (
