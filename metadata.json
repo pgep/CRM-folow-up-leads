@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "CRM Casa Colombo Artesanal",
+  "description": "Sistema de gestão e automação de leads, follow-ups de WhatsApp/E-mail, contratos e financeiro com persistência PostgreSQL.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

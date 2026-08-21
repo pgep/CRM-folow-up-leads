@@ -463,13 +463,13 @@ export default function App() {
               <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-850 text-[10px] text-emerald-400 font-mono" title="PostgreSQL conectado">
                 <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                <span className="truncate">Postgres Ativo</span>
+                <span className="truncate">PostgreSQL Ativo</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-850 text-[10px] text-[#89F0B2] font-mono" title="Banco database.json ativo">
-                <Database className="w-3.5 h-3.5 text-[#89F0B2] shrink-0" />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#89F0B2] shrink-0"></span>
-                <span className="truncate">Banco Local</span>
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-zinc-950 border border-red-900/50 text-[10px] text-red-400 font-mono" title="Erro de conexão com o PostgreSQL">
+                <Database className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                <span className="truncate">PostgreSQL Offline</span>
               </div>
             )}
 

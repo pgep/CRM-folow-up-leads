@@ -136,7 +136,7 @@ export interface DashboardStats {
     threeMonths: any[];
   };
   systemStatus?: {
-    usePg: boolean;
+    database?: string;
     pgConnected: boolean;
     schedulerPaused: boolean;
   };

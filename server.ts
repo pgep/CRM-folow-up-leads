@@ -35,37 +35,89 @@ if (process.env.GEMINI_API_KEY) {
   }
 }
 
-// Local Database File Fallback
-const DB_FILE = path.join(process.cwd(), "database.json");
+// PostgreSQL client initialization
+function validateDatabaseUrl(raw?: string): string | null {
+  if (!raw || typeof raw !== "string") {
+    console.warn("\n==================================================================");
+    console.warn("[WARNING] DATABASE_URL não configurada.");
+    console.warn("Configure a variável DATABASE_URL nas configurações do ambiente.");
+    console.warn("==================================================================\n");
+    return null;
+  }
 
-// PostgreSQL client initialization with dotenv
-const databaseUrl = process.env.DATABASE_URL;
-let pgPool: any = null;
-let usePg = false;
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    console.warn("\n==================================================================");
+    console.warn("[WARNING] DATABASE_URL vazia.");
+    console.warn("Configure a variável DATABASE_URL nas configurações do ambiente.");
+    console.warn("==================================================================\n");
+    return null;
+  }
 
-if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
+  if (!trimmed.startsWith("postgres://") && !trimmed.startsWith("postgresql://")) {
+    console.error("\n==================================================================");
+    console.error("[ERROR] DATABASE_URL inválida. Configure uma URI PostgreSQL completa.");
+    console.error("Formato esperado: postgresql://[user]:[password]@[host]:[port]/[database]");
+    console.error("==================================================================\n");
+    return null;
+  }
+
   try {
-    pgPool = new Pool({
-      connectionString: databaseUrl,
-      ssl: databaseUrl.includes("render.com") || databaseUrl.includes("elephantsql.com")
-        ? { rejectUnauthorized: false }
-        : false
-    });
-    pgPool.on("error", (err: any) => {
-      console.warn("Unexpected PostgreSQL pool error:", err.message);
-    });
-    usePg = true;
-    console.log("Running in Production mode (PostgreSQL configured)");
-  } catch (err: any) {
-    console.warn("Failed to initialize PostgreSQL pool:", err.message);
-    usePg = false;
+    const parsed = new URL(trimmed);
+    if (!parsed.hostname) {
+      throw new Error("Hostname ausente");
+    }
+    return trimmed;
+  } catch {
+    console.error("\n==================================================================");
+    console.error("[ERROR] DATABASE_URL inválida. Configure uma URI PostgreSQL completa.");
+    console.error("Formato esperado: postgresql://[user]:[password]@[host]:[port]/[database]");
+    console.error("==================================================================\n");
+    return null;
   }
-} else {
-  if (databaseUrl) {
-    console.warn("DATABASE_URL environment variable is set but is not a valid PostgreSQL connection string (must start with postgres:// or postgresql://). Falling back to JSON database.");
+}
+
+const databaseUrl = validateDatabaseUrl(process.env.DATABASE_URL);
+
+function getPostgresSslConfig(): boolean | { rejectUnauthorized: boolean } {
+  const sslEnv = (process.env.DATABASE_SSL || process.env.DB_SSL || "").trim().toLowerCase();
+  if (sslEnv === "true" || sslEnv === "1") {
+    return { rejectUnauthorized: false };
   }
-  console.log("Running in Development mode (JSON database)");
-  console.log("Local JSON database initialized");
+  return false;
+}
+
+function sanitizeDatabaseUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    const userPart = parsed.username ? `${parsed.username}:***@` : "";
+    const portPart = parsed.port ? `:${parsed.port}` : "";
+    return `${parsed.protocol}//${userPart}${parsed.hostname}${portPart}${parsed.pathname}`;
+  } catch {
+    return "postgresql://***@***";
+  }
+}
+
+let pgPool: pg.Pool | null = null;
+let pgConnected = false;
+
+if (databaseUrl) {
+  const environmentName = process.env.NODE_ENV === "production" ? "production" : "development";
+  console.log("Database provider: PostgreSQL");
+  console.log(`Environment: ${environmentName}`);
+  console.log(`Database connection: ${sanitizeDatabaseUrl(databaseUrl)}`);
+
+  pgPool = new Pool({
+    connectionString: databaseUrl,
+    ssl: getPostgresSslConfig(),
+    connectionTimeoutMillis: 10000
+  });
+
+  pgPool.on("error", (err: any) => {
+    const codeInfo = err?.code ? ` [code: ${err.code}]` : "";
+    console.error(`Unexpected error on idle PostgreSQL client: ${err?.message || err}${codeInfo}`);
+    pgConnected = false;
+  });
 }
 
 // Default workflow configuration based on the n8n follow-up logic
@@ -182,56 +234,19 @@ const defaultProducts = [
   { id: "home_spray", descricao: "Home Spray Aromático em Frasco de Vidro 50ml", valor_unitario: 11.50, link_imagem: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=300" }
 ];
 
-function initLocalDatabase() {
-  if (!fs.existsSync(DB_FILE)) {
-    const defaultData = {
-      leads: [],
-      workflow_config: defaultWorkflowConfig,
-      portal_config: defaultPortalConfig,
-      products: defaultProducts,
-      lead_history: [],
-      financial_contracts: [],
-      financial_installments: []
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
-  } else {
-    // Validate database format has all root keys
-    try {
-      const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      let updated = false;
-      if (!data.leads) { data.leads = []; updated = true; }
-      if (!data.workflow_config || data.workflow_config.length === 0) { data.workflow_config = defaultWorkflowConfig; updated = true; }
-      if (!data.portal_config || data.portal_config.length === 0) { data.portal_config = defaultPortalConfig; updated = true; }
-      if (!data.products || data.products.length === 0) { data.products = defaultProducts; updated = true; }
-      if (!data.lead_history) { data.lead_history = []; updated = true; }
-      if (!data.financial_contracts) { data.financial_contracts = []; updated = true; }
-      if (!data.financial_installments) { data.financial_installments = []; updated = true; }
-      if (updated) {
-        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
-      }
-    } catch (e) {
-      // Recreate if corrupted
-      const defaultData = {
-        leads: [],
-        workflow_config: defaultWorkflowConfig,
-        portal_config: defaultPortalConfig,
-        products: defaultProducts,
-        lead_history: [],
-        financial_contracts: [],
-        financial_installments: []
-      };
-      fs.writeFileSync(DB_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
-    }
-  }
-}
-
-initLocalDatabase();
-
 async function initPgDatabase() {
-  if (!usePg || !pgPool) return;
+  if (!pgPool) {
+    console.warn("PostgreSQL pool not initialized (DATABASE_URL not configured).");
+    return;
+  }
   try {
     const client = await pgPool.connect();
     try {
+      // 0. Connection Test
+      await client.query("SELECT 1 AS connection_test");
+      pgConnected = true;
+      console.log("PostgreSQL connection test successful (SELECT 1 AS connection_test).");
+
       // 1. Leads Table
       await client.query(`
         CREATE TABLE IF NOT EXISTS leads (
@@ -525,8 +540,10 @@ async function initPgDatabase() {
       client.release();
     }
   } catch (err: any) {
-    console.warn(`PostgreSQL initialization failed (${err.message}). Gracefully falling back to JSON database.`);
-    usePg = false;
+    pgConnected = false;
+    const codeInfo = err.code ? ` (code: ${err.code})` : "";
+    console.error(`[ERROR] PostgreSQL database connection test failed: ${err.message}${codeInfo}`);
+    console.error("Please verify that your DATABASE_URL in Settings is valid and the PostgreSQL instance is accessible.");
   }
 }
 
@@ -571,57 +588,33 @@ function normalizeTemperatura(temp?: string): string {
   return s;
 }
 
-// Database Helper methods (PostgreSQL or Local JSON)
+// Database Helper methods (Exclusively PostgreSQL)
 async function getLatestHistoryMap(): Promise<Record<string, any>> {
   const map: Record<string, any> = {};
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query(`
-        SELECT DISTINCT ON (lead_id) lead_id, id, canal, tipo, titulo, detalhes, created_at
-        FROM lead_history
-        ORDER BY lead_id, created_at DESC
-      `);
-      for (const row of res.rows) {
-        map[row.lead_id] = row;
-      }
-      return map;
-    } catch (e: any) {
-      console.warn("Failed to fetch latest history map from PostgreSQL:", e.message);
-    }
-  }
-
+  if (!pgPool || !pgConnected) return map;
   try {
-    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-    const historyList = db.lead_history || [];
-    const sorted = [...historyList].sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    for (const h of sorted) {
-      if (h.lead_id) {
-        map[h.lead_id] = h;
-      }
+    const res = await pgPool.query(`
+      SELECT DISTINCT ON (lead_id) lead_id, id, canal, tipo, titulo, detalhes, created_at
+      FROM lead_history
+      ORDER BY lead_id, created_at DESC
+    `);
+    for (const row of res.rows) {
+      map[row.lead_id] = row;
     }
-  } catch (e: any) {
-    console.warn("Failed to fetch latest history map from file DB:", e.message);
+  } catch (err: any) {
+    console.error("Failed to query latest history map:", err.message);
   }
   return map;
 }
 
 async function getLeads(): Promise<any[]> {
   let list: any[] = [];
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
       list = res.rows;
-    } catch (e: any) {
-      console.warn("PostgreSQL leads fetch failed:", e.message);
-    }
-  }
-
-  if (list.length === 0) {
-    try {
-      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      list = db.leads || [];
-    } catch (e) {
-      list = [];
+    } catch (err: any) {
+      console.error("Failed to query leads from PostgreSQL:", err.message);
     }
   }
 
@@ -664,65 +657,47 @@ async function getLeads(): Promise<any[]> {
 }
 
 async function getLeadById(id: string): Promise<any | null> {
-  let lead: any = null;
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
-      if (res.rows.length > 0) lead = res.rows[0];
-    } catch (e: any) {
-      console.warn("PostgreSQL lead fetch failed:", e.message);
-    }
-  }
-  if (!lead) {
-    try {
-      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      lead = db.leads.find((l: any) => l.id === id) || null;
-    } catch (e) {
-      lead = null;
-    }
-  }
+  if (!pgPool || !pgConnected) return null;
+  try {
+    const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
+    const lead = res.rows.length > 0 ? res.rows[0] : null;
 
-  if (lead) {
-    lead.temperatura = normalizeTemperatura(lead.temperatura);
-    lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
-    const historyList = await getLeadHistory(id);
-    if (historyList && historyList.length > 0) {
-      const hist = historyList[0];
-      lead.ultima_interacao_em = hist.created_at;
-      lead.ultima_interacao_acao = hist.titulo || hist.tipo;
-      lead.ultima_interacao_origem = (
-        hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
-        hist.canal === "EMAIL" ? "Automação / E-mail" :
-        hist.canal === "MANUAL" ? "Manual / CRM" :
-        (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
-      );
-    } else {
-      lead.ultima_interacao_em = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
-      lead.ultima_interacao_acao = lead.ultima_interacao_acao || "Lead Cadastrado";
-      lead.ultima_interacao_origem = lead.ultima_interacao_origem || lead.origem_portal || "Portal / Manual";
+    if (lead) {
+      lead.temperatura = normalizeTemperatura(lead.temperatura);
+      lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
+      const historyList = await getLeadHistory(id);
+      if (historyList && historyList.length > 0) {
+        const hist = historyList[0];
+        lead.ultima_interacao_em = hist.created_at;
+        lead.ultima_interacao_acao = hist.titulo || hist.tipo;
+        lead.ultima_interacao_origem = (
+          hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+          hist.canal === "EMAIL" ? "Automação / E-mail" :
+          hist.canal === "MANUAL" ? "Manual / CRM" :
+          (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
+        );
+      } else {
+        lead.ultima_interacao_em = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
+        lead.ultima_interacao_acao = lead.ultima_interacao_acao || "Lead Cadastrado";
+        lead.ultima_interacao_origem = lead.ultima_interacao_origem || lead.origem_portal || "Portal / Manual";
+      }
     }
-  }
 
-  return lead;
+    return lead;
+  } catch (err: any) {
+    console.error("Failed to query lead by id:", err.message);
+    return null;
+  }
 }
 
 async function getAllLeadsUnfiltered(): Promise<any[]> {
   let list: any[] = [];
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
       list = res.rows;
-    } catch (e: any) {
-      console.warn("PostgreSQL leads fetch failed:", e.message);
-    }
-  }
-
-  if (list.length === 0) {
-    try {
-      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      list = db.leads || [];
-    } catch (e) {
-      list = [];
+    } catch (err: any) {
+      console.error("Failed to query unfiltered leads:", err.message);
     }
   }
 
@@ -830,157 +805,100 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
     lead.created_at = lead.created_at || new Date().toISOString();
   }
 
-  if (usePg && pgPool) {
-    try {
-      if (isNew) {
-        const query = `
-          INSERT INTO leads (
-            id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
-            soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
-            observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
-            followup_especial_1m, followup_especial_2m, followup_especial_3m,
-            whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
-            whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
-            ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
-            proxima_atividade_em, tipo_proxima_atividade, observacao_proxima_atividade,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
-          RETURNING *
-        `;
-        const values = [
-          lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
-          lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
-          lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
-          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
-          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
-          lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
-          lead.created_at, lead.updated_at
-        ];
-        const res = await pgPool.query(query, values);
-        return res.rows[0];
-      } else {
-        const query = `
-          UPDATE leads SET
-            nome = $2, email = $3, link_celular = $4, telefone_limpo = $5, data_casamento = $6, mes_casamento = $7, local = $8,
-            servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
-            status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
-            observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
-            ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
-            whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
-            whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
-            ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
-            proxima_atividade_em = $43, tipo_proxima_atividade = $44, observacao_proxima_atividade = $45,
-            updated_at = $46
-          WHERE id = $1
-          RETURNING *
-        `;
-        const values = [
-          lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local,
-          lead.servicos, lead.convidados, lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5,
-          lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
-          lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
-          lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
-          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
-          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
-          lead.proxima_atividade_em !== undefined ? lead.proxima_atividade_em : null,
-          lead.tipo_proxima_atividade !== undefined ? lead.tipo_proxima_atividade : null,
-          lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
-          lead.updated_at
-        ];
-        const res = await pgPool.query(query, values);
-        return res.rows[0];
-      }
-    } catch (e: any) {
-      console.warn("PostgreSQL lead save failed:", e.message);
-    }
+  if (!pgPool || !pgConnected) {
+    console.warn("PostgreSQL pool not available for saveLead.");
+    return lead;
   }
 
-  // Local Save
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
   if (isNew) {
-    db.leads.unshift(lead);
+    const query = `
+      INSERT INTO leads (
+        id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
+        soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
+        observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
+        followup_especial_1m, followup_especial_2m, followup_especial_3m,
+        whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
+        whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
+        ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
+        proxima_atividade_em, tipo_proxima_atividade, observacao_proxima_atividade,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
+      RETURNING *
+    `;
+    const values = [
+      lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
+      lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
+      lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
+      lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+      Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+      lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+      lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+      lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
+      lead.created_at, lead.updated_at
+    ];
+    const res = await pgPool.query(query, values);
+    return res.rows[0];
   } else {
-    const idx = db.leads.findIndex((l: any) => l.id === lead.id);
-    if (idx !== -1) {
-      db.leads[idx] = { ...db.leads[idx], ...lead };
-    } else {
-      db.leads.unshift(lead); // fallback
-    }
+    const query = `
+      UPDATE leads SET
+        nome = $2, email = $3, link_celular = $4, telefone_limpo = $5, data_casamento = $6, mes_casamento = $7, local = $8,
+        servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
+        status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
+        observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
+        ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
+        whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
+        whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
+        ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
+        proxima_atividade_em = $43, tipo_proxima_atividade = $44, observacao_proxima_atividade = $45,
+        updated_at = $46
+      WHERE id = $1
+      RETURNING *
+    `;
+    const values = [
+      lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local,
+      lead.servicos, lead.convidados, lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5,
+      lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
+      lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
+      lead.ultima_interacao_em, lead.proxima_acao_em,
+      lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+      Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+      lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+      lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+      lead.proxima_atividade_em !== undefined ? lead.proxima_atividade_em : null,
+      lead.tipo_proxima_atividade !== undefined ? lead.tipo_proxima_atividade : null,
+      lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
+      lead.updated_at
+    ];
+    const res = await pgPool.query(query, values);
+    return res.rows[0];
   }
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  return lead;
 }
 
 async function deleteLeadById(id: string): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
-      await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL lead delete failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  const lengthBefore = db.leads.length;
-  db.leads = db.leads.filter((l: any) => l.id !== id);
-  db.lead_history = db.lead_history.filter((h: any) => h.lead_id !== id);
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  return db.leads.length < lengthBefore;
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
+  const res = await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
-      return;
-    } catch (e: any) {
-      console.warn("PostgreSQL lead stage remapping failed:", e.message);
-    }
-  }
-  // Local JSON DB
-  try {
-    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-    let updated = false;
-    if (db.leads && Array.isArray(db.leads)) {
-      db.leads = db.leads.map((l: any) => {
-        if (l.etapa_contato === oldStage) {
-          updated = true;
-          return { ...l, etapa_contato: newStage };
-        }
-        return l;
-      });
-    }
-    if (updated) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-    }
-  } catch (e: any) {
-    console.warn("Local DB lead stage remapping failed:", e.message);
-  }
+  if (!pgPool || !pgConnected) return;
+  await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
 }
 
 async function getWorkflowConfigs(): Promise<any[]> {
   let configs: any[] = [];
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
       configs = res.rows;
-    } catch (e: any) {
-      console.warn("PostgreSQL workflow config fetch failed:", e.message);
+    } catch (err: any) {
+      console.error("Failed to query workflow_config:", err.message);
     }
   }
-  
+
   if (configs.length === 0) {
-    try {
-      const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      configs = db.workflow_config || [];
-    } catch (e) {
-      configs = [];
-    }
+    configs = [...defaultWorkflowConfig];
   }
 
   // Ensure sorted strictly by ordem
@@ -997,68 +915,53 @@ async function getWorkflowConfigs(): Promise<any[]> {
 }
 
 async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      const stageEtapas = configs.map(c => c.etapa);
-      if (stageEtapas.length > 0) {
-        await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
-      }
-      for (const stage of configs) {
-        await pgPool.query(`
-          INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (etapa) DO UPDATE SET
-            descricao = EXCLUDED.descricao,
-            canal = EXCLUDED.canal,
-            esperar_dias = EXCLUDED.esperar_dias,
-            proximo_status = EXCLUDED.proximo_status,
-            temperatura = EXCLUDED.temperatura,
-            mensagem_template = EXCLUDED.mensagem_template,
-            assunto_template = EXCLUDED.assunto_template,
-            imagens_template = EXCLUDED.imagens_template,
-            ordem = EXCLUDED.ordem
-        `, [
-          stage.etapa,
-          stage.descricao,
-          stage.canal,
-          stage.esperar_dias,
-          stage.proximo_status,
-          stage.temperatura,
-          stage.mensagem_template,
-          stage.assunto_template,
-          stage.imagens_template,
-          stage.ordem || 0
-        ]);
-      }
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL workflow config save failed:", e.message);
-    }
+  if (!pgPool || !pgConnected) return false;
+  const stageEtapas = configs.map(c => c.etapa);
+  if (stageEtapas.length > 0) {
+    await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  db.workflow_config = configs;
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  for (const stage of configs) {
+    await pgPool.query(`
+      INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (etapa) DO UPDATE SET
+        descricao = EXCLUDED.descricao,
+        canal = EXCLUDED.canal,
+        esperar_dias = EXCLUDED.esperar_dias,
+        proximo_status = EXCLUDED.proximo_status,
+        temperatura = EXCLUDED.temperatura,
+        mensagem_template = EXCLUDED.mensagem_template,
+        assunto_template = EXCLUDED.assunto_template,
+        imagens_template = EXCLUDED.imagens_template,
+        ordem = EXCLUDED.ordem
+    `, [
+      stage.etapa,
+      stage.descricao,
+      stage.canal,
+      stage.esperar_dias,
+      stage.proximo_status,
+      stage.temperatura,
+      stage.mensagem_template,
+      stage.assunto_template,
+      stage.imagens_template,
+      stage.ordem || 0
+    ]);
+  }
   return true;
 }
 
 async function getPortalConfigs(): Promise<any[]> {
   let list: any[] = [];
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       const res = await pgPool.query("SELECT * FROM portal_config");
       list = res.rows.map(row => ({
         ...row,
         ativo: row.automacao_ativa ?? true
       }));
-    } catch (e: any) {
-      console.warn("PostgreSQL portal config fetch failed:", e.message);
+    } catch (err: any) {
+      console.error("Failed to query portal_config:", err.message);
     }
-  } else {
-    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-    list = (db.portal_config || []).map((p: any) => ({
-      ...p,
-      ativo: p.ativo ?? true
-    }));
   }
 
   const existingIds = new Set(list.map(p => p.id));
@@ -1070,7 +973,7 @@ async function getPortalConfigs(): Promise<any[]> {
     }
   }
 
-  if (addedNew) {
+  if (addedNew && pgPool && pgConnected) {
     savePortalConfigs(list).catch(() => {});
   }
 
@@ -1078,95 +981,65 @@ async function getPortalConfigs(): Promise<any[]> {
 }
 
 async function savePortalConfigs(configs: any[]): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      for (const p of configs) {
-        const activeVal = p.ativo ?? p.automacao_ativa ?? true;
-        await pgPool.query(`
-          INSERT INTO portal_config (id, nome, automacao_ativa, prefixo_filtro, canal_preferencial)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (id) DO UPDATE SET
-            nome = EXCLUDED.nome,
-            automacao_ativa = EXCLUDED.automacao_ativa,
-            prefixo_filtro = EXCLUDED.prefixo_filtro,
-            canal_preferencial = EXCLUDED.canal_preferencial
-        `, [
-          p.id,
-          p.nome,
-          activeVal,
-          p.prefixo_filtro ?? null,
-          p.canal_preferencial ?? null
-        ]);
-      }
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL portal config save failed:", e.message);
-    }
+  if (!pgPool || !pgConnected) return false;
+  for (const p of configs) {
+    const activeVal = p.ativo ?? p.automacao_ativa ?? true;
+    await pgPool.query(`
+      INSERT INTO portal_config (id, nome, automacao_ativa, prefixo_filtro, canal_preferencial)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO UPDATE SET
+        nome = EXCLUDED.nome,
+        automacao_ativa = EXCLUDED.automacao_ativa,
+        prefixo_filtro = EXCLUDED.prefixo_filtro,
+        canal_preferencial = EXCLUDED.canal_preferencial
+    `, [
+      p.id,
+      p.nome,
+      activeVal,
+      p.prefixo_filtro ?? null,
+      p.canal_preferencial ?? null
+    ]);
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  db.portal_config = configs.map(p => ({
-    ...p,
-    ativo: p.ativo ?? p.automacao_ativa ?? true
-  }));
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
   return true;
 }
 
 async function getProducts(): Promise<any[]> {
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
-      return res.rows.map(row => ({
-        ...row,
-        valor_unitario: Number(row.valor_unitario)
-      }));
-    } catch (e: any) {
-      console.warn("PostgreSQL products fetch failed, attempting schema fallback:", e.message);
-    }
+  if (!pgPool || !pgConnected) return defaultProducts;
+  try {
+    const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
+    if (res.rows.length === 0) return defaultProducts;
+    return res.rows.map(row => ({
+      ...row,
+      valor_unitario: Number(row.valor_unitario)
+    }));
+  } catch (err: any) {
+    console.error("Failed to query products:", err.message);
+    return defaultProducts;
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return (db.products || defaultProducts).map((p: any) => ({
-    ...p,
-    valor_unitario: Number(p.valor_unitario)
-  }));
 }
 
 async function saveProduct(p: any): Promise<boolean> {
+  if (!pgPool || !pgConnected) return false;
   let existingProducts: any[] = [];
   try {
     existingProducts = await getProducts();
   } catch (e) {}
   const oldProd = existingProducts.find((item: any) => item.id === p.id);
 
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query(`
-        INSERT INTO products (id, descricao, valor_unitario, link_imagem, created_at)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id) DO UPDATE SET
-          descricao = EXCLUDED.descricao,
-          valor_unitario = EXCLUDED.valor_unitario,
-          link_imagem = EXCLUDED.link_imagem
-      `, [
-        p.id,
-        p.descricao,
-        p.valor_unitario,
-        p.link_imagem,
-        new Date().toISOString()
-      ]);
-    } catch (e: any) {
-      console.warn("PostgreSQL product save failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (!db.products) db.products = [];
-  const idx = db.products.findIndex((item: any) => item.id === p.id);
-  if (idx >= 0) {
-    db.products[idx] = { ...db.products[idx], ...p };
-  } else {
-    db.products.push(p);
-  }
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  await pgPool.query(`
+    INSERT INTO products (id, descricao, valor_unitario, link_imagem, created_at)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (id) DO UPDATE SET
+      descricao = EXCLUDED.descricao,
+      valor_unitario = EXCLUDED.valor_unitario,
+      link_imagem = EXCLUDED.link_imagem
+  `, [
+    p.id,
+    p.descricao,
+    p.valor_unitario,
+    p.link_imagem,
+    new Date().toISOString()
+  ]);
 
   // Sync saved workflow templates so they dynamically update if static image URLs or prices were used
   try {
@@ -1217,23 +1090,13 @@ async function saveProduct(p: any): Promise<boolean> {
 }
 
 async function deleteProduct(id: string): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query("DELETE FROM products WHERE id = $1", [id]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL product delete failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (db.products) {
-    db.products = db.products.filter((p: any) => p.id !== id);
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  }
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query("DELETE FROM products WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialContracts(): Promise<any[]> {
+  if (!pgPool || !pgConnected) return [];
   const parseContract = (row: any) => {
     const total = Number(row.total_value) || 0;
     const freight = Number(row.freight_value) || 0;
@@ -1251,222 +1114,136 @@ async function getFinancialContracts(): Promise<any[]> {
     };
   };
 
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
-      return res.rows.map(parseContract);
-    } catch (e: any) {
-      console.warn("PostgreSQL contracts fetch failed:", e.message);
-    }
+  try {
+    const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
+    return res.rows.map(parseContract);
+  } catch (err: any) {
+    console.error("Failed to query financial_contracts:", err.message);
+    return [];
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return (db.financial_contracts || []).map(parseContract);
 }
 
 async function saveFinancialContract(c: any): Promise<boolean> {
+  if (!pgPool || !pgConnected) return false;
   const totalVal = Number(c.total_value) || 0;
   const freightVal = Number(c.freight_value) || 0;
   const discountVal = Number(c.discount_value) || 0;
   const finalVal = c.final_value !== undefined ? Number(c.final_value) : Math.max(0, totalVal + freightVal - discountVal);
 
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query(`
-        INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        ON CONFLICT (id) DO UPDATE SET
-          lead_id = EXCLUDED.lead_id,
-          contract_number = EXCLUDED.contract_number,
-          contract_date = EXCLUDED.contract_date,
-          total_value = EXCLUDED.total_value,
-          freight_value = EXCLUDED.freight_value,
-          discount_value = EXCLUDED.discount_value,
-          final_value = EXCLUDED.final_value,
-          payment_method = EXCLUDED.payment_method,
-          installments_count = EXCLUDED.installments_count,
-          down_payment = EXCLUDED.down_payment,
-          status = EXCLUDED.status,
-          observations = EXCLUDED.observations,
-          updated_at = EXCLUDED.updated_at
-      `, [
-        c.id,
-        c.lead_id,
-        c.contract_number,
-        c.contract_date,
-        totalVal,
-        freightVal,
-        discountVal,
-        finalVal,
-        c.payment_method,
-        c.installments_count,
-        c.down_payment,
-        c.status || 'active',
-        c.observations || '',
-        c.created_at || new Date().toISOString(),
-        new Date().toISOString()
-      ]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL contract save failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (!db.financial_contracts) db.financial_contracts = [];
-  const idx = db.financial_contracts.findIndex((item: any) => item.id === c.id);
-  const now = new Date().toISOString();
-  const savedContract = {
-    ...c,
-    total_value: totalVal,
-    freight_value: freightVal,
-    discount_value: discountVal,
-    final_value: finalVal,
-    status: c.status || 'active',
-    observations: c.observations || '',
-    created_at: c.created_at || now,
-    updated_at: now
-  };
-  if (idx >= 0) {
-    db.financial_contracts[idx] = savedContract;
-  } else {
-    db.financial_contracts.push(savedContract);
-  }
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  await pgPool.query(`
+    INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ON CONFLICT (id) DO UPDATE SET
+      lead_id = EXCLUDED.lead_id,
+      contract_number = EXCLUDED.contract_number,
+      contract_date = EXCLUDED.contract_date,
+      total_value = EXCLUDED.total_value,
+      freight_value = EXCLUDED.freight_value,
+      discount_value = EXCLUDED.discount_value,
+      final_value = EXCLUDED.final_value,
+      payment_method = EXCLUDED.payment_method,
+      installments_count = EXCLUDED.installments_count,
+      down_payment = EXCLUDED.down_payment,
+      status = EXCLUDED.status,
+      observations = EXCLUDED.observations,
+      updated_at = EXCLUDED.updated_at
+  `, [
+    c.id,
+    c.lead_id,
+    c.contract_number,
+    c.contract_date,
+    totalVal,
+    freightVal,
+    discountVal,
+    finalVal,
+    c.payment_method,
+    c.installments_count,
+    c.down_payment,
+    c.status || 'active',
+    c.observations || '',
+    c.created_at || new Date().toISOString(),
+    new Date().toISOString()
+  ]);
   return true;
 }
 
 async function deleteFinancialContract(id: string): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL contract delete failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (db.financial_contracts) {
-    db.financial_contracts = db.financial_contracts.filter((c: any) => c.id !== id);
-    if (db.financial_installments) {
-      db.financial_installments = db.financial_installments.filter((i: any) => i.contract_id !== id);
-    }
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  }
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialInstallments(): Promise<any[]> {
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
-      return res.rows.map(row => ({
-        ...row,
-        installment_number: Number(row.installment_number),
-        value: Number(row.value),
-        paid_value: row.paid_value ? Number(row.paid_value) : null
-      }));
-    } catch (e: any) {
-      console.warn("PostgreSQL installments fetch failed:", e.message);
-    }
+  if (!pgPool || !pgConnected) return [];
+  try {
+    const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
+    return res.rows.map(row => ({
+      ...row,
+      installment_number: Number(row.installment_number),
+      value: Number(row.value),
+      paid_value: row.paid_value ? Number(row.paid_value) : null
+    }));
+  } catch (err: any) {
+    console.error("Failed to query financial_installments:", err.message);
+    return [];
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return (db.financial_installments || []).map((i: any) => ({
-    ...i,
-    installment_number: Number(i.installment_number),
-    value: Number(i.value),
-    paid_value: i.paid_value ? Number(i.paid_value) : null
-  }));
 }
 
 async function saveFinancialInstallment(i: any): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query(`
-        INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        ON CONFLICT (id) DO UPDATE SET
-          contract_id = EXCLUDED.contract_id,
-          installment_number = EXCLUDED.installment_number,
-          due_date = EXCLUDED.due_date,
-          value = EXCLUDED.value,
-          status = EXCLUDED.status,
-          paid_date = EXCLUDED.paid_date,
-          paid_value = EXCLUDED.paid_value,
-          payment_method = EXCLUDED.payment_method,
-          payment_observations = EXCLUDED.payment_observations,
-          receipt_number = EXCLUDED.receipt_number,
-          updated_at = EXCLUDED.updated_at
-      `, [
-        i.id,
-        i.contract_id,
-        i.installment_number,
-        i.due_date,
-        i.value,
-        i.status || 'pending',
-        i.paid_date || null,
-        i.paid_value || null,
-        i.payment_method || null,
-        i.payment_observations || null,
-        i.receipt_number || null,
-        i.created_at || new Date().toISOString(),
-        new Date().toISOString()
-      ]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL installment save failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (!db.financial_installments) db.financial_installments = [];
-  const idx = db.financial_installments.findIndex((item: any) => item.id === i.id);
-  const now = new Date().toISOString();
-  const savedInstallment = {
-    ...i,
-    status: i.status || 'pending',
-    created_at: i.created_at || now,
-    updated_at: now
-  };
-  if (idx >= 0) {
-    db.financial_installments[idx] = savedInstallment;
-  } else {
-    db.financial_installments.push(savedInstallment);
-  }
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query(`
+    INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (id) DO UPDATE SET
+      contract_id = EXCLUDED.contract_id,
+      installment_number = EXCLUDED.installment_number,
+      due_date = EXCLUDED.due_date,
+      value = EXCLUDED.value,
+      status = EXCLUDED.status,
+      paid_date = EXCLUDED.paid_date,
+      paid_value = EXCLUDED.paid_value,
+      payment_method = EXCLUDED.payment_method,
+      payment_observations = EXCLUDED.payment_observations,
+      receipt_number = EXCLUDED.receipt_number,
+      updated_at = EXCLUDED.updated_at
+  `, [
+    i.id,
+    i.contract_id,
+    i.installment_number,
+    i.due_date,
+    i.value,
+    i.status || 'pending',
+    i.paid_date || null,
+    i.paid_value || null,
+    i.payment_method || null,
+    i.payment_observations || null,
+    i.receipt_number || null,
+    i.created_at || new Date().toISOString(),
+    new Date().toISOString()
+  ]);
   return true;
 }
 
 async function deleteFinancialInstallmentsByContract(contractId: string): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL installments delete failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (db.financial_installments) {
-    db.financial_installments = db.financial_installments.filter((i: any) => i.contract_id !== contractId);
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
-  }
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
   return true;
 }
 
 async function getLeadHistory(leadId: string): Promise<any[]> {
-  if (usePg && pgPool) {
-    try {
-      const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
-      return res.rows;
-    } catch (e: any) {
-      console.warn("PostgreSQL lead history fetch failed:", e.message);
-    }
+  if (!pgPool || !pgConnected) return [];
+  try {
+    const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
+    return res.rows;
+  } catch (err: any) {
+    console.error("Failed to query lead_history:", err.message);
+    return [];
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  return db.lead_history.filter((h: any) => h.lead_id === leadId).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }): Promise<any> {
   const newEntry = {
-    id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     lead_id: leadId,
     canal: entry.canal,
     tipo: entry.tipo,
@@ -1481,7 +1258,7 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
     entry.canal === "MANUAL" ? "Manual / CRM" : "Sistema"
   );
 
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       await pgPool.query(`
         INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
@@ -1496,78 +1273,59 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
             updated_at = $1
         WHERE id = $4
       `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
-
-      return newEntry;
-    } catch (e: any) {
-      console.warn("PostgreSQL add history failed:", e.message);
+    } catch (err: any) {
+      console.error("Failed to add history entry:", err.message);
     }
   }
 
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  if (!db.lead_history) db.lead_history = [];
-  db.lead_history.unshift(newEntry);
-
-  if (db.leads) {
-    const idx = db.leads.findIndex((l: any) => l.id === leadId);
-    if (idx !== -1) {
-      db.leads[idx].ultima_interacao_em = newEntry.created_at;
-      db.leads[idx].ultima_interacao_acao = newEntry.titulo || newEntry.tipo;
-      db.leads[idx].ultima_interacao_origem = calcOrigem;
-      db.leads[idx].updated_at = newEntry.created_at;
-    }
-  }
-
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
   return newEntry;
 }
 
 // Settings Helpers
 async function getGeneralSettings(): Promise<any> {
   let settings: any = null;
-  if (usePg && pgPool) {
+  if (pgPool && pgConnected) {
     try {
       const res = await pgPool.query("SELECT settings FROM general_settings WHERE id = 1");
       if (res.rows.length > 0) {
         settings = res.rows[0].settings;
       }
-    } catch (e: any) {
-      console.warn("PostgreSQL get general settings failed:", e.message);
+    } catch (err: any) {
+      console.error("Failed to query general_settings:", err.message);
     }
   }
   if (!settings) {
-    const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-    if (!db.general_settings) {
-      db.general_settings = {
-        zoho_mail: {
-          smtp_host: "smtp.zoho.com",
-          smtp_port: 465,
-          user: "contato@casacolomboartesanal.com.br",
-          pass: "",
-          from_name: "Luciana - Casa Colombo",
-          use_ssl: true
-        },
-        waha_whatsapp: {
-          api_url: "",
-          api_key: "",
-          session_name: "default",
-          delay_seconds: 5
-        },
-        redis_lock: {
-          enabled: false,
-          host: "127.0.0.1",
-          port: 6379,
-          username: "",
-          password: "",
-          use_ssl: false,
-          key_template: "pausa:{chatId}",
-          value_template: "bloqueado",
-          expire: true,
-          ttl: 86400
-        }
-      };
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+    settings = {
+      zoho_mail: {
+        smtp_host: "smtp.zoho.com",
+        smtp_port: 465,
+        user: "contato@casacolomboartesanal.com.br",
+        pass: "",
+        from_name: "Luciana - Casa Colombo",
+        use_ssl: true
+      },
+      waha_whatsapp: {
+        api_url: "",
+        api_key: "",
+        session_name: "default",
+        delay_seconds: 5
+      },
+      redis_lock: {
+        enabled: false,
+        host: "127.0.0.1",
+        port: 6379,
+        username: "",
+        password: "",
+        use_ssl: false,
+        key_template: "pausa:{chatId}",
+        value_template: "bloqueado",
+        expire: true,
+        ttl: 86400
+      }
+    };
+    if (pgPool && pgConnected) {
+      await saveGeneralSettings(settings).catch(() => {});
     }
-    settings = db.general_settings;
   }
 
   // Ensure dynamic options lists are initialized
@@ -1634,29 +1392,20 @@ async function getGeneralSettings(): Promise<any> {
     }
   }
 
-  if (updated) {
-    await saveGeneralSettings(settings);
+  if (updated && pgPool && pgConnected) {
+    await saveGeneralSettings(settings).catch(() => {});
   }
 
   return settings;
 }
 
 async function saveGeneralSettings(settings: any): Promise<boolean> {
-  if (usePg && pgPool) {
-    try {
-      await pgPool.query(`
-        INSERT INTO general_settings (id, settings)
-        VALUES (1, $1)
-        ON CONFLICT (id) DO UPDATE SET settings = EXCLUDED.settings
-      `, [JSON.stringify(settings)]);
-      return true;
-    } catch (e: any) {
-      console.warn("PostgreSQL save general settings failed:", e.message);
-    }
-  }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  db.general_settings = settings;
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+  if (!pgPool || !pgConnected) return false;
+  await pgPool.query(`
+    INSERT INTO general_settings (id, settings)
+    VALUES (1, $1)
+    ON CONFLICT (id) DO UPDATE SET settings = EXCLUDED.settings
+  `, [JSON.stringify(settings)]);
   return true;
 }
 
@@ -3324,11 +3073,11 @@ app.post("/api/portals", async (req, res) => {
 app.delete("/api/portals/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    let currentPortals = await getPortalConfigs();
-    currentPortals = currentPortals.filter((p) => p.id !== id);
-    if (usePg && pgPool) {
+    if (pgPool && pgConnected) {
       await pgPool.query("DELETE FROM portal_config WHERE id = $1", [id]);
     }
+    let currentPortals = await getPortalConfigs();
+    currentPortals = currentPortals.filter((p) => p.id !== id);
     await savePortalConfigs(currentPortals);
     res.json({ success: true });
   } catch (err: any) {
@@ -4758,8 +4507,8 @@ app.get("/api/stats", async (req, res) => {
         threeMonths: upcoming3Months
       },
       systemStatus: {
-        usePg: usePg,
-        pgConnected: !!pgPool,
+        database: "PostgreSQL",
+        pgConnected: pgConnected && !!pgPool,
         schedulerPaused: schedulerPaused
       }
     });
@@ -4775,6 +4524,7 @@ function startAutomationScheduler() {
   console.log("Background Automation Scheduler initialized.");
   setInterval(async () => {
     try {
+      if (!pgConnected) return;
       const settings = await getGeneralSettings();
       if (!settings) return;
 
