@@ -66,9 +66,28 @@ export default function App() {
         return null;
       };
 
-      const resLeads = await fetch("/api/leads");
-      if (resLeads.ok) {
-        const dataLeads: Lead[] = await resLeads.json();
+      // Safe JSON fetch helper
+      const fetchJsonSafe = async <T,>(url: string): Promise<T | null> => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          const ct = res.headers.get("content-type");
+          if (!ct || !ct.includes("application/json")) return null;
+          return await res.json();
+        } catch {
+          return null;
+        }
+      };
+
+      const [dataLeads, dataStages, dataPortals, dataStats, dataHealth] = await Promise.all([
+        fetchJsonSafe<Lead[]>("/api/leads"),
+        fetchJsonSafe<WorkflowStage[]>("/api/workflow"),
+        fetchJsonSafe<PortalSource[]>("/api/portals"),
+        fetchJsonSafe<DashboardStats>("/api/stats"),
+        fetchJsonSafe<{ pgConnected: boolean; database: string }>("/api/health")
+      ]);
+
+      if (dataLeads) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -82,25 +101,40 @@ export default function App() {
         setLeads(filtered);
       }
 
-      const resStages = await fetch("/api/workflow");
-      if (resStages.ok) {
-        const dataStages = await resStages.json();
+      if (dataStages) {
         setStages(dataStages);
       }
 
-      const resPortals = await fetch("/api/portals");
-      if (resPortals.ok) {
-        const dataPortals = await resPortals.json();
+      if (dataPortals) {
         setPortals(dataPortals);
       }
 
-      const resStats = await fetch("/api/stats");
-      if (resStats.ok) {
-        const dataStats = await resStats.json();
+      if (dataStats) {
         setStats(dataStats);
+      } else if (dataHealth) {
+        setStats({
+          totalLeads: 0,
+          leadsNovos: 0,
+          leadsAtivos: 0,
+          leadsConvertidos: 0,
+          leadsPerdidos: 0,
+          leadsEmNegociacao: 0,
+          taxaConversao: 0,
+          leadsPorStatus: {} as any,
+          leadsPorEtapa: {} as any,
+          leadsPorTemperatura: {} as any,
+          leadsPorOrigem: {} as any,
+          historicoEntrada: [],
+          upcomingWeddings: { oneMonth: [], twoMonths: [], threeMonths: [] },
+          systemStatus: {
+            database: dataHealth.database || "PostgreSQL",
+            pgConnected: Boolean(dataHealth.pgConnected),
+            schedulerPaused: false
+          }
+        });
       }
     } catch (e) {
-      console.error("Error fetching data from APIs:", e);
+      console.warn("Aviso ao carregar dados das APIs:", e);
     } finally {
       setLoading(false);
     }
@@ -506,6 +540,25 @@ export default function App() {
         {/* Main Content Scroll container - expanded to 95% total width */}
         <main className="flex-1 max-w-[95%] w-full mx-auto p-4 md:p-8 overflow-y-auto flex flex-col justify-start">
           
+          {stats && stats.systemStatus && stats.systemStatus.pgConnected === false && (
+            <div id="pg-offline-alert" className="mb-6 p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 flex items-start gap-3 text-xs leading-relaxed animate-fade-in">
+              <Database className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-bold text-amber-300">Banco de Dados PostgreSQL Desconectado ou Não Autenticado</p>
+                <p className="mt-1 text-amber-200/80">
+                  O servidor não conseguiu autenticar no banco PostgreSQL (verifique se o usuário e senha em <code className="bg-amber-900/40 px-1.5 py-0.5 rounded font-mono text-[11px] text-amber-100">DATABASE_URL</code> nas configurações do ambiente estão corretos).
+                </p>
+              </div>
+              <button
+                onClick={fetchData}
+                className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-semibold text-xs flex items-center gap-1.5 transition shrink-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Reconectar
+              </button>
+            </div>
+          )}
+
           {loading && leads.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center h-[400px]">
               <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />

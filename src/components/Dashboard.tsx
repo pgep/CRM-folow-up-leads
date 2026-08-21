@@ -33,9 +33,18 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
 
   useEffect(() => {
     fetch("/api/activities/summary")
-      .then((res) => res.json())
-      .then((data) => setActivitiesSummary(data))
-      .catch((e) => console.error("Erro ao carregar resumo de atividades:", e));
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const ct = res.headers.get("content-type");
+        if (ct && ct.includes("application/json")) {
+          return await res.json();
+        }
+        return null;
+      })
+      .then((data) => {
+        if (data) setActivitiesSummary(data);
+      })
+      .catch((e) => console.warn("Aviso ao carregar resumo de atividades:", e));
   }, []);
 
   // Cohort Bulk Send States
@@ -61,13 +70,16 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
       try {
         const res = await fetch("/api/settings");
         if (res.ok) {
-          const data = await res.json();
-          if (data.special_rules) {
-            setSpecialRules(data.special_rules);
+          const ct = res.headers.get("content-type");
+          if (ct && ct.includes("application/json")) {
+            const data = await res.json();
+            if (data && data.special_rules) {
+              setSpecialRules(data.special_rules);
+            }
           }
         }
       } catch (e) {
-        console.error("Error loading special rules on Dashboard mount:", e);
+        console.warn("Aviso ao carregar regras especiais no Dashboard:", e);
       }
     };
     loadRules();
@@ -115,17 +127,17 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
   };
 
   const handleExecuteBulkSend = async () => {
-    if (!selectedCohort || !stats) return;
+    if (!selectedCohort) return;
     
     let cohortLeads: any[] = [];
     if (selectedCohort === "oneMonth") {
-      cohortLeads = (stats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m);
+      cohortLeads = (safeStats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m);
     }
     if (selectedCohort === "twoMonths") {
-      cohortLeads = (stats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m);
+      cohortLeads = (safeStats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m);
     }
     if (selectedCohort === "threeMonths") {
-      cohortLeads = (stats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m);
+      cohortLeads = (safeStats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m);
     }
     
     if (cohortLeads.length === 0) {
@@ -235,18 +247,39 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
     }
   };
 
-  // Prepare data for Recharts
-  const statusChartData = Object.entries(stats.leadsPorStatus).map(([name, value]) => ({
+  // Prepare safe stats and data for Recharts
+  const safeStats: DashboardStats = {
+    totalLeads: 0,
+    leadsNovos: 0,
+    leadsAtivos: 0,
+    leadsConvertidos: 0,
+    leadsPerdidos: 0,
+    leadsEmNegociacao: 0,
+    taxaConversao: 0,
+    leadsPorStatus: {} as any,
+    leadsPorEtapa: {} as any,
+    leadsPorTemperatura: {} as any,
+    leadsPorOrigem: {} as any,
+    historicoEntrada: [],
+    upcomingWeddings: {
+      oneMonth: [],
+      twoMonths: [],
+      threeMonths: []
+    },
+    ...(stats || {})
+  };
+
+  const statusChartData = Object.entries(safeStats.leadsPorStatus || {}).map(([name, value]) => ({
     name: name.replace("_", " "),
     quantidade: value
   }));
 
-  const originChartData = Object.entries(stats.leadsPorOrigem).map(([name, value]) => ({
+  const originChartData = Object.entries(safeStats.leadsPorOrigem || {}).map(([name, value]) => ({
     name,
     quantidade: value
   }));
 
-  const tempChartData = Object.entries(stats.leadsPorTemperatura).map(([name, value]) => ({
+  const tempChartData = Object.entries(safeStats.leadsPorTemperatura || {}).map(([name, value]) => ({
     name,
     value
   }));
@@ -266,7 +299,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <Users className="w-4 h-4 text-zinc-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{stats.totalLeads}</span>
+            <span className="text-2xl font-bold text-white block leading-none">{safeStats.totalLeads}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Capturadas no funil</span>
           </div>
         </div>
@@ -285,7 +318,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-extrabold text-amber-400 block leading-none">{stats.leadsEmNegociacao || 0}</span>
+            <span className="text-2xl font-extrabold text-amber-400 block leading-none">{safeStats.leadsEmNegociacao || 0}</span>
             <span className="text-[10px] text-amber-300/80 mt-1 block font-medium">Respondido + Quente</span>
           </div>
         </div>
@@ -297,7 +330,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <Sparkles className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{stats.leadsNovos}</span>
+            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsNovos}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Aguardando 1º contato</span>
           </div>
         </div>
@@ -309,7 +342,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <RefreshCw className="w-4 h-4 text-indigo-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{stats.leadsAtivos}</span>
+            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsAtivos}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Sendo nutridos</span>
           </div>
         </div>
@@ -321,7 +354,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{stats.leadsConvertidos}</span>
+            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsConvertidos}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Contratos fechados</span>
           </div>
         </div>
@@ -333,7 +366,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             <AlertCircle className="w-4 h-4 text-rose-400" />
           </div>
           <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{stats.leadsPerdidos}</span>
+            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsPerdidos}</span>
             <span className="text-[10px] text-zinc-500 mt-1 block">Sem retorno ou perda</span>
           </div>
         </div>
@@ -346,12 +379,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
           </div>
           <div className="mt-2.5">
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-white leading-none">{stats.taxaConversao}%</span>
+              <span className="text-2xl font-bold text-white leading-none">{safeStats.taxaConversao}%</span>
             </div>
             <div className="w-full bg-zinc-850 h-1.5 rounded-full mt-2.5 overflow-hidden">
               <div
                 className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${stats.taxaConversao}%` }}
+                style={{ width: `${safeStats.taxaConversao}%` }}
               />
             </div>
           </div>
@@ -453,14 +486,14 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  🚨 Em até 1 Mês ({stats.upcomingWeddings?.oneMonth?.length || 0})
+                  🚨 Em até 1 Mês ({safeStats.upcomingWeddings?.oneMonth?.length || 0})
                 </span>
                 <span className="text-[9px] text-zinc-500">0 - 30 dias</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleOpenBulkModal("oneMonth", "🚨 Em até 1 Mês")}
-                disabled={!stats.upcomingWeddings?.oneMonth?.length}
+                disabled={!safeStats.upcomingWeddings?.oneMonth?.length}
                 title="Disparar follow-up em lote para este grupo"
                 className="px-2 py-1 text-[9px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-400 border border-rose-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
               >
@@ -469,8 +502,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {stats.upcomingWeddings?.oneMonth && stats.upcomingWeddings.oneMonth.length > 0 ? (
-                stats.upcomingWeddings.oneMonth.map((lead: any) => (
+              {safeStats.upcomingWeddings?.oneMonth && safeStats.upcomingWeddings.oneMonth.length > 0 ? (
+                safeStats.upcomingWeddings.oneMonth.map((lead: any) => (
                   <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
@@ -531,14 +564,14 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  ⚠️ Em até 2 Meses ({stats.upcomingWeddings?.twoMonths?.length || 0})
+                  ⚠️ Em até 2 Meses ({safeStats.upcomingWeddings?.twoMonths?.length || 0})
                 </span>
                 <span className="text-[9px] text-zinc-500">31 - 60 dias</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleOpenBulkModal("twoMonths", "⚠️ Em até 2 Meses")}
-                disabled={!stats.upcomingWeddings?.twoMonths?.length}
+                disabled={!safeStats.upcomingWeddings?.twoMonths?.length}
                 title="Disparar follow-up em lote para este grupo"
                 className="px-2 py-1 text-[9px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-400 border border-amber-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
               >
@@ -547,8 +580,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {stats.upcomingWeddings?.twoMonths && stats.upcomingWeddings.twoMonths.length > 0 ? (
-                stats.upcomingWeddings.twoMonths.map((lead: any) => (
+              {safeStats.upcomingWeddings?.twoMonths && safeStats.upcomingWeddings.twoMonths.length > 0 ? (
+                safeStats.upcomingWeddings.twoMonths.map((lead: any) => (
                   <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
@@ -609,14 +642,14 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-sky-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                  📅 Em até 3 Meses ({stats.upcomingWeddings?.threeMonths?.length || 0})
+                  📅 Em até 3 Meses ({safeStats.upcomingWeddings?.threeMonths?.length || 0})
                 </span>
                 <span className="text-[9px] text-zinc-500">61 - 90 dias</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleOpenBulkModal("threeMonths", "📅 Em até 3 Meses")}
-                disabled={!stats.upcomingWeddings?.threeMonths?.length}
+                disabled={!safeStats.upcomingWeddings?.threeMonths?.length}
                 title="Disparar follow-up em lote para este grupo"
                 className="px-2 py-1 text-[9px] font-semibold bg-sky-500/10 hover:bg-sky-500/20 active:bg-sky-500/30 text-sky-400 border border-sky-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
               >
@@ -625,8 +658,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {stats.upcomingWeddings?.threeMonths && stats.upcomingWeddings.threeMonths.length > 0 ? (
-                stats.upcomingWeddings.threeMonths.map((lead: any) => (
+              {safeStats.upcomingWeddings?.threeMonths && safeStats.upcomingWeddings.threeMonths.length > 0 ? (
+                safeStats.upcomingWeddings.threeMonths.map((lead: any) => (
                   <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
@@ -694,9 +727,9 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
           </span>
 
           <div className="flex-1 w-full text-xs">
-            {stats.historicoEntrada.length > 0 ? (
+            {(safeStats.historicoEntrada || []).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.historicoEntrada} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <AreaChart data={safeStats.historicoEntrada || []} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorEntry" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
@@ -794,9 +827,9 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                 <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-zinc-800 text-amber-400 border border-zinc-750">
                   {(() => {
                     let count = 0;
-                    if (selectedCohort === "oneMonth") count = (stats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m).length;
-                    if (selectedCohort === "twoMonths") count = (stats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m).length;
-                    if (selectedCohort === "threeMonths") count = (stats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m).length;
+                    if (selectedCohort === "oneMonth") count = (safeStats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m).length;
+                    if (selectedCohort === "twoMonths") count = (safeStats.upcomingWeddings?.twoMonths || []).filter((l: any) => !l.followup_especial_2m).length;
+                    if (selectedCohort === "threeMonths") count = (safeStats.upcomingWeddings?.threeMonths || []).filter((l: any) => !l.followup_especial_3m).length;
                     return count;
                   })()}{" "}
                   leads
@@ -965,9 +998,9 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   <>
                     <Send className="w-3.5 h-3.5" /> Disparar em Lote ({(() => {
                       let count = 0;
-                      if (selectedCohort === "oneMonth") count = stats.upcomingWeddings?.oneMonth?.length || 0;
-                      if (selectedCohort === "twoMonths") count = stats.upcomingWeddings?.twoMonths?.length || 0;
-                      if (selectedCohort === "threeMonths") count = stats.upcomingWeddings?.threeMonths?.length || 0;
+                      if (selectedCohort === "oneMonth") count = safeStats.upcomingWeddings?.oneMonth?.length || 0;
+                      if (selectedCohort === "twoMonths") count = safeStats.upcomingWeddings?.twoMonths?.length || 0;
+                      if (selectedCohort === "threeMonths") count = safeStats.upcomingWeddings?.threeMonths?.length || 0;
                       return count;
                     })()})
                   </>

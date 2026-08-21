@@ -80,7 +80,7 @@ function validateDatabaseUrl(raw?: string): string | null {
 const databaseUrl = validateDatabaseUrl(process.env.DATABASE_URL);
 
 function getPostgresSslConfig(): boolean | { rejectUnauthorized: boolean } {
-  const sslEnv = (process.env.DATABASE_SSL || process.env.DB_SSL || "").trim().toLowerCase();
+  const sslEnv = (process.env.DATABASE_SSL || "").trim().toLowerCase();
   if (sslEnv === "true" || sslEnv === "1") {
     return { rejectUnauthorized: false };
   }
@@ -547,7 +547,52 @@ async function initPgDatabase() {
   }
 }
 
+// Background periodic health-check to monitor connection and reconnect automatically
+let isCheckingPgHealth = false;
+let lastPgReportedConnected: boolean | null = null;
+
+function startPostgresHealthCheck() {
+  setInterval(async () => {
+    if (!pgPool) return;
+    if (isCheckingPgHealth) return;
+    isCheckingPgHealth = true;
+    try {
+      const client = await pgPool.connect();
+      try {
+        await client.query("SELECT 1 AS health_check");
+        if (pgConnected === false || lastPgReportedConnected === false) {
+          console.log("[PostgreSQL] Conexão com o banco de dados restabelecida com sucesso (SELECT 1).");
+        }
+        pgConnected = true;
+        lastPgReportedConnected = true;
+      } finally {
+        client.release();
+      }
+    } catch (err: any) {
+      if (pgConnected === true || lastPgReportedConnected === true || lastPgReportedConnected === null) {
+        const codeInfo = err.code ? ` (code: ${err.code})` : "";
+        console.warn(`[PostgreSQL] Conexão indisponível: ${err.message}${codeInfo}`);
+      }
+      pgConnected = false;
+      lastPgReportedConnected = false;
+    } finally {
+      isCheckingPgHealth = false;
+    }
+  }, 30000);
+}
+
 initPgDatabase();
+startPostgresHealthCheck();
+
+function ensureDatabaseAvailable(req: any, res: any, next: any) {
+  if (!pgPool || !pgConnected) {
+    return res.status(503).json({
+      error: "Service Unavailable - PostgreSQL offline",
+      message: "PostgreSQL database is currently offline or unreachable. Please verify DATABASE_URL and DATABASE_SSL in Settings."
+    });
+  }
+  next();
+}
 
 function parseWeddingDateGlobal(dateStr?: string): Date | null {
   if (!dateStr) return null;
@@ -608,15 +653,11 @@ async function getLatestHistoryMap(): Promise<Record<string, any>> {
 }
 
 async function getLeads(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
-      list = res.rows;
-    } catch (err: any) {
-      console.error("Failed to query leads from PostgreSQL:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
+  let list: any[] = res.rows;
 
   const latestHistoryMap = await getLatestHistoryMap();
 
@@ -657,49 +698,42 @@ async function getLeads(): Promise<any[]> {
 }
 
 async function getLeadById(id: string): Promise<any | null> {
-  if (!pgPool || !pgConnected) return null;
-  try {
-    const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
-    const lead = res.rows.length > 0 ? res.rows[0] : null;
-
-    if (lead) {
-      lead.temperatura = normalizeTemperatura(lead.temperatura);
-      lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
-      const historyList = await getLeadHistory(id);
-      if (historyList && historyList.length > 0) {
-        const hist = historyList[0];
-        lead.ultima_interacao_em = hist.created_at;
-        lead.ultima_interacao_acao = hist.titulo || hist.tipo;
-        lead.ultima_interacao_origem = (
-          hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
-          hist.canal === "EMAIL" ? "Automação / E-mail" :
-          hist.canal === "MANUAL" ? "Manual / CRM" :
-          (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
-        );
-      } else {
-        lead.ultima_interacao_em = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
-        lead.ultima_interacao_acao = lead.ultima_interacao_acao || "Lead Cadastrado";
-        lead.ultima_interacao_origem = lead.ultima_interacao_origem || lead.origem_portal || "Portal / Manual";
-      }
-    }
-
-    return lead;
-  } catch (err: any) {
-    console.error("Failed to query lead by id:", err.message);
-    return null;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
+  const lead = res.rows.length > 0 ? res.rows[0] : null;
+
+  if (lead) {
+    lead.temperatura = normalizeTemperatura(lead.temperatura);
+    lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
+    const historyList = await getLeadHistory(id).catch(() => []);
+    if (historyList && historyList.length > 0) {
+      const hist = historyList[0];
+      lead.ultima_interacao_em = hist.created_at;
+      lead.ultima_interacao_acao = hist.titulo || hist.tipo;
+      lead.ultima_interacao_origem = (
+        hist.canal === "WHATSAPP" ? "Automação / WhatsApp" :
+        hist.canal === "EMAIL" ? "Automação / E-mail" :
+        hist.canal === "MANUAL" ? "Manual / CRM" :
+        (hist.tipo === "IMPORT" || (hist.detalhes && hist.detalhes.includes("Sheet"))) ? "Importação Planilha" : "Sistema"
+      );
+    } else {
+      lead.ultima_interacao_em = lead.ultima_interacao_em || lead.updated_at || lead.created_at || new Date().toISOString();
+      lead.ultima_interacao_acao = lead.ultima_interacao_acao || "Lead Cadastrado";
+      lead.ultima_interacao_origem = lead.ultima_interacao_origem || lead.origem_portal || "Portal / Manual";
+    }
+  }
+
+  return lead;
 }
 
 async function getAllLeadsUnfiltered(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
-      list = res.rows;
-    } catch (err: any) {
-      console.error("Failed to query unfiltered leads:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
+  let list: any[] = res.rows;
 
   const latestHistoryMap = await getLatestHistoryMap();
   return list.map((l) => {
@@ -798,16 +832,14 @@ async function handleDuplicateAttempt(existingLead: any, sourceName: string, pay
 }
 
 async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   lead.temperatura = normalizeTemperatura(lead.temperatura);
   lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
   lead.updated_at = new Date().toISOString();
   if (isNew) {
     lead.created_at = lead.created_at || new Date().toISOString();
-  }
-
-  if (!pgPool || !pgConnected) {
-    console.warn("PostgreSQL pool not available for saveLead.");
-    return lead;
   }
 
   if (isNew) {
@@ -875,27 +907,27 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
 }
 
 async function deleteLeadById(id: string): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
   const res = await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
   return (res.rowCount ?? 0) > 0;
 }
 
 async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
-  if (!pgPool || !pgConnected) return;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
 }
 
 async function getWorkflowConfigs(): Promise<any[]> {
-  let configs: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
-      configs = res.rows;
-    } catch (err: any) {
-      console.error("Failed to query workflow_config:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
+  let configs = res.rows;
 
   if (configs.length === 0) {
     configs = [...defaultWorkflowConfig];
@@ -915,7 +947,9 @@ async function getWorkflowConfigs(): Promise<any[]> {
 }
 
 async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const stageEtapas = configs.map(c => c.etapa);
   if (stageEtapas.length > 0) {
     await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
@@ -951,18 +985,14 @@ async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
 }
 
 async function getPortalConfigs(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM portal_config");
-      list = res.rows.map(row => ({
-        ...row,
-        ativo: row.automacao_ativa ?? true
-      }));
-    } catch (err: any) {
-      console.error("Failed to query portal_config:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM portal_config");
+  let list = res.rows.map(row => ({
+    ...row,
+    ativo: row.automacao_ativa ?? true
+  }));
 
   const existingIds = new Set(list.map(p => p.id));
   let addedNew = false;
@@ -973,15 +1003,17 @@ async function getPortalConfigs(): Promise<any[]> {
     }
   }
 
-  if (addedNew && pgPool && pgConnected) {
-    savePortalConfigs(list).catch(() => {});
+  if (addedNew) {
+    await savePortalConfigs(list).catch(() => {});
   }
 
   return list;
 }
 
 async function savePortalConfigs(configs: any[]): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   for (const p of configs) {
     const activeVal = p.ativo ?? p.automacao_ativa ?? true;
     await pgPool.query(`
@@ -1004,22 +1036,21 @@ async function savePortalConfigs(configs: any[]): Promise<boolean> {
 }
 
 async function getProducts(): Promise<any[]> {
-  if (!pgPool || !pgConnected) return defaultProducts;
-  try {
-    const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
-    if (res.rows.length === 0) return defaultProducts;
-    return res.rows.map(row => ({
-      ...row,
-      valor_unitario: Number(row.valor_unitario)
-    }));
-  } catch (err: any) {
-    console.error("Failed to query products:", err.message);
-    return defaultProducts;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
+  if (res.rows.length === 0) return defaultProducts;
+  return res.rows.map(row => ({
+    ...row,
+    valor_unitario: Number(row.valor_unitario)
+  }));
 }
 
 async function saveProduct(p: any): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   let existingProducts: any[] = [];
   try {
     existingProducts = await getProducts();
@@ -1090,13 +1121,17 @@ async function saveProduct(p: any): Promise<boolean> {
 }
 
 async function deleteProduct(id: string): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query("DELETE FROM products WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialContracts(): Promise<any[]> {
-  if (!pgPool || !pgConnected) return [];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const parseContract = (row: any) => {
     const total = Number(row.total_value) || 0;
     const freight = Number(row.freight_value) || 0;
@@ -1114,17 +1149,14 @@ async function getFinancialContracts(): Promise<any[]> {
     };
   };
 
-  try {
-    const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
-    return res.rows.map(parseContract);
-  } catch (err: any) {
-    console.error("Failed to query financial_contracts:", err.message);
-    return [];
-  }
+  const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
+  return res.rows.map(parseContract);
 }
 
 async function saveFinancialContract(c: any): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const totalVal = Number(c.total_value) || 0;
   const freightVal = Number(c.freight_value) || 0;
   const discountVal = Number(c.discount_value) || 0;
@@ -1168,29 +1200,30 @@ async function saveFinancialContract(c: any): Promise<boolean> {
 }
 
 async function deleteFinancialContract(id: string): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialInstallments(): Promise<any[]> {
-  if (!pgPool || !pgConnected) return [];
-  try {
-    const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
-    return res.rows.map(row => ({
-      ...row,
-      installment_number: Number(row.installment_number),
-      value: Number(row.value),
-      paid_value: row.paid_value ? Number(row.paid_value) : null
-    }));
-  } catch (err: any) {
-    console.error("Failed to query financial_installments:", err.message);
-    return [];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
+  return res.rows.map(row => ({
+    ...row,
+    installment_number: Number(row.installment_number),
+    value: Number(row.value),
+    paid_value: row.paid_value ? Number(row.paid_value) : null
+  }));
 }
 
 async function saveFinancialInstallment(i: any): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query(`
     INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -1225,23 +1258,25 @@ async function saveFinancialInstallment(i: any): Promise<boolean> {
 }
 
 async function deleteFinancialInstallmentsByContract(contractId: string): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
   return true;
 }
 
 async function getLeadHistory(leadId: string): Promise<any[]> {
-  if (!pgPool || !pgConnected) return [];
-  try {
-    const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
-    return res.rows;
-  } catch (err: any) {
-    console.error("Failed to query lead_history:", err.message);
-    return [];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
+  return res.rows;
 }
 
 async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const newEntry = {
     id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     lead_id: leadId,
@@ -1258,41 +1293,32 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
     entry.canal === "MANUAL" ? "Manual / CRM" : "Sistema"
   );
 
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
+  await pgPool.query(`
+    INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
 
-      await pgPool.query(`
-        UPDATE leads
-        SET ultima_interacao_em = $1,
-            ultima_interacao_acao = $2,
-            ultima_interacao_origem = $3,
-            updated_at = $1
-        WHERE id = $4
-      `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
-    } catch (err: any) {
-      console.error("Failed to add history entry:", err.message);
-    }
-  }
+  await pgPool.query(`
+    UPDATE leads
+    SET ultima_interacao_em = $1,
+        ultima_interacao_acao = $2,
+        ultima_interacao_origem = $3,
+        updated_at = $1
+    WHERE id = $4
+  `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
 
   return newEntry;
 }
 
 // Settings Helpers
 async function getGeneralSettings(): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   let settings: any = null;
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT settings FROM general_settings WHERE id = 1");
-      if (res.rows.length > 0) {
-        settings = res.rows[0].settings;
-      }
-    } catch (err: any) {
-      console.error("Failed to query general_settings:", err.message);
-    }
+  const res = await pgPool.query("SELECT settings FROM general_settings WHERE id = 1");
+  if (res.rows.length > 0) {
+    settings = res.rows[0].settings;
   }
   if (!settings) {
     settings = {
@@ -1323,9 +1349,7 @@ async function getGeneralSettings(): Promise<any> {
         ttl: 86400
       }
     };
-    if (pgPool && pgConnected) {
-      await saveGeneralSettings(settings).catch(() => {});
-    }
+    await saveGeneralSettings(settings).catch(() => {});
   }
 
   // Ensure dynamic options lists are initialized
@@ -1392,7 +1416,7 @@ async function getGeneralSettings(): Promise<any> {
     }
   }
 
-  if (updated && pgPool && pgConnected) {
+  if (updated) {
     await saveGeneralSettings(settings).catch(() => {});
   }
 
@@ -1400,7 +1424,9 @@ async function getGeneralSettings(): Promise<any> {
 }
 
 async function saveGeneralSettings(settings: any): Promise<boolean> {
-  if (!pgPool || !pgConnected) return false;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   await pgPool.query(`
     INSERT INTO general_settings (id, settings)
     VALUES (1, $1)
@@ -2087,6 +2113,27 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
 // -------------------------------------------------------------
 // REST API ROUTES
 // -------------------------------------------------------------
+
+// API - Health & Status endpoints (always accessible)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: pgConnected ? "ok" : "degraded",
+    database: "PostgreSQL",
+    pgConnected: Boolean(pgPool && pgConnected),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/api/system/status", (req, res) => {
+  res.json({
+    database: "PostgreSQL",
+    pgConnected: Boolean(pgPool && pgConnected),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Guard all database-dependent API endpoints with 503 if PostgreSQL is offline
+app.use("/api", ensureDatabaseAvailable);
 
 // API - Leads Em Negociação (Filtro Respondido + Quente)
 app.get("/api/leads/em-negociacao", async (req, res) => {
@@ -4561,6 +4608,11 @@ function startAutomationScheduler() {
 
 // Start Background Scheduler
 startAutomationScheduler();
+
+// Fallback 404 JSON for any unhandled /api route so it never falls through to Vite HTML
+app.all("/api/*", (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+});
 
 // Serving built client assets in production, otherwise Vite middleware
 if (process.env.NODE_ENV !== "production") {
