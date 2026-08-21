@@ -19,9 +19,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      # Optional persistence fallback: maps database.json into the container if running in file-database mode
-      - ./database.json:/app/database.json
 
   # 2. PostgreSQL Database Service
   postgres:

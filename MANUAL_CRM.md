@@ -131,4 +131,4 @@ A conexão com o banco de dados é totalmente baseada em ambiente.
   ```env
   DATABASE_URL="postgresql://crm_user:crm_password@192.168.1.64:5432/leads_db"
   ```
-* Se a variável `DATABASE_URL` estiver vazia ou ausente, a aplicação rodará em modo de simulação local utilizando o arquivo seguro `database.json`, permitindo testes e homologações rápidas antes do deploy definitivo no servidor.
+* A variável `DATABASE_URL` deve estar sempre configurada com a string de conexão do PostgreSQL (Supabase em desenvolvimento ou Home Lab/LXC Proxmox em produção). O sistema opera exclusivamente com PostgreSQL e não possui fallback local.

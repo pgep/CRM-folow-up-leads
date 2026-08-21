@@ -5,7 +5,6 @@
 
 import express from "express";
 import path from "path";
-import fs from "fs";
 import net from "net";
 import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
@@ -544,7 +543,7 @@ async function initPgDatabase() {
     pgConnected = false;
     const codeInfo = err.code ? ` (code: ${err.code})` : "";
     pgLastError = `${err.message}${codeInfo}`;
-    console.warn(`[PostgreSQL] Informação de conexão: ${err.message}${codeInfo}. Operando em modo de persistência local resiliente.`);
+    console.warn(`[PostgreSQL] Conexão indisponível: ${err.message}${codeInfo}`);
   }
 }
 
@@ -563,8 +562,6 @@ function startPostgresHealthCheck() {
         await client.query("SELECT 1 AS health_check");
         if (pgConnected === false || lastPgReportedConnected === false) {
           console.log("[PostgreSQL] Conexão com o banco de dados restabelecida com sucesso (SELECT 1).");
-          // Re-initialize tables in PostgreSQL if reconnected
-          await initPgDatabase();
         }
         pgConnected = true;
         pgLastError = null;
@@ -576,7 +573,7 @@ function startPostgresHealthCheck() {
       const codeInfo = err.code ? ` (code: ${err.code})` : "";
       pgLastError = `${err.message}${codeInfo}`;
       if (pgConnected === true || lastPgReportedConnected === true) {
-        console.warn(`[PostgreSQL] Conexão pausada: ${err.message}${codeInfo}. Alternando para armazenamento local.`);
+        console.warn(`[PostgreSQL] Conexão indisponível: ${err.message}${codeInfo}`);
       }
       pgConnected = false;
       lastPgReportedConnected = false;
@@ -590,131 +587,16 @@ initPgDatabase();
 startPostgresHealthCheck();
 
 function ensureDatabaseAvailable(req: any, res: any, next: any) {
+  if (req.path === "/health" || req.path === "/system/status") {
+    return next();
+  }
+  if (!pgPool || !pgConnected) {
+    return res.status(503).json({
+      error: "DATABASE_UNAVAILABLE",
+      message: "PostgreSQL offline"
+    });
+  }
   next();
-}
-
-// -------------------------------------------------------------
-// LOCAL FALLBACK STORAGE ENGINE
-// -------------------------------------------------------------
-const LOCAL_DB_PATH = path.join(process.cwd(), "data", "crm_store.json");
-
-interface LocalDatabase {
-  leads: any[];
-  lead_history: any[];
-  workflow_config: any[];
-  portal_config: any[];
-  products: any[];
-  general_settings: any;
-  financial_contracts: any[];
-  financial_installments: any[];
-  broadcast_campaigns: any[];
-}
-
-let localDbCache: LocalDatabase | null = null;
-
-function loadLocalDatabase(): LocalDatabase {
-  if (localDbCache) return localDbCache;
-  try {
-    if (fs.existsSync(LOCAL_DB_PATH)) {
-      const raw = fs.readFileSync(LOCAL_DB_PATH, "utf-8");
-      localDbCache = JSON.parse(raw);
-      if (localDbCache) {
-        if (!Array.isArray(localDbCache.leads)) localDbCache.leads = [];
-        if (!Array.isArray(localDbCache.lead_history)) localDbCache.lead_history = [];
-        if (!Array.isArray(localDbCache.workflow_config)) localDbCache.workflow_config = [...defaultWorkflowConfig];
-        if (!Array.isArray(localDbCache.portal_config)) localDbCache.portal_config = [...defaultPortalConfig];
-        if (!Array.isArray(localDbCache.products)) localDbCache.products = [...defaultProducts];
-        if (!Array.isArray(localDbCache.financial_contracts)) localDbCache.financial_contracts = [];
-        if (!Array.isArray(localDbCache.financial_installments)) localDbCache.financial_installments = [];
-        if (!Array.isArray(localDbCache.broadcast_campaigns)) localDbCache.broadcast_campaigns = [];
-        return localDbCache;
-      }
-    }
-  } catch (err) {
-    console.warn("[Armazenamento Local] Carregando estrutura padrão devido a aviso de leitura:", err);
-  }
-
-  localDbCache = {
-    leads: [],
-    lead_history: [],
-    workflow_config: [...defaultWorkflowConfig],
-    portal_config: [...defaultPortalConfig],
-    products: [...defaultProducts],
-    general_settings: {
-      zoho_mail: {
-        smtp_host: "smtp.zoho.com",
-        smtp_port: 465,
-        user: "contato@casacolomboartesanal.com.br",
-        pass: "",
-        from_name: "Luciana - Casa Colombo",
-        use_ssl: true
-      },
-      waha_whatsapp: {
-        api_url: "",
-        api_key: "",
-        session_name: "default",
-        delay_seconds: 5
-      },
-      redis_lock: {
-        enabled: false,
-        host: "127.0.0.1",
-        port: 6379,
-        username: "",
-        password: "",
-        use_ssl: false,
-        key_template: "pausa:{chatId}",
-        value_template: "bloqueado",
-        expire: true,
-        ttl: 86400
-      },
-      etapas_contato: [
-        "Sem Contato",
-        "Orçamento Enviado",
-        "WhatsApp Enviado",
-        "E-mail Follow-up 1",
-        "WhatsApp Follow-up 2",
-        "E-mail Follow-up 2",
-        "E-mail Final",
-        "Encerrado"
-      ],
-      status_funil: [
-        "Primeiro Contato",
-        "Follow-up 1",
-        "Follow-up 2",
-        "Follow-up 3",
-        "Follow-up Final",
-        "Respondido",
-        "Fechou (Convertido)",
-        "Perdido",
-        "Sem Retorno / Encerrado"
-      ],
-      temperaturas: [
-        "FRIA",
-        "MORNA",
-        "QUENTE",
-        "CLIENTE"
-      ]
-    },
-    financial_contracts: [],
-    financial_installments: [],
-    broadcast_campaigns: []
-  };
-
-  saveLocalDatabase(localDbCache);
-  return localDbCache;
-}
-
-function saveLocalDatabase(data: LocalDatabase): void {
-  localDbCache = data;
-  try {
-    const dir = path.dirname(LOCAL_DB_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(data, null, 2), "utf-8");
-  } catch (err) {
-    console.warn("[Armazenamento Local] Aviso ao persistir dados:", err);
-  }
 }
 
 function parseWeddingDateGlobal(dateStr?: string): Date | null {
@@ -756,49 +638,29 @@ function normalizeTemperatura(temp?: string): string {
   return s;
 }
 
-// Database Helper methods (PostgreSQL with local resilient fallback)
+// Database Helper methods (Strict PostgreSQL Persistence)
 async function getLatestHistoryMap(): Promise<Record<string, any>> {
   const map: Record<string, any> = {};
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query(`
-        SELECT DISTINCT ON (lead_id) lead_id, id, canal, tipo, titulo, detalhes, created_at
-        FROM lead_history
-        ORDER BY lead_id, created_at DESC
-      `);
-      for (const row of res.rows) {
-        map[row.lead_id] = row;
-      }
-      return map;
-    } catch (err: any) {
-      console.warn("Failed to query PostgreSQL latest history map, falling back to local store:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    return map;
   }
-
-  // Local fallback
-  const localDb = loadLocalDatabase();
-  const sortedHist = [...(localDb.lead_history || [])].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-  for (const hist of sortedHist) {
-    if (hist.lead_id && !map[hist.lead_id]) {
-      map[hist.lead_id] = hist;
-    }
+  const res = await pgPool.query(`
+    SELECT DISTINCT ON (lead_id) lead_id, id, canal, tipo, titulo, detalhes, created_at
+    FROM lead_history
+    ORDER BY lead_id, created_at DESC
+  `);
+  for (const row of res.rows) {
+    map[row.lead_id] = row;
   }
   return map;
 }
 
 async function getLeads(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
-      list = res.rows;
-    } catch (err: any) {
-      console.warn("PostgreSQL getLeads failed, reading from local fallback:", err.message);
-      list = [...loadLocalDatabase().leads];
-    }
-  } else {
-    list = [...loadLocalDatabase().leads];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
+  let list = res.rows;
 
   const latestHistoryMap = await getLatestHistoryMap();
 
@@ -839,20 +701,11 @@ async function getLeads(): Promise<any[]> {
 }
 
 async function getLeadById(id: string): Promise<any | null> {
-  let lead: any | null = null;
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
-      lead = res.rows.length > 0 ? res.rows[0] : null;
-    } catch (err: any) {
-      console.warn("PostgreSQL getLeadById failed, falling back to local store:", err.message);
-      const localDb = loadLocalDatabase();
-      lead = localDb.leads.find(l => l.id === id) || null;
-    }
-  } else {
-    const localDb = loadLocalDatabase();
-    lead = localDb.leads.find(l => l.id === id) || null;
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads WHERE id = $1", [id]);
+  const lead = res.rows.length > 0 ? res.rows[0] : null;
 
   if (lead) {
     lead.temperatura = normalizeTemperatura(lead.temperatura);
@@ -879,18 +732,11 @@ async function getLeadById(id: string): Promise<any | null> {
 }
 
 async function getAllLeadsUnfiltered(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
-      list = res.rows;
-    } catch (err: any) {
-      console.warn("PostgreSQL getAllLeadsUnfiltered failed, reading from local fallback:", err.message);
-      list = [...loadLocalDatabase().leads];
-    }
-  } else {
-    list = [...loadLocalDatabase().leads];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM leads ORDER BY created_at DESC");
+  let list = res.rows;
 
   const latestHistoryMap = await getLatestHistoryMap();
   return list.map((l) => {
@@ -989,6 +835,9 @@ async function handleDuplicateAttempt(existingLead: any, sourceName: string, pay
 }
 
 async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   lead.temperatura = normalizeTemperatura(lead.temperatura);
   lead.status_conversa = lead.status_conversa || "NUNCA_RESPONDEU";
   lead.updated_at = new Date().toISOString();
@@ -996,141 +845,92 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
     lead.created_at = lead.created_at || new Date().toISOString();
   }
 
-  // If connected to PostgreSQL, execute SQL query
-  if (pgPool && pgConnected) {
-    try {
-      if (isNew) {
-        const query = `
-          INSERT INTO leads (
-            id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
-            soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
-            observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
-            followup_especial_1m, followup_especial_2m, followup_especial_3m,
-            whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
-            whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
-            ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
-            proxima_atividade_em, tipo_proxima_atividade, observacao_proxima_atividade,
-            created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
-          RETURNING *
-        `;
-        const values = [
-          lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
-          lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
-          lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
-          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
-          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
-          lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
-          lead.created_at, lead.updated_at
-        ];
-        const res = await pgPool.query(query, values);
-        return res.rows[0];
-      } else {
-        const query = `
-          UPDATE leads SET
-            nome = $2, email = $3, link_celular = $4, telefone_limpo = $5, data_casamento = $6, mes_casamento = $7, local = $8,
-            servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
-            status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
-            observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
-            ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
-            whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
-            whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
-            ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
-            proxima_atividade_em = $43, tipo_proxima_atividade = $44, observacao_proxima_atividade = $45,
-            updated_at = $46
-          WHERE id = $1
-          RETURNING *
-        `;
-        const values = [
-          lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local,
-          lead.servicos, lead.convidados, lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5,
-          lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
-          lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
-          lead.ultima_interacao_em, lead.proxima_acao_em,
-          lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
-          Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
-          lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
-          lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
-          lead.proxima_atividade_em !== undefined ? lead.proxima_atividade_em : null,
-          lead.tipo_proxima_atividade !== undefined ? lead.tipo_proxima_atividade : null,
-          lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
-          lead.updated_at
-        ];
-        const res = await pgPool.query(query, values);
-        return res.rows[0];
-      }
-    } catch (err: any) {
-      console.warn("PostgreSQL saveLead falhou, persistindo no armazenamento local:", err.message);
-    }
-  }
-
-  // Local store fallback
-  const localDb = loadLocalDatabase();
-  const existingIdx = localDb.leads.findIndex(l => l.id === lead.id);
-  if (existingIdx >= 0) {
-    localDb.leads[existingIdx] = { ...localDb.leads[existingIdx], ...lead };
-    saveLocalDatabase(localDb);
-    return localDb.leads[existingIdx];
+  if (isNew) {
+    const query = `
+      INSERT INTO leads (
+        id, nome, email, link_celular, telefone_limpo, data_casamento, mes_casamento, local, servicos, convidados,
+        soma1, soma2, soma3, soma4, soma5, status_funil, etapa_contato, temperatura, tentativas_email, tentativas_whatsapp,
+        observacoes, motivo_perda, origem_portal, ultimo_email_em, ultimo_whatsapp_em, ultima_interacao_em, proxima_acao_em,
+        followup_especial_1m, followup_especial_2m, followup_especial_3m,
+        whatsapp_retry_count, whatsapp_retry_stage, email_retry_count, email_retry_stage,
+        whatsapp_validation_status, whatsapp_validation_http_code, whatsapp_validation_error, whatsapp_validated_at,
+        ultima_interacao_acao, ultima_interacao_origem, status_conversa, data_ultima_movimentacao,
+        proxima_atividade_em, tipo_proxima_atividade, observacao_proxima_atividade,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
+      RETURNING *
+    `;
+    const values = [
+      lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local, lead.servicos, lead.convidados,
+      lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5, lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
+      lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em, lead.ultima_interacao_em, lead.proxima_acao_em,
+      lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+      Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+      lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+      lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+      lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
+      lead.created_at, lead.updated_at
+    ];
+    const res = await pgPool.query(query, values);
+    return res.rows[0];
   } else {
-    localDb.leads.unshift(lead);
-    saveLocalDatabase(localDb);
-    return lead;
+    const query = `
+      UPDATE leads SET
+        nome = $2, email = $3, link_celular = $4, telefone_limpo = $5, data_casamento = $6, mes_casamento = $7, local = $8,
+        servicos = $9, convidados = $10, soma1 = $11, soma2 = $12, soma3 = $13, soma4 = $14, soma5 = $15,
+        status_funil = $16, etapa_contato = $17, temperatura = $18, tentativas_email = $19, tentativas_whatsapp = $20,
+        observacoes = $21, motivo_perda = $22, origem_portal = $23, ultimo_email_em = $24, ultimo_whatsapp_em = $25,
+        ultima_interacao_em = $26, proxima_acao_em = $27, followup_especial_1m = $28, followup_especial_2m = $29, followup_especial_3m = $30,
+        whatsapp_retry_count = $31, whatsapp_retry_stage = $32, email_retry_count = $33, email_retry_stage = $34,
+        whatsapp_validation_status = $35, whatsapp_validation_http_code = $36, whatsapp_validation_error = $37, whatsapp_validated_at = $38,
+        ultima_interacao_acao = $39, ultima_interacao_origem = $40, status_conversa = $41, data_ultima_movimentacao = $42,
+        proxima_atividade_em = $43, tipo_proxima_atividade = $44, observacao_proxima_atividade = $45,
+        updated_at = $46
+      WHERE id = $1
+      RETURNING *
+    `;
+    const values = [
+      lead.id, lead.nome, lead.email, lead.link_celular, lead.telefone_limpo, lead.data_casamento, lead.mes_casamento, lead.local,
+      lead.servicos, lead.convidados, lead.soma1, lead.soma2, lead.soma3, lead.soma4, lead.soma5,
+      lead.status_funil, lead.etapa_contato, lead.temperatura, lead.tentativas_email || 0, lead.tentativas_whatsapp || 0,
+      lead.observacoes, lead.motivo_perda, lead.origem_portal, lead.ultimo_email_em, lead.ultimo_whatsapp_em,
+      lead.ultima_interacao_em, lead.proxima_acao_em,
+      lead.followup_especial_1m ? true : false, lead.followup_especial_2m ? true : false, lead.followup_especial_3m ? true : false,
+      Number(lead.whatsapp_retry_count) || 0, lead.whatsapp_retry_stage || null, Number(lead.email_retry_count) || 0, lead.email_retry_stage || null,
+      lead.whatsapp_validation_status || null, lead.whatsapp_validation_http_code !== undefined ? lead.whatsapp_validation_http_code : null, lead.whatsapp_validation_error || null, lead.whatsapp_validated_at || null,
+      lead.ultima_interacao_acao || null, lead.ultima_interacao_origem || null, lead.status_conversa, lead.data_ultima_movimentacao || null,
+      lead.proxima_atividade_em !== undefined ? lead.proxima_atividade_em : null,
+      lead.tipo_proxima_atividade !== undefined ? lead.tipo_proxima_atividade : null,
+      lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
+      lead.updated_at
+    ];
+    const res = await pgPool.query(query, values);
+    return res.rows[0];
   }
 }
 
 async function deleteLeadById(id: string): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
-      const res = await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
-      return (res.rowCount ?? 0) > 0;
-    } catch (err: any) {
-      console.warn("PostgreSQL deleteLeadById falhou, removendo do armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  localDb.lead_history = localDb.lead_history.filter(h => h.lead_id !== id);
-  const prevLen = localDb.leads.length;
-  localDb.leads = localDb.leads.filter(l => l.id !== id);
-  saveLocalDatabase(localDb);
-  return localDb.leads.length < prevLen;
+  await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
+  const res = await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
-      return;
-    } catch (err: any) {
-      console.warn("PostgreSQL remapLeadsFromStage falhou, atualizando armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  for (const l of localDb.leads) {
-    if (l.etapa_contato === oldStage) {
-      l.etapa_contato = newStage;
-    }
-  }
-  saveLocalDatabase(localDb);
+  await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
 }
 
 async function getWorkflowConfigs(): Promise<any[]> {
-  let configs: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
-      configs = res.rows;
-    } catch (err: any) {
-      console.warn("PostgreSQL getWorkflowConfigs falhou, usando armazenamento local:", err.message);
-      configs = [...loadLocalDatabase().workflow_config];
-    }
-  } else {
-    configs = [...loadLocalDatabase().workflow_config];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
+  let configs = res.rows;
 
   if (configs.length === 0) {
     configs = [...defaultWorkflowConfig];
@@ -1150,67 +950,52 @@ async function getWorkflowConfigs(): Promise<any[]> {
 }
 
 async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      const stageEtapas = configs.map(c => c.etapa);
-      if (stageEtapas.length > 0) {
-        await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
-      }
-      for (const stage of configs) {
-        await pgPool.query(`
-          INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (etapa) DO UPDATE SET
-            descricao = EXCLUDED.descricao,
-            canal = EXCLUDED.canal,
-            esperar_dias = EXCLUDED.esperar_dias,
-            proximo_status = EXCLUDED.proximo_status,
-            temperatura = EXCLUDED.temperatura,
-            mensagem_template = EXCLUDED.mensagem_template,
-            assunto_template = EXCLUDED.assunto_template,
-            imagens_template = EXCLUDED.imagens_template,
-            ordem = EXCLUDED.ordem
-        `, [
-          stage.etapa,
-          stage.descricao,
-          stage.canal,
-          stage.esperar_dias,
-          stage.proximo_status,
-          stage.temperatura,
-          stage.mensagem_template,
-          stage.assunto_template,
-          stage.imagens_template,
-          stage.ordem || 0
-        ]);
-      }
-      return true;
-    } catch (err: any) {
-      console.warn("PostgreSQL saveWorkflowConfigs falhou, persistindo no armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  localDb.workflow_config = [...configs];
-  saveLocalDatabase(localDb);
+  const stageEtapas = configs.map(c => c.etapa);
+  if (stageEtapas.length > 0) {
+    await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
+  }
+  for (const stage of configs) {
+    await pgPool.query(`
+      INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (etapa) DO UPDATE SET
+        descricao = EXCLUDED.descricao,
+        canal = EXCLUDED.canal,
+        esperar_dias = EXCLUDED.esperar_dias,
+        proximo_status = EXCLUDED.proximo_status,
+        temperatura = EXCLUDED.temperatura,
+        mensagem_template = EXCLUDED.mensagem_template,
+        assunto_template = EXCLUDED.assunto_template,
+        imagens_template = EXCLUDED.imagens_template,
+        ordem = EXCLUDED.ordem
+    `, [
+      stage.etapa,
+      stage.descricao,
+      stage.canal,
+      stage.esperar_dias,
+      stage.proximo_status,
+      stage.temperatura,
+      stage.mensagem_template,
+      stage.assunto_template,
+      stage.imagens_template,
+      stage.ordem || 0
+    ]);
+  }
   return true;
 }
 
 async function getPortalConfigs(): Promise<any[]> {
-  let list: any[] = [];
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM portal_config");
-      list = res.rows.map(row => ({
-        ...row,
-        ativo: row.automacao_ativa ?? true
-      }));
-    } catch (err: any) {
-      console.warn("PostgreSQL getPortalConfigs falhou, usando armazenamento local:", err.message);
-      list = [...loadLocalDatabase().portal_config];
-    }
-  } else {
-    list = [...loadLocalDatabase().portal_config];
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
+  const res = await pgPool.query("SELECT * FROM portal_config");
+  let list = res.rows.map(row => ({
+    ...row,
+    ativo: row.automacao_ativa ?? true
+  }));
 
   const existingIds = new Set(list.map(p => p.id));
   let addedNew = false;
@@ -1229,99 +1014,66 @@ async function getPortalConfigs(): Promise<any[]> {
 }
 
 async function savePortalConfigs(configs: any[]): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      for (const p of configs) {
-        const activeVal = p.ativo ?? p.automacao_ativa ?? true;
-        await pgPool.query(`
-          INSERT INTO portal_config (id, nome, automacao_ativa, prefixo_filtro, canal_preferencial)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (id) DO UPDATE SET
-            nome = EXCLUDED.nome,
-            automacao_ativa = EXCLUDED.automacao_ativa,
-            prefixo_filtro = EXCLUDED.prefixo_filtro,
-            canal_preferencial = EXCLUDED.canal_preferencial
-        `, [
-          p.id,
-          p.nome,
-          activeVal,
-          p.prefixo_filtro ?? null,
-          p.canal_preferencial ?? null
-        ]);
-      }
-      return true;
-    } catch (err: any) {
-      console.warn("PostgreSQL savePortalConfigs falhou, persistindo no armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  localDb.portal_config = [...configs];
-  saveLocalDatabase(localDb);
+  for (const p of configs) {
+    const activeVal = p.ativo ?? p.automacao_ativa ?? true;
+    await pgPool.query(`
+      INSERT INTO portal_config (id, nome, automacao_ativa, prefixo_filtro, canal_preferencial)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO UPDATE SET
+        nome = EXCLUDED.nome,
+        automacao_ativa = EXCLUDED.automacao_ativa,
+        prefixo_filtro = EXCLUDED.prefixo_filtro,
+        canal_preferencial = EXCLUDED.canal_preferencial
+    `, [
+      p.id,
+      p.nome,
+      activeVal,
+      p.prefixo_filtro ?? null,
+      p.canal_preferencial ?? null
+    ]);
+  }
   return true;
 }
 
 async function getProducts(): Promise<any[]> {
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
-      if (res.rows.length > 0) {
-        return res.rows.map(row => ({
-          ...row,
-          valor_unitario: Number(row.valor_unitario)
-        }));
-      }
-    } catch (err: any) {
-      console.warn("PostgreSQL getProducts falhou, usando armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  if (localDb.products && localDb.products.length > 0) {
-    return localDb.products.map(p => ({
-      ...p,
-      valor_unitario: Number(p.valor_unitario)
-    }));
-  }
-  return defaultProducts;
+  const res = await pgPool.query("SELECT * FROM products ORDER BY id ASC");
+  if (res.rows.length === 0) return defaultProducts;
+  return res.rows.map(row => ({
+    ...row,
+    valor_unitario: Number(row.valor_unitario)
+  }));
 }
 
 async function saveProduct(p: any): Promise<boolean> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   let existingProducts: any[] = [];
   try {
     existingProducts = await getProducts();
   } catch (e) {}
   const oldProd = existingProducts.find((item: any) => item.id === p.id);
 
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO products (id, descricao, valor_unitario, link_imagem, created_at)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id) DO UPDATE SET
-          descricao = EXCLUDED.descricao,
-          valor_unitario = EXCLUDED.valor_unitario,
-          link_imagem = EXCLUDED.link_imagem
-      `, [
-        p.id,
-        p.descricao,
-        p.valor_unitario,
-        p.link_imagem,
-        new Date().toISOString()
-      ]);
-    } catch (err: any) {
-      console.warn("PostgreSQL saveProduct falhou, persistindo no armazenamento local:", err.message);
-    }
-  }
-
-  const localDb = loadLocalDatabase();
-  const prodIdx = localDb.products.findIndex(prod => prod.id === p.id);
-  if (prodIdx >= 0) {
-    localDb.products[prodIdx] = { ...localDb.products[prodIdx], ...p };
-  } else {
-    localDb.products.push(p);
-  }
-  saveLocalDatabase(localDb);
+  await pgPool.query(`
+    INSERT INTO products (id, descricao, valor_unitario, link_imagem, created_at)
+    VALUES ($1, $2, $3, $4, $5)
+    ON CONFLICT (id) DO UPDATE SET
+      descricao = EXCLUDED.descricao,
+      valor_unitario = EXCLUDED.valor_unitario,
+      link_imagem = EXCLUDED.link_imagem
+  `, [
+    p.id,
+    p.descricao,
+    p.valor_unitario,
+    p.link_imagem,
+    new Date().toISOString()
+  ]);
 
   // Sync saved workflow templates so they dynamically update if static image URLs or prices were used
   try {
@@ -1372,20 +1124,17 @@ async function saveProduct(p: any): Promise<boolean> {
 }
 
 async function deleteProduct(id: string): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query("DELETE FROM products WHERE id = $1", [id]);
-    } catch (err: any) {
-      console.warn("PostgreSQL deleteProduct falhou, removendo do armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-  const localDb = loadLocalDatabase();
-  localDb.products = localDb.products.filter(p => p.id !== id);
-  saveLocalDatabase(localDb);
+  await pgPool.query("DELETE FROM products WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialContracts(): Promise<any[]> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const parseContract = (row: any) => {
     const total = Number(row.total_value) || 0;
     const freight = Number(row.freight_value) || 0;
@@ -1403,101 +1152,68 @@ async function getFinancialContracts(): Promise<any[]> {
     };
   };
 
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
-      return res.rows.map(parseContract);
-    } catch (err: any) {
-      console.warn("PostgreSQL getFinancialContracts falhou, usando armazenamento local:", err.message);
-    }
-  }
-
-  const localDb = loadLocalDatabase();
-  return (localDb.financial_contracts || []).map(parseContract);
+  const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
+  return res.rows.map(parseContract);
 }
 
 async function saveFinancialContract(c: any): Promise<boolean> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const totalVal = Number(c.total_value) || 0;
   const freightVal = Number(c.freight_value) || 0;
   const discountVal = Number(c.discount_value) || 0;
   const finalVal = c.final_value !== undefined ? Number(c.final_value) : Math.max(0, totalVal + freightVal - discountVal);
 
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        ON CONFLICT (id) DO UPDATE SET
-          lead_id = EXCLUDED.lead_id,
-          contract_number = EXCLUDED.contract_number,
-          contract_date = EXCLUDED.contract_date,
-          total_value = EXCLUDED.total_value,
-          freight_value = EXCLUDED.freight_value,
-          discount_value = EXCLUDED.discount_value,
-          final_value = EXCLUDED.final_value,
-          payment_method = EXCLUDED.payment_method,
-          installments_count = EXCLUDED.installments_count,
-          down_payment = EXCLUDED.down_payment,
-          status = EXCLUDED.status,
-          observations = EXCLUDED.observations,
-          updated_at = EXCLUDED.updated_at
-      `, [
-        c.id,
-        c.lead_id,
-        c.contract_number,
-        c.contract_date,
-        totalVal,
-        freightVal,
-        discountVal,
-        finalVal,
-        c.payment_method,
-        c.installments_count,
-        c.down_payment,
-        c.status || 'active',
-        c.observations || '',
-        c.created_at || new Date().toISOString(),
-        new Date().toISOString()
-      ]);
-    } catch (err: any) {
-      console.warn("PostgreSQL saveFinancialContract falhou, persistindo no armazenamento local:", err.message);
-    }
-  }
-
-  const localDb = loadLocalDatabase();
-  const idx = localDb.financial_contracts.findIndex(fc => fc.id === c.id);
-  const contractToSave = {
-    ...c,
-    total_value: totalVal,
-    freight_value: freightVal,
-    discount_value: discountVal,
-    final_value: finalVal,
-    updated_at: new Date().toISOString()
-  };
-  if (idx >= 0) {
-    localDb.financial_contracts[idx] = contractToSave;
-  } else {
-    localDb.financial_contracts.unshift(contractToSave);
-  }
-  saveLocalDatabase(localDb);
+  await pgPool.query(`
+    INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ON CONFLICT (id) DO UPDATE SET
+      lead_id = EXCLUDED.lead_id,
+      contract_number = EXCLUDED.contract_number,
+      contract_date = EXCLUDED.contract_date,
+      total_value = EXCLUDED.total_value,
+      freight_value = EXCLUDED.freight_value,
+      discount_value = EXCLUDED.discount_value,
+      final_value = EXCLUDED.final_value,
+      payment_method = EXCLUDED.payment_method,
+      installments_count = EXCLUDED.installments_count,
+      down_payment = EXCLUDED.down_payment,
+      status = EXCLUDED.status,
+      observations = EXCLUDED.observations,
+      updated_at = EXCLUDED.updated_at
+  `, [
+    c.id,
+    c.lead_id,
+    c.contract_number,
+    c.contract_date,
+    totalVal,
+    freightVal,
+    discountVal,
+    finalVal,
+    c.payment_method,
+    c.installments_count,
+    c.down_payment,
+    c.status || 'active',
+    c.observations || '',
+    c.created_at || new Date().toISOString(),
+    new Date().toISOString()
+  ]);
   return true;
 }
 
 async function deleteFinancialContract(id: string): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
-    } catch (err: any) {
-      console.warn("PostgreSQL deleteFinancialContract falhou, removendo do armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-  const localDb = loadLocalDatabase();
-  localDb.financial_contracts = localDb.financial_contracts.filter(fc => fc.id !== id);
-  localDb.financial_installments = localDb.financial_installments.filter(fi => fi.contract_id !== id);
-  saveLocalDatabase(localDb);
+  await pgPool.query("DELETE FROM financial_contracts WHERE id = $1", [id]);
   return true;
 }
 
 async function getFinancialInstallments(): Promise<any[]> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const parseInstallment = (row: any) => ({
     ...row,
     installment_number: Number(row.installment_number),
@@ -1505,100 +1221,67 @@ async function getFinancialInstallments(): Promise<any[]> {
     paid_value: row.paid_value ? Number(row.paid_value) : null
   });
 
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
-      return res.rows.map(parseInstallment);
-    } catch (err: any) {
-      console.warn("PostgreSQL getFinancialInstallments falhou, usando armazenamento local:", err.message);
-    }
-  }
-
-  const localDb = loadLocalDatabase();
-  return (localDb.financial_installments || []).map(parseInstallment);
+  const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
+  return res.rows.map(parseInstallment);
 }
 
 async function saveFinancialInstallment(i: any): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        ON CONFLICT (id) DO UPDATE SET
-          contract_id = EXCLUDED.contract_id,
-          installment_number = EXCLUDED.installment_number,
-          due_date = EXCLUDED.due_date,
-          value = EXCLUDED.value,
-          status = EXCLUDED.status,
-          paid_date = EXCLUDED.paid_date,
-          paid_value = EXCLUDED.paid_value,
-          payment_method = EXCLUDED.payment_method,
-          payment_observations = EXCLUDED.payment_observations,
-          receipt_number = EXCLUDED.receipt_number,
-          updated_at = EXCLUDED.updated_at
-      `, [
-        i.id,
-        i.contract_id,
-        i.installment_number,
-        i.due_date,
-        i.value,
-        i.status || 'pending',
-        i.paid_date || null,
-        i.paid_value || null,
-        i.payment_method || null,
-        i.payment_observations || null,
-        i.receipt_number || null,
-        i.created_at || new Date().toISOString(),
-        new Date().toISOString()
-      ]);
-    } catch (err: any) {
-      console.warn("PostgreSQL saveFinancialInstallment falhou, persistindo no armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  const idx = localDb.financial_installments.findIndex(inst => inst.id === i.id);
-  const instToSave = { ...i, updated_at: new Date().toISOString() };
-  if (idx >= 0) {
-    localDb.financial_installments[idx] = instToSave;
-  } else {
-    localDb.financial_installments.push(instToSave);
-  }
-  saveLocalDatabase(localDb);
+  await pgPool.query(`
+    INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    ON CONFLICT (id) DO UPDATE SET
+      contract_id = EXCLUDED.contract_id,
+      installment_number = EXCLUDED.installment_number,
+      due_date = EXCLUDED.due_date,
+      value = EXCLUDED.value,
+      status = EXCLUDED.status,
+      paid_date = EXCLUDED.paid_date,
+      paid_value = EXCLUDED.paid_value,
+      payment_method = EXCLUDED.payment_method,
+      payment_observations = EXCLUDED.payment_observations,
+      receipt_number = EXCLUDED.receipt_number,
+      updated_at = EXCLUDED.updated_at
+  `, [
+    i.id,
+    i.contract_id,
+    i.installment_number,
+    i.due_date,
+    i.value,
+    i.status || 'pending',
+    i.paid_date || null,
+    i.paid_value || null,
+    i.payment_method || null,
+    i.payment_observations || null,
+    i.receipt_number || null,
+    i.created_at || new Date().toISOString(),
+    new Date().toISOString()
+  ]);
   return true;
 }
 
 async function deleteFinancialInstallmentsByContract(contractId: string): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
-    } catch (err: any) {
-      console.warn("PostgreSQL deleteFinancialInstallmentsByContract falhou, removendo do armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-  const localDb = loadLocalDatabase();
-  localDb.financial_installments = localDb.financial_installments.filter(fi => fi.contract_id !== contractId);
-  saveLocalDatabase(localDb);
+  await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
   return true;
 }
 
 async function getLeadHistory(leadId: string): Promise<any[]> {
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
-      return res.rows;
-    } catch (err: any) {
-      console.warn("PostgreSQL getLeadHistory falhou, buscando no armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  return (localDb.lead_history || [])
-    .filter(h => h.lead_id === leadId)
-    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  const res = await pgPool.query("SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC", [leadId]);
+  return res.rows;
 }
 
 async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
   const newEntry = {
     id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     lead_id: leadId,
@@ -1615,57 +1298,32 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
     entry.canal === "MANUAL" ? "Manual / CRM" : "Sistema"
   );
 
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
+  await pgPool.query(`
+    INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
 
-      await pgPool.query(`
-        UPDATE leads
-        SET ultima_interacao_em = $1,
-            ultima_interacao_acao = $2,
-            ultima_interacao_origem = $3,
-            updated_at = $1
-        WHERE id = $4
-      `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
-    } catch (err: any) {
-      console.warn("PostgreSQL addHistoryEntry falhou, persistindo no histórico local:", err.message);
-    }
-  }
-
-  const localDb = loadLocalDatabase();
-  localDb.lead_history.unshift(newEntry);
-  const targetLead = localDb.leads.find(l => l.id === leadId);
-  if (targetLead) {
-    targetLead.ultima_interacao_em = newEntry.created_at;
-    targetLead.ultima_interacao_acao = newEntry.titulo || newEntry.tipo;
-    targetLead.ultima_interacao_origem = calcOrigem;
-    targetLead.updated_at = newEntry.created_at;
-  }
-  saveLocalDatabase(localDb);
+  await pgPool.query(`
+    UPDATE leads
+    SET ultima_interacao_em = $1,
+        ultima_interacao_acao = $2,
+        ultima_interacao_origem = $3,
+        updated_at = $1
+    WHERE id = $4
+  `, [newEntry.created_at, newEntry.titulo || newEntry.tipo, calcOrigem, leadId]);
 
   return newEntry;
 }
 
 // Settings Helpers
 async function getGeneralSettings(): Promise<any> {
-  let settings: any = null;
-  if (pgPool && pgConnected) {
-    try {
-      const res = await pgPool.query("SELECT settings FROM general_settings WHERE id = 1");
-      if (res.rows.length > 0) {
-        settings = res.rows[0].settings;
-      }
-    } catch (err: any) {
-      console.warn("PostgreSQL getGeneralSettings falhou, usando armazenamento local:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  if (!settings) {
-    const localDb = loadLocalDatabase();
-    settings = localDb.general_settings;
+  let settings: any = null;
+  const res = await pgPool.query("SELECT settings FROM general_settings WHERE id = 1");
+  if (res.rows.length > 0) {
+    settings = res.rows[0].settings;
   }
 
   if (!settings) {
@@ -1772,21 +1430,14 @@ async function getGeneralSettings(): Promise<any> {
 }
 
 async function saveGeneralSettings(settings: any): Promise<boolean> {
-  if (pgPool && pgConnected) {
-    try {
-      await pgPool.query(`
-        INSERT INTO general_settings (id, settings)
-        VALUES (1, $1)
-        ON CONFLICT (id) DO UPDATE SET settings = EXCLUDED.settings
-      `, [JSON.stringify(settings)]);
-    } catch (err: any) {
-      console.warn("PostgreSQL saveGeneralSettings falhou, salvando localmente:", err.message);
-    }
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
   }
-
-  const localDb = loadLocalDatabase();
-  localDb.general_settings = settings;
-  saveLocalDatabase(localDb);
+  await pgPool.query(`
+    INSERT INTO general_settings (id, settings)
+    VALUES (1, $1)
+    ON CONFLICT (id) DO UPDATE SET settings = EXCLUDED.settings
+  `, [JSON.stringify(settings)]);
   return true;
 }
 

@@ -19,11 +19,9 @@ A aplicação é dividida em duas camadas principais operando de forma integrada
    * Utiliza **Lucide React** para iconografia unificada e **Recharts** para relatórios e indicadores dinâmicos.
    * Totalmente modularizada para prevenir sobrecarga de arquivos e garantir legibilidade técnica.
 
-2. **Backend (Node.js + Express + PostgreSQL / JSON Fallback):**
+2. **Backend (Node.js + Express + PostgreSQL):**
    * Servidor integrado em `server.ts` que gerencia toda a lógica de persistência, disparadores automáticos (scheduler), envio de e-mails, despachos de WhatsApp e webhooks de entrada.
-   * **Modo Dual-Database Inteligente:**
-     * **Modo Produção (Banco Relacional):** Conecta-se nativamente a um servidor de banco de dados **PostgreSQL** através da variável de ambiente `DATABASE_URL` (ideal para o LXC Proxmox).
-     * **Modo Simulação (Sem Nuvem/Local):** Caso a variável `DATABASE_URL` não esteja definida, o CRM armazena e lê os dados automaticamente em um arquivo estruturado `database.json`, o que permite testes locais rápidos e total portabilidade sem infraestrutura prévia.
+   * **Persistência PostgreSQL Exclusiva:** Conecta-se diretamente ao servidor de banco de dados **PostgreSQL** através da variável de ambiente `DATABASE_URL` (Supabase em desenvolvimento ou Home Lab/LXC Proxmox em produção). Não possui fallback local.
    * **Compilação CJS com esbuild:** No processo de build, o backend TypeScript é empacotado em um único arquivo otimizado `dist/server.cjs` para evitar problemas de caminhos e garantir inicializações extremamente rápidas.
 
 ---
@@ -161,7 +159,6 @@ O sistema foi otimizado para rodar de forma auto-hospedada em sua infraestrutura
 
 ### 💾 Arquivos e Volumes Principais
 * `docker-compose.yml`: Define a orquestração do container do CRM.
-* `database.json`: Usado como banco de dados NoSQL portátil caso você opte por não configurar um banco de dados relacional tradicional.
 * `.env.example`: Modelo de variáveis de ambiente.
 
 ### 🌐 Variáveis de Ambiente Necessárias (`.env`)
