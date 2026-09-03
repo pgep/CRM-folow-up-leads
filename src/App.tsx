@@ -257,6 +257,9 @@ export default function App() {
       if (res.ok) {
         if (data.duplicate) {
           toast.warning(`Lead já cadastrado previamente! Tentativa registrada no histórico de "${data.nome}".`);
+        } else if (data.automation_error) {
+          toast.success(`Lead "${data.nome}" cadastrado com sucesso!`);
+          toast.warning(`Aviso: O lead foi salvo com sucesso, mas a automação inicial externa reportou falha (${data.automation_error}).`);
         } else {
           toast.success(`Lead "${data.nome}" cadastrado com sucesso!`);
         }

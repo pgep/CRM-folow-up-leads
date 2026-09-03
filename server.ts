@@ -823,19 +823,33 @@ async function handleDuplicateAttempt(existingLead: any, sourceName: string, pay
     existingLead.observacoes = (existingLead.observacoes ? existingLead.observacoes + "\n\n" : "") + `[Tentativa Recadastro - ${sourceName}]: ${obs}`;
   }
 
-  await addHistoryEntry(existingLead.id, {
-    canal: "SISTEMA",
-    tipo: "IMPORT",
-    titulo: `Tentativa de Recadastro Bloqueada (${sourceName})`,
-    detalhes: detailsText
-  });
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+    await addHistoryEntry(existingLead.id, {
+      canal: "SISTEMA",
+      tipo: "IMPORT",
+      titulo: `Tentativa de Recadastro Bloqueada (${sourceName})`,
+      detalhes: detailsText
+    }, client);
 
-  const updated = await saveLead(existingLead, false);
-  return updated;
+    const updated = await saveLead(existingLead, false, client);
+    await client.query("COMMIT");
+    return updated;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
-  if (!pgPool || !pgConnected) {
+async function saveLead(lead: any, isNew: boolean = false, client?: any): Promise<any> {
+  const executor = client || pgPool;
+  if (!executor || (!client && !pgConnected)) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
   lead.temperatura = normalizeTemperatura(lead.temperatura);
@@ -871,7 +885,7 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
       lead.proxima_atividade_em || null, lead.tipo_proxima_atividade || null, lead.observacao_proxima_atividade || null,
       lead.created_at, lead.updated_at
     ];
-    const res = await pgPool.query(query, values);
+    const res = await executor.query(query, values);
     return res.rows[0];
   } else {
     const query = `
@@ -904,8 +918,30 @@ async function saveLead(lead: any, isNew: boolean = false): Promise<any> {
       lead.observacao_proxima_atividade !== undefined ? lead.observacao_proxima_atividade : null,
       lead.updated_at
     ];
-    const res = await pgPool.query(query, values);
+    const res = await executor.query(query, values);
     return res.rows[0];
+  }
+}
+
+async function createLeadWithInitialHistory(
+  newLead: any,
+  initialHistory: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }
+): Promise<any> {
+  if (!pgPool || !pgConnected) {
+    throw new Error("PostgreSQL database is offline or unavailable");
+  }
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+    const saved = await saveLead(newLead, true, client);
+    await addHistoryEntry(saved.id, initialHistory, client);
+    await client.query("COMMIT");
+    return saved;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -913,9 +949,19 @@ async function deleteLeadById(id: string): Promise<boolean> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  await pgPool.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
-  const res = await pgPool.query("DELETE FROM leads WHERE id = $1", [id]);
-  return (res.rowCount ?? 0) > 0;
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM lead_history WHERE lead_id = $1", [id]);
+    const res = await client.query("DELETE FROM leads WHERE id = $1", [id]);
+    await client.query("COMMIT");
+    return (res.rowCount ?? 0) > 0;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
@@ -1278,8 +1324,9 @@ async function getLeadHistory(leadId: string): Promise<any[]> {
   return res.rows;
 }
 
-async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }): Promise<any> {
-  if (!pgPool || !pgConnected) {
+async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: string; titulo: string; detalhes?: string; origem?: string }, client?: any): Promise<any> {
+  const executor = client || pgPool;
+  if (!executor || (!client && !pgConnected)) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
   const newEntry = {
@@ -1298,12 +1345,12 @@ async function addHistoryEntry(leadId: string, entry: { canal: string; tipo: str
     entry.canal === "MANUAL" ? "Manual / CRM" : "Sistema"
   );
 
-  await pgPool.query(`
+  await executor.query(`
     INSERT INTO lead_history (id, lead_id, canal, tipo, titulo, detalhes, created_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
   `, [newEntry.id, newEntry.lead_id, newEntry.canal, newEntry.tipo, newEntry.titulo, newEntry.detalhes, newEntry.created_at]);
 
-  await pgPool.query(`
+  await executor.query(`
     UPDATE leads
     SET ultima_interacao_em = $1,
         ultima_interacao_acao = $2,
@@ -2134,6 +2181,7 @@ app.get("/api/system/status", (req, res) => {
   res.json({
     database: "PostgreSQL",
     pgConnected: Boolean(pgPool && pgConnected),
+    pgLastError: pgLastError,
     timestamp: new Date().toISOString()
   });
 });
@@ -2253,29 +2301,43 @@ app.post("/api/leads", async (req, res) => {
       proxima_acao_em: proximaAcaoEm
     };
 
-    const saved = await saveLead(newLead, true);
+    const initialHistory = shouldSendNow ? {
+      canal: "SISTEMA",
+      tipo: "IMPORT",
+      titulo: "Lead Criado Manualmente",
+      detalhes: `Lead registrado diretamente no CRM. Origem: ${origem_portal || "Manual"}`
+    } : {
+      canal: "SISTEMA",
+      tipo: "IMPORT",
+      titulo: "Lead Criado Manualmente (1ª Mensagem Agendada)",
+      detalhes: `Lead registrado no CRM. 1ª mensagem da sequência agendada para 3 dias após o cadastro (${new Date(proximaAcaoEm).toLocaleDateString("pt-BR")}).`
+    };
 
+    // 1. Atomic transaction for Lead + Initial History (PostgreSQL BEGIN/COMMIT/ROLLBACK)
+    const saved = await createLeadWithInitialHistory(newLead, initialHistory);
+
+    // 2. Automação Externa FORA da transação (pós-commit)
+    let automationError: string | null = null;
     if (shouldSendNow) {
-      await addHistoryEntry(leadId, {
-        canal: "SISTEMA",
-        tipo: "IMPORT",
-        titulo: "Lead Criado Manualmente",
-        detalhes: `Lead registrado diretamente no CRM. Origem: ${origem_portal || "Manual"}`
-      });
-
-      // Roda a sequência de número 1 do fluxo imediatamente para o novo lead criado manualmente
-      await runAutomationForNewWebhookLead(saved);
-    } else {
-      const date3DaysFormatted = new Date(proximaAcaoEm).toLocaleDateString("pt-BR");
-      await addHistoryEntry(leadId, {
-        canal: "SISTEMA",
-        tipo: "IMPORT",
-        titulo: "Lead Criado Manualmente (1ª Mensagem Agendada)",
-        detalhes: `Lead registrado no CRM. 1ª mensagem da sequência agendada para 3 dias após o cadastro (${date3DaysFormatted}).`
-      });
+      try {
+        await runAutomationForNewWebhookLead(saved);
+      } catch (automationErr: any) {
+        console.error("[Automação Externa] Falha no disparo pós-commit do lead:", automationErr);
+        automationError = automationErr?.message || String(automationErr);
+        await addHistoryEntry(leadId, {
+          canal: "SISTEMA",
+          tipo: "ERRO",
+          titulo: "Falha na Automação Inicial",
+          detalhes: `Lead cadastrado com sucesso, mas a automação externa falhou: ${automationError}`
+        }).catch((e) => console.error("Erro ao registrar log de falha de automação:", e));
+      }
     }
 
-    res.status(201).json(saved);
+    res.status(201).json({
+      ...saved,
+      automation_success: !automationError,
+      ...(automationError ? { automation_error: automationError } : {})
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -2314,32 +2376,44 @@ app.put("/api/leads/:id", async (req, res) => {
       updatedLead.telefone_limpo = req.body.link_celular.replace(/\D/g, "");
     }
 
-    const saved = await saveLead(updatedLead, false);
+    const client = await pgPool.connect();
+    let saved: any;
+    try {
+      await client.query("BEGIN");
+      saved = await saveLead(updatedLead, false, client);
 
-    // Timeline logging
-    if (statusChanged) {
-      await addHistoryEntry(existing.id, {
-        canal: "SISTEMA",
-        tipo: "STATUS_CHANGE",
-        titulo: "Status Alterado",
-        detalhes: `De "${existing.status_funil}" para "${req.body.status_funil}". Motivo/Obs: ${req.body.observacoes || "Alteração manual"}`
-      });
-    }
-    if (stageChanged) {
-      await addHistoryEntry(existing.id, {
-        canal: "SISTEMA",
-        tipo: "STATUS_CHANGE",
-        titulo: "Etapa de Contato Alterada",
-        detalhes: `De "${existing.etapa_contato}" para "${req.body.etapa_contato}".`
-      });
-    }
-    if (statusConversaChanged) {
-      await addHistoryEntry(existing.id, {
-        canal: "SISTEMA",
-        tipo: "STATUS_CHANGE",
-        titulo: "Status da Conversa Alterado",
-        detalhes: `Status da conversa alterado de "${existing.status_conversa || 'NUNCA_RESPONDEU'}" para "${req.body.status_conversa}".`
-      });
+      // Timeline logging
+      if (statusChanged) {
+        await addHistoryEntry(existing.id, {
+          canal: "SISTEMA",
+          tipo: "STATUS_CHANGE",
+          titulo: "Status Alterado",
+          detalhes: `De "${existing.status_funil}" para "${req.body.status_funil}". Motivo/Obs: ${req.body.observacoes || "Alteração manual"}`
+        }, client);
+      }
+      if (stageChanged) {
+        await addHistoryEntry(existing.id, {
+          canal: "SISTEMA",
+          tipo: "STATUS_CHANGE",
+          titulo: "Etapa de Contato Alterada",
+          detalhes: `De "${existing.etapa_contato}" para "${req.body.etapa_contato}".`
+        }, client);
+      }
+      if (statusConversaChanged) {
+        await addHistoryEntry(existing.id, {
+          canal: "SISTEMA",
+          tipo: "STATUS_CHANGE",
+          titulo: "Status da Conversa Alterado",
+          detalhes: `Status da conversa alterado de "${existing.status_conversa || 'NUNCA_RESPONDEU'}" para "${req.body.status_conversa}".`
+        }, client);
+      }
+
+      await client.query("COMMIT");
+    } catch (err: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
     }
 
     res.json(saved);
@@ -2370,14 +2444,26 @@ app.patch("/api/leads/:id/status-conversa", async (req, res) => {
       ultima_interacao_em: now
     };
 
-    const saved = await saveLead(updatedLead, false);
+    const client = await pgPool.connect();
+    let saved: any;
+    try {
+      await client.query("BEGIN");
+      saved = await saveLead(updatedLead, false, client);
 
-    await addHistoryEntry(existing.id, {
-      canal: "SISTEMA",
-      tipo: "STATUS_CHANGE",
-      titulo: "Status da Conversa Alterado",
-      detalhes: `Status da conversa alterado de "${oldStatus}" para "${status_conversa}".`
-    });
+      await addHistoryEntry(existing.id, {
+        canal: "SISTEMA",
+        tipo: "STATUS_CHANGE",
+        titulo: "Status da Conversa Alterado",
+        detalhes: `Status da conversa alterado de "${oldStatus}" para "${status_conversa}".`
+      }, client);
+
+      await client.query("COMMIT");
+    } catch (err: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json(saved);
   } catch (err: any) {
@@ -2406,14 +2492,26 @@ app.put("/api/leads/:id/next-activity", async (req, res) => {
       observacao_proxima_atividade: observacao_proxima_atividade !== undefined ? observacao_proxima_atividade : existing.observacao_proxima_atividade || ""
     };
 
-    const saved = await saveLead(updatedLead, false);
+    const client = await pgPool.connect();
+    let saved: any;
+    try {
+      await client.query("BEGIN");
+      saved = await saveLead(updatedLead, false, client);
 
-    await addHistoryEntry(existing.id, {
-      canal: "MANUAL",
-      tipo: "NOTA_MANUAL",
-      titulo: logTitle,
-      detalhes: `- Tipo: ${updatedLead.tipo_proxima_atividade}\n- Data prevista: ${updatedLead.proxima_atividade_em}\n- Observação: ${updatedLead.observacao_proxima_atividade || "Sem observação"}`
-    });
+      await addHistoryEntry(existing.id, {
+        canal: "MANUAL",
+        tipo: "NOTA_MANUAL",
+        titulo: logTitle,
+        detalhes: `- Tipo: ${updatedLead.tipo_proxima_atividade}\n- Data prevista: ${updatedLead.proxima_atividade_em}\n- Observação: ${updatedLead.observacao_proxima_atividade || "Sem observação"}`
+      }, client);
+
+      await client.query("COMMIT");
+    } catch (err: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json(saved);
   } catch (err: any) {
@@ -2438,14 +2536,26 @@ app.post("/api/leads/:id/next-activity/complete", async (req, res) => {
       observacao_proxima_atividade: null
     };
 
-    const saved = await saveLead(updatedLead, false);
+    const client = await pgPool.connect();
+    let saved: any;
+    try {
+      await client.query("BEGIN");
+      saved = await saveLead(updatedLead, false, client);
 
-    await addHistoryEntry(existing.id, {
-      canal: "MANUAL",
-      tipo: "NOTA_MANUAL",
-      titulo: "Atividade concluída",
-      detalhes: `- Tipo: ${prevType}\n- Data prevista: ${prevDate}\n- Observação: ${prevObs}`
-    });
+      await addHistoryEntry(existing.id, {
+        canal: "MANUAL",
+        tipo: "NOTA_MANUAL",
+        titulo: "Atividade concluída",
+        detalhes: `- Tipo: ${prevType}\n- Data prevista: ${prevDate}\n- Observação: ${prevObs}`
+      }, client);
+
+      await client.query("COMMIT");
+    } catch (err: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json(saved);
   } catch (err: any) {
@@ -2517,17 +2627,29 @@ app.post("/api/leads/:id/notes", async (req, res) => {
     const existing = await getLeadById(req.params.id);
     if (!existing) return res.status(404).json({ error: "Lead not found" });
 
-    const history = await addHistoryEntry(existing.id, {
-      canal: "MANUAL",
-      tipo: "NOTA_MANUAL",
-      titulo: "Nota de Atendimento",
-      detalhes: nota
-    });
+    const client = await pgPool.connect();
+    let history: any;
+    try {
+      await client.query("BEGIN");
+      history = await addHistoryEntry(existing.id, {
+        canal: "MANUAL",
+        tipo: "NOTA_MANUAL",
+        titulo: "Nota de Atendimento",
+        detalhes: nota
+      }, client);
 
-    // Also update lead's observations
-    existing.observacoes = `${existing.observacoes || ""}\n[Nota ${new Date().toLocaleDateString("pt-BR")}]: ${nota}`.trim();
-    existing.ultima_interacao_em = new Date().toISOString();
-    await saveLead(existing, false);
+      // Also update lead's observations
+      existing.observacoes = `${existing.observacoes || ""}\n[Nota ${new Date().toLocaleDateString("pt-BR")}]: ${nota}`.trim();
+      existing.ultima_interacao_em = new Date().toISOString();
+      await saveLead(existing, false, client);
+
+      await client.query("COMMIT");
+    } catch (err: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json(history);
   } catch (err: any) {
@@ -2580,6 +2702,7 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
     }
 
     let dispatchStatus = "";
+    let historyEntryToSave: any = null;
 
     if (canal === "WHATSAPP") {
       updatedLead.tentativas_whatsapp = (Number(lead.tentativas_whatsapp) || 0) + 1;
@@ -2597,7 +2720,7 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
         updatedLead.status_funil = "Sem WhatsApp";
         updatedLead.etapa_contato = "Sem WhatsApp";
 
-        await addHistoryEntry(lead.id, {
+        historyEntryToSave = {
           canal: "WHATSAPP",
           tipo: "ENVIO",
           titulo: "Número sem WhatsApp",
@@ -2608,10 +2731,10 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
               • Validado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
               • Detalhes do WAHA: ${dispatchResult.errorMessage || "O número não possui conta ativa no WhatsApp"}
             </small>`
-        });
+        };
       } else if (!dispatchResult.success) {
         const rotuloErro = dispatchResult.code === "ERRO_TEMPORARIO_WAHA" ? "Erro Temporário (WAHA)" : "Erro de Comunicação";
-        await addHistoryEntry(lead.id, {
+        historyEntryToSave = {
           canal: "WHATSAPP",
           tipo: "ENVIO",
           titulo: `Falha de Envio: ${rotuloErro}`,
@@ -2623,9 +2746,9 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
               • Validado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}<br/>
               • Detalhes do WAHA: ${dispatchResult.errorMessage || dispatchStatus}
             </small>`
-        });
+        };
       } else {
-        await addHistoryEntry(lead.id, {
+        historyEntryToSave = {
           canal: "WHATSAPP",
           tipo: "ENVIO",
           titulo: titulo_historico || "Mensagem Especial WhatsApp",
@@ -2636,7 +2759,7 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
               • Status HTTP: ${dispatchResult.httpCode}<br/>
               • Validado e Enviado em: ${new Date(dispatchResult.validatedAt).toLocaleString("pt-BR")}
             </small>`
-        });
+        };
       }
     } else if (canal === "EMAIL") {
       updatedLead.tentativas_email = (Number(lead.tentativas_email) || 0) + 1;
@@ -2645,19 +2768,33 @@ app.post("/api/leads/:id/send-message", async (req, res) => {
       const dispatchResult = await dispatchEmailMessage(lead.email, finalSubject, finalBody);
       dispatchStatus = dispatchResult.log;
 
-      await addHistoryEntry(lead.id, {
+      historyEntryToSave = {
         canal: "EMAIL",
         tipo: "ENVIO",
         titulo: titulo_historico || "Mensagem Especial E-mail",
         detalhes: `<b>Assunto:</b> ${finalSubject}<br/>${finalBody}<br/><br/><small style="color: #a1a1aa; font-family: monospace;">🚀 ${dispatchStatus}</small>`
-      });
+      };
     }
 
     updatedLead.ultima_interacao_em = new Date().toISOString();
     updatedLead.ultima_interacao_acao = titulo_historico || (canal === "WHATSAPP" ? "Mensagem Especial WhatsApp" : "Mensagem Especial E-mail");
     updatedLead.ultima_interacao_origem = canal === "WHATSAPP" ? "Automação / WhatsApp" : "Automação / E-mail";
     updatedLead.updated_at = new Date().toISOString();
-    await saveLead(updatedLead, false);
+
+    const client = await pgPool.connect();
+    try {
+      await client.query("BEGIN");
+      if (historyEntryToSave) {
+        await addHistoryEntry(lead.id, historyEntryToSave, client);
+      }
+      await saveLead(updatedLead, false, client);
+      await client.query("COMMIT");
+    } catch (dbErr: any) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw dbErr;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, lead: updatedLead });
   } catch (err: any) {
@@ -3957,18 +4094,38 @@ const webhookHandler = async (req: any, res: any) => {
       proxima_acao_em: new Date().toISOString()
     };
 
-    const saved = await saveLead(newLead, true);
-    await addHistoryEntry(leadId, {
+    const initialHistory = {
       canal: "SISTEMA",
       tipo: "IMPORT",
       titulo: `Lead Importado - ${nomePortal}`,
       detalhes: `Integração bem-sucedida! Payload recebido: ${JSON.stringify(leadData)}`
+    };
+
+    // 1. Atomic Transaction (PostgreSQL BEGIN / COMMIT / ROLLBACK)
+    const saved = await createLeadWithInitialHistory(newLead, initialHistory);
+
+    // 2. Automação Externa FORA da transação (pós-commit)
+    let automationError: string | null = null;
+    try {
+      await runAutomationForNewWebhookLead(saved);
+    } catch (automationErr: any) {
+      console.error("[Webhook Automation] Falha externa no envio imediato:", automationErr);
+      automationError = automationErr?.message || String(automationErr);
+      await addHistoryEntry(leadId, {
+        canal: "SISTEMA",
+        tipo: "ERRO",
+        titulo: "Falha na Automação Inicial",
+        detalhes: `Lead importado com sucesso, mas a automação externa falhou: ${automationError}`
+      }).catch(() => {});
+    }
+
+    res.status(201).json({
+      success: true,
+      lead_id: leadId,
+      lead: saved,
+      automation_success: !automationError,
+      ...(automationError ? { automation_error: automationError } : {})
     });
-
-    // Send sequence 1 immediately
-    await runAutomationForNewWebhookLead(saved);
-
-    res.status(201).json({ success: true, lead_id: leadId, lead: saved });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -4045,20 +4202,32 @@ app.post("/api/leads/n8n-webhook", async (req, res) => {
       proxima_acao_em: new Date().toISOString()
     };
 
-    const saved = await saveLead(newLead, true);
-
-    // Registra a entrada no histórico de auditoria
-    await addHistoryEntry(leadId, {
+    const initialHistory = {
       canal: "SISTEMA",
       tipo: "IMPORT",
       titulo: "Lead Cadastrado via n8n Webhook",
       detalhes: `Lead recebido e cadastrado com sucesso! Origem: ${origem_portal}. Dados mapeados: ${JSON.stringify({
         nome, email, link_celular, data_casamento, convidados
       })}`
-    });
+    };
 
-    // Roda a sequência de número 1 do fluxo imediatamente para o novo lead
-    await runAutomationForNewWebhookLead(saved);
+    // 1. Atomic Transaction (PostgreSQL BEGIN / COMMIT / ROLLBACK)
+    const saved = await createLeadWithInitialHistory(newLead, initialHistory);
+
+    // 2. Automação Externa FORA da transação (pós-commit)
+    let automationError: string | null = null;
+    try {
+      await runAutomationForNewWebhookLead(saved);
+    } catch (automationErr: any) {
+      console.error("[n8n Webhook Automation] Falha externa no envio imediato:", automationErr);
+      automationError = automationErr?.message || String(automationErr);
+      await addHistoryEntry(leadId, {
+        canal: "SISTEMA",
+        tipo: "ERRO",
+        titulo: "Falha na Automação Inicial",
+        detalhes: `Lead cadastrado com sucesso, mas a automação externa falhou: ${automationError}`
+      }).catch(() => {});
+    }
 
     res.status(201).json({
       success: true,
@@ -4066,10 +4235,10 @@ app.post("/api/leads/n8n-webhook", async (req, res) => {
       lead_id: leadId,
       lead: saved,
       automation: {
-        success: true,
+        success: !automationError,
         processed: 1,
-        actions_taken: 1,
-        logs: ["Sequência 1 enviada imediatamente de forma automatizada"]
+        actions_taken: automationError ? 0 : 1,
+        logs: [automationError ? `Automação externa com erro: ${automationError}` : "Sequência 1 enviada imediatamente de forma automatizada"]
       }
     });
   } catch (err: any) {
@@ -4180,23 +4349,37 @@ app.post("/api/leads/zoho-email", async (req, res) => {
       proxima_acao_em: new Date().toISOString()
     };
 
-    const saved = await saveLead(newLead, true);
-
-    // Save Timeline Logs
-    await addHistoryEntry(leadId, {
+    const initialHistory = {
       canal: "EMAIL",
       tipo: "IMPORT",
       titulo: "Lead Importado via Zoho Mail Parser",
       detalhes: `Corpo de e-mail lido e processado pelo CRM.`
-    });
+    };
 
-    // Roda a sequência de número 1 do fluxo imediatamente para o novo lead
-    await runAutomationForNewWebhookLead(saved);
+    // 1. Atomic Transaction (PostgreSQL BEGIN / COMMIT / ROLLBACK)
+    const saved = await createLeadWithInitialHistory(newLead, initialHistory);
+
+    // 2. Automação Externa FORA da transação (pós-commit)
+    let automationError: string | null = null;
+    try {
+      await runAutomationForNewWebhookLead(saved);
+    } catch (automationErr: any) {
+      console.error("[Zoho Email Automation] Falha externa no envio imediato:", automationErr);
+      automationError = automationErr?.message || String(automationErr);
+      await addHistoryEntry(leadId, {
+        canal: "SISTEMA",
+        tipo: "ERRO",
+        titulo: "Falha na Automação Inicial",
+        detalhes: `Lead importado via parser com sucesso, mas a automação externa falhou: ${automationError}`
+      }).catch(() => {});
+    }
 
     res.status(201).json({
       success: true,
       lead: saved,
-      parser_details: parsed
+      parser_details: parsed,
+      automation_success: !automationError,
+      ...(automationError ? { automation_error: automationError } : {})
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
