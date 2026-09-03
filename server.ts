@@ -99,7 +99,19 @@ function sanitizeDatabaseUrl(rawUrl: string): string {
 
 let pgPool: pg.Pool | null = null;
 let pgConnected = false;
+let pgSchemaReady = false;
 let pgLastError: string | null = null;
+
+const ESSENTIAL_TABLES = [
+  "leads",
+  "workflow_config",
+  "portal_config",
+  "lead_history",
+  "general_settings",
+  "products",
+  "financial_contracts",
+  "financial_installments"
+];
 
 if (databaseUrl) {
   const environmentName = process.env.NODE_ENV === "production" ? "production" : "development";
@@ -234,7 +246,14 @@ const defaultProducts = [
   { id: "home_spray", descricao: "Home Spray Aromático em Frasco de Vidro 50ml", valor_unitario: 11.50, link_imagem: "https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=300" }
 ];
 
-async function initPgDatabase() {
+/**
+ * ROTINA HISTÓRICA / ISOLADA DE CRIAÇÃO E MIGRAÇÃO DE SCHEMA (LEGACY)
+ * 
+ * ATENÇÃO: Esta rotina NÃO é executada no startup normal da aplicação.
+ * É preservada aqui isoladamente para referência técnica ou execuções manuais controladas.
+ * O startup de produção executa exclusivamente conexão com SELECT 1 e validação de schema.
+ */
+async function initializeDatabaseSchema() {
   if (!pgPool) {
     console.warn("PostgreSQL pool not initialized (DATABASE_URL not configured).");
     return;
@@ -547,7 +566,68 @@ async function initPgDatabase() {
   }
 }
 
-// Background periodic health-check to monitor connection and reconnect automatically
+/**
+ * Inicialização segura de startup para produção:
+ * 1. Valida a conexão executando estritamente SELECT 1 AS connection_test;
+ * 2. Valida de forma NÃO DESTRUTIVA a presença das tabelas essenciais via information_schema;
+ * 3. Se faltar alguma tabela essencial:
+ *    - NÃO tenta criá-la nem alterá-la;
+ *    - Marca pgSchemaReady = false;
+ *    - Registra erro claro no console;
+ *    - Define pgLastError (sem expor credenciais) para exposição em status/health;
+ * 4. NENHUM DDL (CREATE/ALTER/INDEX), DML em massa (UPDATE) ou INSERT de seed é executado.
+ */
+async function initPgConnectionAndValidateSchema() {
+  if (!pgPool) {
+    console.warn("PostgreSQL pool não inicializado (DATABASE_URL não configurada).");
+    return;
+  }
+  try {
+    const client = await pgPool.connect();
+    try {
+      // 1. Teste de conexão estrito com SELECT 1
+      await client.query("SELECT 1 AS connection_test");
+      pgConnected = true;
+      console.log("[PostgreSQL Startup] Conexão com o banco de dados estabelecida com sucesso (SELECT 1 AS connection_test).");
+
+      // 2. Validação NÃO DESTRUTIVA de schema (information_schema)
+      const res = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name = ANY($1::text[])
+      `, [ESSENTIAL_TABLES]);
+
+      const foundTables = new Set(res.rows.map((r: any) => r.table_name));
+      const missingTables = ESSENTIAL_TABLES.filter(t => !foundTables.has(t));
+
+      if (missingTables.length === 0) {
+        pgSchemaReady = true;
+        pgLastError = null;
+        console.log(`[PostgreSQL Startup] Schema validado com sucesso: todas as ${ESSENTIAL_TABLES.length} tabelas essenciais existem no banco.`);
+      } else {
+        pgSchemaReady = false;
+        const errorMsg = `Tabelas essenciais ausentes no banco de dados: ${missingTables.join(", ")}`;
+        pgLastError = errorMsg;
+        console.error("\n==================================================================");
+        console.error(`[PostgreSQL Startup] ERRO DE VALIDAÇÃO DE SCHEMA: ${errorMsg}`);
+        console.error("O startup seguro de produção NÃO executa criação de tabelas, migrações nem seeds.");
+        console.error("A aplicação foi marcada em estado NÃO PRONTO para requisições de dados.");
+        console.error("==================================================================\n");
+      }
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    pgConnected = false;
+    pgSchemaReady = false;
+    const codeInfo = err.code ? ` (code: ${err.code})` : "";
+    pgLastError = `${err.message}${codeInfo}`;
+    console.warn(`[PostgreSQL Startup] Conexão indisponível durante a inicialização: ${err.message}${codeInfo}`);
+  }
+}
+
+// Background periodic health-check to monitor connection and reconnect automatically (exclusivamente SELECT 1)
 let isCheckingPgHealth = false;
 let lastPgReportedConnected: boolean | null = null;
 
@@ -564,7 +644,9 @@ function startPostgresHealthCheck() {
           console.log("[PostgreSQL] Conexão com o banco de dados restabelecida com sucesso (SELECT 1).");
         }
         pgConnected = true;
-        pgLastError = null;
+        if (pgSchemaReady) {
+          pgLastError = null;
+        }
         lastPgReportedConnected = true;
       } finally {
         client.release();
@@ -583,7 +665,8 @@ function startPostgresHealthCheck() {
   }, 30000);
 }
 
-initPgDatabase();
+// Inicialização de boot seguro em produção: apenas testa conexão com SELECT 1 e valida schema de forma não destrutiva
+initPgConnectionAndValidateSchema();
 startPostgresHealthCheck();
 
 function ensureDatabaseAvailable(req: any, res: any, next: any) {
@@ -594,6 +677,12 @@ function ensureDatabaseAvailable(req: any, res: any, next: any) {
     return res.status(503).json({
       error: "DATABASE_UNAVAILABLE",
       message: "PostgreSQL offline"
+    });
+  }
+  if (!pgSchemaReady) {
+    return res.status(503).json({
+      error: "DATABASE_SCHEMA_INCOMPLETE",
+      message: pgLastError || "PostgreSQL schema incompleto: tabelas essenciais ausentes"
     });
   }
   next();
@@ -2198,10 +2287,13 @@ async function compileTemplate(template: string, lead: any): Promise<string> {
 
 // API - Health & Status endpoints (always accessible)
 app.get("/api/health", (req, res) => {
+  const isHealthy = Boolean(pgPool && pgConnected && pgSchemaReady);
   res.json({
-    status: pgConnected ? "ok" : "degraded",
+    status: isHealthy ? "ok" : "degraded",
     database: "PostgreSQL",
     pgConnected: Boolean(pgPool && pgConnected),
+    schemaReady: Boolean(pgSchemaReady),
+    ...(pgLastError ? { error: pgLastError } : {}),
     timestamp: new Date().toISOString()
   });
 });
@@ -2210,6 +2302,7 @@ app.get("/api/system/status", (req, res) => {
   res.json({
     database: "PostgreSQL",
     pgConnected: Boolean(pgPool && pgConnected),
+    schemaReady: Boolean(pgSchemaReady),
     pgLastError: pgLastError,
     timestamp: new Date().toISOString()
   });
@@ -4834,6 +4927,7 @@ app.get("/api/stats", async (req, res) => {
       systemStatus: {
         database: "PostgreSQL",
         pgConnected: pgConnected && !!pgPool,
+        schemaReady: pgSchemaReady,
         schedulerPaused: schedulerPaused
       }
     });
@@ -4849,7 +4943,7 @@ function startAutomationScheduler() {
   console.log("Background Automation Scheduler initialized.");
   setInterval(async () => {
     try {
-      if (!pgConnected) return;
+      if (!pgConnected || !pgSchemaReady) return;
       const settings = await getGeneralSettings();
       if (!settings) return;
 
