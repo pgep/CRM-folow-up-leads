@@ -964,18 +964,20 @@ async function deleteLeadById(id: string): Promise<boolean> {
   }
 }
 
-async function remapLeadsFromStage(oldStage: string, newStage: string): Promise<void> {
+async function remapLeadsFromStage(oldStage: string, newStage: string, client?: any): Promise<void> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  await pgPool.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
+  const executor = client || pgPool;
+  await executor.query("UPDATE leads SET etapa_contato = $1 WHERE etapa_contato = $2", [newStage, oldStage]);
 }
 
-async function getWorkflowConfigs(): Promise<any[]> {
+async function getWorkflowConfigs(client?: any): Promise<any[]> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  const res = await pgPool.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
+  const executor = client || pgPool;
+  const res = await executor.query("SELECT * FROM workflow_config ORDER BY ordem ASC");
   let configs = res.rows;
 
   if (configs.length === 0) {
@@ -995,42 +997,64 @@ async function getWorkflowConfigs(): Promise<any[]> {
   });
 }
 
-async function saveWorkflowConfigs(configs: any[]): Promise<boolean> {
+async function saveWorkflowConfigs(configs: any[], externalClient?: any): Promise<boolean> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  const stageEtapas = configs.map(c => c.etapa);
-  if (stageEtapas.length > 0) {
-    await pgPool.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
+  const client = externalClient || await pgPool.connect();
+  const shouldManageTransaction = !externalClient;
+
+  try {
+    if (shouldManageTransaction) {
+      await client.query("BEGIN");
+    }
+
+    const stageEtapas = configs.map(c => c.etapa);
+    if (stageEtapas.length > 0) {
+      await client.query("DELETE FROM workflow_config WHERE etapa NOT IN (" + stageEtapas.map((_, i) => `$${i + 1}`).join(", ") + ")", stageEtapas);
+    }
+    for (const stage of configs) {
+      await client.query(`
+        INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (etapa) DO UPDATE SET
+          descricao = EXCLUDED.descricao,
+          canal = EXCLUDED.canal,
+          esperar_dias = EXCLUDED.esperar_dias,
+          proximo_status = EXCLUDED.proximo_status,
+          temperatura = EXCLUDED.temperatura,
+          mensagem_template = EXCLUDED.mensagem_template,
+          assunto_template = EXCLUDED.assunto_template,
+          imagens_template = EXCLUDED.imagens_template,
+          ordem = EXCLUDED.ordem
+      `, [
+        stage.etapa,
+        stage.descricao,
+        stage.canal,
+        stage.esperar_dias,
+        stage.proximo_status,
+        stage.temperatura,
+        stage.mensagem_template,
+        stage.assunto_template,
+        stage.imagens_template,
+        stage.ordem || 0
+      ]);
+    }
+
+    if (shouldManageTransaction) {
+      await client.query("COMMIT");
+    }
+    return true;
+  } catch (error) {
+    if (shouldManageTransaction) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+    throw error;
+  } finally {
+    if (shouldManageTransaction) {
+      client.release();
+    }
   }
-  for (const stage of configs) {
-    await pgPool.query(`
-      INSERT INTO workflow_config (etapa, descricao, canal, esperar_dias, proximo_status, temperatura, mensagem_template, assunto_template, imagens_template, ordem)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      ON CONFLICT (etapa) DO UPDATE SET
-        descricao = EXCLUDED.descricao,
-        canal = EXCLUDED.canal,
-        esperar_dias = EXCLUDED.esperar_dias,
-        proximo_status = EXCLUDED.proximo_status,
-        temperatura = EXCLUDED.temperatura,
-        mensagem_template = EXCLUDED.mensagem_template,
-        assunto_template = EXCLUDED.assunto_template,
-        imagens_template = EXCLUDED.imagens_template,
-        ordem = EXCLUDED.ordem
-    `, [
-      stage.etapa,
-      stage.descricao,
-      stage.canal,
-      stage.esperar_dias,
-      stage.proximo_status,
-      stage.temperatura,
-      stage.mensagem_template,
-      stage.assunto_template,
-      stage.imagens_template,
-      stage.ordem || 0
-    ]);
-  }
-  return true;
 }
 
 async function getPortalConfigs(): Promise<any[]> {
@@ -1177,7 +1201,7 @@ async function deleteProduct(id: string): Promise<boolean> {
   return true;
 }
 
-async function getFinancialContracts(): Promise<any[]> {
+async function getFinancialContracts(client?: any): Promise<any[]> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
@@ -1198,11 +1222,12 @@ async function getFinancialContracts(): Promise<any[]> {
     };
   };
 
-  const res = await pgPool.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
+  const executor = client || pgPool;
+  const res = await executor.query("SELECT * FROM financial_contracts ORDER BY created_at DESC");
   return res.rows.map(parseContract);
 }
 
-async function saveFinancialContract(c: any): Promise<boolean> {
+async function saveFinancialContract(c: any, client?: any): Promise<boolean> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
@@ -1211,7 +1236,8 @@ async function saveFinancialContract(c: any): Promise<boolean> {
   const discountVal = Number(c.discount_value) || 0;
   const finalVal = c.final_value !== undefined ? Number(c.final_value) : Math.max(0, totalVal + freightVal - discountVal);
 
-  await pgPool.query(`
+  const executor = client || pgPool;
+  await executor.query(`
     INSERT INTO financial_contracts (id, lead_id, contract_number, contract_date, total_value, freight_value, discount_value, final_value, payment_method, installments_count, down_payment, status, observations, created_at, updated_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     ON CONFLICT (id) DO UPDATE SET
@@ -1256,7 +1282,7 @@ async function deleteFinancialContract(id: string): Promise<boolean> {
   return true;
 }
 
-async function getFinancialInstallments(): Promise<any[]> {
+async function getFinancialInstallments(client?: any): Promise<any[]> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
@@ -1267,15 +1293,17 @@ async function getFinancialInstallments(): Promise<any[]> {
     paid_value: row.paid_value ? Number(row.paid_value) : null
   });
 
-  const res = await pgPool.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
+  const executor = client || pgPool;
+  const res = await executor.query("SELECT * FROM financial_installments ORDER BY due_date ASC");
   return res.rows.map(parseInstallment);
 }
 
-async function saveFinancialInstallment(i: any): Promise<boolean> {
+async function saveFinancialInstallment(i: any, client?: any): Promise<boolean> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  await pgPool.query(`
+  const executor = client || pgPool;
+  await executor.query(`
     INSERT INTO financial_installments (id, contract_id, installment_number, due_date, value, status, paid_date, paid_value, payment_method, payment_observations, receipt_number, created_at, updated_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     ON CONFLICT (id) DO UPDATE SET
@@ -1308,11 +1336,12 @@ async function saveFinancialInstallment(i: any): Promise<boolean> {
   return true;
 }
 
-async function deleteFinancialInstallmentsByContract(contractId: string): Promise<boolean> {
+async function deleteFinancialInstallmentsByContract(contractId: string, client?: any): Promise<boolean> {
   if (!pgPool || !pgConnected) {
     throw new Error("PostgreSQL database is offline or unavailable");
   }
-  await pgPool.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
+  const executor = client || pgPool;
+  await executor.query("DELETE FROM financial_installments WHERE contract_id = $1", [contractId]);
   return true;
 }
 
@@ -2813,12 +2842,16 @@ app.get("/api/workflow", async (req, res) => {
 });
 
 // API - Update Workflow Stage
-app.put("/api/workflow", async (req, res) => {
+const handleWorkflowUpdate = async (req: any, res: any) => {
   try {
     const payload = req.body;
     if (Array.isArray(payload)) {
-      // 1. Fetch old configs to detect deletions
-      const oldConfigs = await getWorkflowConfigs();
+      const client = await pgPool.connect();
+      try {
+        await client.query("BEGIN");
+
+        // 1. Fetch old configs to detect deletions
+        const oldConfigs = await getWorkflowConfigs(client);
       
       // 2. Perform remapping of leads from deleted stages
       const newEtapas = new Set(payload.map((c: any) => c.etapa));
@@ -2832,19 +2865,31 @@ app.put("/api/workflow", async (req, res) => {
         
         const nextStageForLeads = candidates.length > 0 ? candidates[0].etapa : "ENCERRADO";
         console.log(`[Remap Stage] Remapping leads in deleted stage "${deleted.etapa}" to next stage "${nextStageForLeads}"`);
-        await remapLeadsFromStage(deleted.etapa, nextStageForLeads);
+        await remapLeadsFromStage(deleted.etapa, nextStageForLeads, client);
       }
 
-      await saveWorkflowConfigs(payload);
+      await saveWorkflowConfigs(payload, client);
+
+      await client.query("COMMIT");
       return res.json({ success: true, message: "Workflow configs updated successfully" });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      client.release();
     }
+  }
 
-    const updatedStage = payload; // Expects a complete WorkflowStage object
-    if (!updatedStage || !updatedStage.etapa) {
-      return res.status(400).json({ error: "Etapa is required in the payload" });
-    }
+  const updatedStage = payload; // Expects a complete WorkflowStage object
+  if (!updatedStage || !updatedStage.etapa) {
+    return res.status(400).json({ error: "Etapa is required in the payload" });
+  }
 
-    const currentConfigs = await getWorkflowConfigs();
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const currentConfigs = await getWorkflowConfigs(client);
     const idx = currentConfigs.findIndex((c) => c.etapa === updatedStage.etapa);
     if (idx !== -1) {
       currentConfigs[idx] = { ...currentConfigs[idx], ...updatedStage };
@@ -2852,12 +2897,23 @@ app.put("/api/workflow", async (req, res) => {
       currentConfigs.push(updatedStage);
     }
 
-    await saveWorkflowConfigs(currentConfigs);
+    await saveWorkflowConfigs(currentConfigs, client);
+
+    await client.query("COMMIT");
     res.json({ success: true, stage: updatedStage });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
   }
-});
+} catch (err: any) {
+  res.status(500).json({ error: err.message });
+}
+};
+
+app.put("/api/workflow", handleWorkflowUpdate);
+app.post("/api/workflow", handleWorkflowUpdate);
 
 // API - Reset Workflow Config to Default
 app.post("/api/workflow/reset", async (req, res) => {
@@ -3420,82 +3476,21 @@ app.post("/api/financial/contracts", async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    await saveFinancialContract(newContract);
+    const client = await pgPool.connect();
+    try {
+      await client.query("BEGIN");
 
-    // Generate installments
-    if (payment_method === "a_vista") {
-      const instId = "ins_" + Math.random().toString(36).substring(2, 11);
-      const installment = {
-        id: instId,
-        contract_id: contractId,
-        installment_number: 1,
-        due_date: addDaysHelper(contract_date, 30),
-        value: finalVal,
-        status: "pending",
-        paid_date: null,
-        paid_value: null,
-        payment_method: null,
-        payment_observations: null,
-        receipt_number: null,
-        created_at: new Date().toISOString()
-      };
-      await saveFinancialInstallment(installment);
-    } else {
-      // Parcelado
-      const installmentsNum = Number(installments_count || 2);
-      const downPaymentVal = Number(down_payment || 0);
-      const remainingValue = finalVal - downPaymentVal;
-      const installmentVal = Number((remainingValue / installmentsNum).toFixed(2));
+      await saveFinancialContract(newContract, client);
 
-      // 1. If there's down payment, create a paid installment number 0
-      if (downPaymentVal > 0) {
+      // Generate installments
+      if (payment_method === "a_vista") {
         const instId = "ins_" + Math.random().toString(36).substring(2, 11);
-        
-        // Let's generate a unique receipt number for the down payment immediately
-        const existingInstallments = await getFinancialInstallments();
-        const nextReceiptNo = Math.max(100, existingInstallments.reduce((max, inst) => {
-          if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
-            const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
-            if (!isNaN(num) && num > max) return num;
-          }
-          return max;
-        }, 0)) + 1;
-        const receipt_number = `REC-${String(nextReceiptNo).padStart(6, '0')}`;
-
-        const downInstallment = {
-          id: instId,
-          contract_id: contractId,
-          installment_number: 0,
-          due_date: contract_date,
-          value: downPaymentVal,
-          status: "paid",
-          paid_date: contract_date,
-          paid_value: downPaymentVal,
-          payment_method: "Pix", // Default entry payment method
-          payment_observations: "Entrada paga no ato do contrato",
-          receipt_number,
-          created_at: new Date().toISOString()
-        };
-        await saveFinancialInstallment(downInstallment);
-      }
-
-      // 2. Generate subsequent installments
-      for (let i = 1; i <= installmentsNum; i++) {
-        const instId = "ins_" + Math.random().toString(36).substring(2, 11);
-        let currentVal = installmentVal;
-        
-        // Handle rounding difference on the last installment
-        if (i === installmentsNum) {
-          const checkSum = installmentVal * (installmentsNum - 1);
-          currentVal = Number((remainingValue - checkSum).toFixed(2));
-        }
-
         const installment = {
           id: instId,
           contract_id: contractId,
-          installment_number: i,
-          due_date: addDaysHelper(contract_date, 30 * i),
-          value: currentVal,
+          installment_number: 1,
+          due_date: addDaysHelper(contract_date, 30),
+          value: finalVal,
           status: "pending",
           paid_date: null,
           paid_value: null,
@@ -3504,8 +3499,81 @@ app.post("/api/financial/contracts", async (req, res) => {
           receipt_number: null,
           created_at: new Date().toISOString()
         };
-        await saveFinancialInstallment(installment);
+        await saveFinancialInstallment(installment, client);
+      } else {
+        // Parcelado
+        const installmentsNum = Number(installments_count || 2);
+        const downPaymentVal = Number(down_payment || 0);
+        const remainingValue = finalVal - downPaymentVal;
+        const installmentVal = Number((remainingValue / installmentsNum).toFixed(2));
+
+        // 1. If there's down payment, create a paid installment number 0
+        if (downPaymentVal > 0) {
+          const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+          
+          // Let's generate a unique receipt number for the down payment immediately
+          const existingInstallments = await getFinancialInstallments(client);
+          const nextReceiptNo = Math.max(100, existingInstallments.reduce((max, inst) => {
+            if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
+              const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
+              if (!isNaN(num) && num > max) return num;
+            }
+            return max;
+          }, 0)) + 1;
+          const receipt_number = `REC-${String(nextReceiptNo).padStart(6, '0')}`;
+
+          const downInstallment = {
+            id: instId,
+            contract_id: contractId,
+            installment_number: 0,
+            due_date: contract_date,
+            value: downPaymentVal,
+            status: "paid",
+            paid_date: contract_date,
+            paid_value: downPaymentVal,
+            payment_method: "Pix", // Default entry payment method
+            payment_observations: "Entrada paga no ato do contrato",
+            receipt_number,
+            created_at: new Date().toISOString()
+          };
+          await saveFinancialInstallment(downInstallment, client);
+        }
+
+        // 2. Generate subsequent installments
+        for (let i = 1; i <= installmentsNum; i++) {
+          const instId = "ins_" + Math.random().toString(36).substring(2, 11);
+          let currentVal = installmentVal;
+          
+          // Handle rounding difference on the last installment
+          if (i === installmentsNum) {
+            const checkSum = installmentVal * (installmentsNum - 1);
+            currentVal = Number((remainingValue - checkSum).toFixed(2));
+          }
+
+          const installment = {
+            id: instId,
+            contract_id: contractId,
+            installment_number: i,
+            due_date: addDaysHelper(contract_date, 30 * i),
+            value: currentVal,
+            status: "pending",
+            paid_date: null,
+            paid_value: null,
+            payment_method: null,
+            payment_observations: null,
+            receipt_number: null,
+            created_at: new Date().toISOString()
+          };
+          await saveFinancialInstallment(installment, client);
+        }
       }
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      client.release();
     }
 
     res.status(201).json({ success: true, contract: newContract });
@@ -3516,6 +3584,7 @@ app.post("/api/financial/contracts", async (req, res) => {
 
 // API - Update/Edit Financial Contract (Allowed only if no installments are paid)
 app.put("/api/financial/contracts/:id", async (req, res) => {
+  const client = await pgPool.connect();
   try {
     const { id } = req.params;
     const {
@@ -3530,24 +3599,28 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
       observations
     } = req.body;
 
+    await client.query("BEGIN");
+
     // Check if contract exists
-    const contracts = await getFinancialContracts();
+    const contracts = await getFinancialContracts(client);
     const existing = contracts.find(c => c.id === id);
     if (!existing) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Contrato não encontrado." });
     }
 
     // Check if there are paid installments
-    const installments = await getFinancialInstallments();
+    const installments = await getFinancialInstallments(client);
     const contractInstallments = installments.filter(inst => inst.contract_id === id);
     const paidInstallments = contractInstallments.filter(inst => inst.status === "paid" && inst.installment_number > 0);
 
     if (paidInstallments.length > 0) {
+      await client.query("ROLLBACK");
       return res.status(400).json({ error: "Não é possível editar este contrato pois já existem parcelas pagas." });
     }
 
     // Delete old installments
-    await deleteFinancialInstallmentsByContract(id);
+    await deleteFinancialInstallmentsByContract(id, client);
 
     const totalVal = total_value !== undefined ? Number(total_value) : existing.total_value;
     const freightVal = freight_value !== undefined ? Number(freight_value) : (existing.freight_value || 0);
@@ -3569,7 +3642,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    await saveFinancialContract(updatedContract);
+    await saveFinancialContract(updatedContract, client);
 
     // Regenerate installments
     const finalDate = updatedContract.contract_date;
@@ -3591,7 +3664,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
         receipt_number: null,
         created_at: new Date().toISOString()
       };
-      await saveFinancialInstallment(installment);
+      await saveFinancialInstallment(installment, client);
     } else {
       const finalCount = Number(updatedContract.installments_count || 2);
       const finalDown = Number(updatedContract.down_payment || 0);
@@ -3601,7 +3674,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
       if (finalDown > 0) {
         const instId = "ins_" + Math.random().toString(36).substring(2, 11);
         
-        const existingInstallments = await getFinancialInstallments();
+        const existingInstallments = await getFinancialInstallments(client);
         const nextReceiptNo = Math.max(100, existingInstallments.reduce((max, inst) => {
           if (inst.receipt_number && inst.receipt_number.startsWith("REC-")) {
             const num = parseInt(inst.receipt_number.replace("REC-", ""), 10);
@@ -3625,7 +3698,7 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
           receipt_number,
           created_at: new Date().toISOString()
         };
-        await saveFinancialInstallment(downInstallment);
+        await saveFinancialInstallment(downInstallment, client);
       }
 
       for (let i = 1; i <= finalCount; i++) {
@@ -3651,13 +3724,17 @@ app.put("/api/financial/contracts/:id", async (req, res) => {
           receipt_number: null,
           created_at: new Date().toISOString()
         };
-        await saveFinancialInstallment(installment);
+        await saveFinancialInstallment(installment, client);
       }
     }
 
+    await client.query("COMMIT");
     res.json({ success: true, contract: updatedContract });
   } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -3683,17 +3760,21 @@ app.delete("/api/financial/contracts/:id", async (req, res) => {
 
 // API - Give Low/Pay Financial Installment ("Dar Baixa")
 app.post("/api/financial/installments/:id/pay", async (req, res) => {
+  const { id } = req.params;
+  const { paid_date, paid_value, payment_method, payment_observations } = req.body;
+
+  if (!paid_date || paid_value === undefined || !payment_method) {
+    return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+  }
+
+  const client = await pgPool.connect();
   try {
-    const { id } = req.params;
-    const { paid_date, paid_value, payment_method, payment_observations } = req.body;
+    await client.query("BEGIN");
 
-    if (!paid_date || paid_value === undefined || !payment_method) {
-      return res.status(400).json({ error: "Campos obrigatórios ausentes." });
-    }
-
-    const installments = await getFinancialInstallments();
+    const installments = await getFinancialInstallments(client);
     const idx = installments.findIndex(inst => inst.id === id);
     if (idx < 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Parcela não encontrada." });
     }
 
@@ -3717,28 +3798,32 @@ app.post("/api/financial/installments/:id/pay", async (req, res) => {
     installment.receipt_number = receipt_number;
     installment.updated_at = new Date().toISOString();
 
-    await saveFinancialInstallment(installment);
+    await saveFinancialInstallment(installment, client);
 
     // Business Rule: Check if all installments for this contract are paid.
     // If so, update contract status to 'completed'
     const contractId = installment.contract_id;
-    const allInstallments = await getFinancialInstallments();
+    const allInstallments = await getFinancialInstallments(client);
     const contractInstallments = allInstallments.filter(inst => inst.contract_id === contractId);
     const unpaid = contractInstallments.filter(inst => inst.status !== "paid");
 
     if (unpaid.length === 0) {
-      const contracts = await getFinancialContracts();
+      const contracts = await getFinancialContracts(client);
       const contract = contracts.find(c => c.id === contractId);
       if (contract) {
         contract.status = "completed";
         contract.updated_at = new Date().toISOString();
-        await saveFinancialContract(contract);
+        await saveFinancialContract(contract, client);
       }
     }
 
+    await client.query("COMMIT");
     res.json({ success: true, installment });
   } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
