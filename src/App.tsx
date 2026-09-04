@@ -840,6 +840,7 @@ export default function App() {
               {activeTab === "dashboard" && (
                 <Dashboard 
                   stats={stats} 
+                  leads={leads}
                   onRunAutomation={handleRunAutomation} 
                   onRefresh={fetchData} 
                   onSelectNegociacao={() => {
