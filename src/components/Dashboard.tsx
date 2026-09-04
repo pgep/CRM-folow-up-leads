@@ -219,7 +219,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center h-[500px]">
-        <RefreshCw className="w-8 h-8 text-[#89F0B2] animate-spin mb-3" />
+        <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin mb-3" />
         <p className="text-zinc-500 text-sm">Carregando métricas do CRM...</p>
       </div>
     );
@@ -284,7 +284,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
     value
   }));
 
-  const COLORS = ["#38bdf8", "#fb923c", "#f87171", "#34d399"];
+  const COLORS = ["#6366F1", "#38BDF8", "#F59E0B", "#10B981"];
 
   return (
     <div className="space-y-6">
@@ -293,98 +293,110 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3.5">
         
         {/* Total Leads */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Total Leads</span>
-            <Users className="w-4 h-4 text-zinc-400" />
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Total Leads</span>
+            <div className="w-6 h-6 rounded-md bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
+              <Users className="w-3.5 h-3.5 text-zinc-300" />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{safeStats.totalLeads}</span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">Capturadas no funil</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-white block leading-none tracking-tight font-mono">{safeStats.totalLeads}</span>
+            <span className="text-[11px] text-zinc-400 mt-1.5 block">Capturadas no funil</span>
           </div>
         </div>
 
         {/* Em Negociação (Respondido + Quente) */}
         <div 
           onClick={() => onSelectNegociacao && onSelectNegociacao()}
-          className="bg-gradient-to-br from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/40 hover:border-amber-400 rounded-xl p-4 flex flex-col justify-between cursor-pointer transition group shadow-lg shadow-amber-500/5 relative overflow-hidden"
+          className="bg-[#12151C] border border-amber-500/30 hover:border-amber-400/50 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition group shadow-xs relative overflow-hidden"
           title="Clique para ver todos os Leads em Negociação"
         >
           <div className="flex items-center justify-between text-amber-400">
-            <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1 text-amber-400">
-              <Flame className="w-3.5 h-3.5 fill-amber-400/30 text-amber-400 animate-pulse" />
+            <span className="text-xs font-semibold flex items-center gap-1.5 text-amber-400">
+              <Flame className="w-3.5 h-3.5 fill-amber-400/30 text-amber-400" />
               Em Negociação
             </span>
             <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition" />
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-extrabold text-amber-400 block leading-none">{safeStats.leadsEmNegociacao || 0}</span>
-            <span className="text-[10px] text-amber-300/80 mt-1 block font-medium">Respondido + Quente</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-amber-300 block leading-none tracking-tight font-mono">{safeStats.leadsEmNegociacao || 0}</span>
+            <span className="text-[11px] text-amber-400/80 mt-1.5 block font-medium">Respondido + Quente</span>
           </div>
         </div>
 
         {/* New Leads */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Novos Leads</span>
-            <Sparkles className="w-4 h-4 text-amber-400" />
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Novos Leads</span>
+            <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsNovos}</span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">Aguardando 1º contato</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-white block leading-none tracking-tight font-mono">{safeStats.leadsNovos}</span>
+            <span className="text-[11px] text-zinc-400 mt-1.5 block">Aguardando 1º contato</span>
           </div>
         </div>
 
         {/* Active Leads */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Em Follow-up</span>
-            <RefreshCw className="w-4 h-4 text-indigo-400" />
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Em Follow-up</span>
+            <div className="w-6 h-6 rounded-md bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsAtivos}</span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">Sendo nutridos</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-white block leading-none tracking-tight font-mono">{safeStats.leadsAtivos}</span>
+            <span className="text-[11px] text-zinc-400 mt-1.5 block">Sendo nutridos</span>
           </div>
         </div>
 
         {/* Converted Leads */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Convertidos</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Convertidos</span>
+            <div className="w-6 h-6 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsConvertidos}</span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">Contratos fechados</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-emerald-400 block leading-none tracking-tight font-mono">{safeStats.leadsConvertidos}</span>
+            <span className="text-[11px] text-zinc-400 mt-1.5 block">Contratos fechados</span>
           </div>
         </div>
 
         {/* Lost Leads */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Perdidos</span>
-            <AlertCircle className="w-4 h-4 text-rose-400" />
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Perdidos</span>
+            <div className="w-6 h-6 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <span className="text-2xl font-bold text-white block leading-none">{safeStats.leadsPerdidos}</span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">Sem retorno ou perda</span>
+          <div className="mt-3">
+            <span className="text-2xl font-bold text-white block leading-none tracking-tight font-mono">{safeStats.leadsPerdidos}</span>
+            <span className="text-[11px] text-zinc-400 mt-1.5 block">Sem retorno ou perda</span>
           </div>
         </div>
 
         {/* Conversion Rate Dial */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-zinc-500">
-            <span className="text-xs font-medium uppercase tracking-wider">Taxa Conv.</span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2.5">
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-white leading-none">{safeStats.taxaConversao}%</span>
+        <div className="bg-[#12151C] border border-white/[0.06] hover:border-white/[0.12] rounded-2xl p-4 flex flex-col justify-between transition shadow-xs">
+          <div className="flex items-center justify-between text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">Taxa Conv.</span>
+            <div className="w-6 h-6 rounded-md bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
             </div>
-            <div className="w-full bg-zinc-850 h-1.5 rounded-full mt-2.5 overflow-hidden">
+          </div>
+          <div className="mt-3">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-white leading-none font-mono">{safeStats.taxaConversao}%</span>
+            </div>
+            <div className="w-full bg-white/[0.06] h-1.5 rounded-full mt-2.5 overflow-hidden">
               <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${safeStats.taxaConversao}%` }}
+                className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(safeStats.taxaConversao, 100)}%` }}
               />
             </div>
           </div>
@@ -392,157 +404,157 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
 
       </div>
 
-      {/* CENTRAL DE PRÓXIMAS ATIVIDADES WIDGET (Section 16) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+      {/* CENTRAL DE PRÓXIMAS ATIVIDADES WIDGET */}
+      <div className="bg-[#12151C] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 font-mono uppercase tracking-wider">
-              <CalendarCheck className="w-4.5 h-4.5 text-[#89F0B2]" />
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2 tracking-tight">
+              <CalendarCheck className="w-4.5 h-4.5 text-indigo-400" />
               Central de Próximas Atividades
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Acompanhamento comercial manual de leads. Fila de próximos passos.
+              Acompanhamento comercial de leads e fila de próximos passos.
             </p>
           </div>
           {onGoToAgenda && (
             <button
               onClick={onGoToAgenda}
-              className="px-3.5 py-2 bg-[#89F0B2] text-zinc-950 font-bold text-xs rounded-lg hover:bg-[#73e09d] transition flex items-center gap-1.5 shrink-0"
+              className="px-3.5 py-2 bg-indigo-600 text-white font-medium text-xs rounded-xl hover:bg-indigo-500 transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
             >
-              <span>IR PARA MINHA AGENDA</span>
+              <span>Ir para Minha Agenda</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+          <div className="p-3.5 rounded-xl bg-[#0e1118] border border-white/[0.06] flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-400">
               Atrasadas
             </span>
-            <p className="text-2xl font-extrabold text-white mt-1">
+            <p className="text-2xl font-extrabold text-white mt-1 font-mono">
               {activitiesSummary?.atrasadas ?? 0}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Atenção imediata</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">Atenção imediata</p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+          <div className="p-3.5 rounded-xl bg-[#0e1118] border border-white/[0.06] flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
               Hoje
             </span>
-            <p className="text-2xl font-extrabold text-white mt-1">
+            <p className="text-2xl font-extrabold text-white mt-1 font-mono">
               {activitiesSummary?.hoje ?? 0}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Programadas para hoje</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">Programadas para hoje</p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+          <div className="p-3.5 rounded-xl bg-[#0e1118] border border-white/[0.06] flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400">
               Próximos 7 Dias
             </span>
-            <p className="text-2xl font-extrabold text-white mt-1">
+            <p className="text-2xl font-extrabold text-white mt-1 font-mono">
               {activitiesSummary?.proximos7dias ?? 0}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Sequência programada</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">Sequência programada</p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 flex flex-col justify-between">
+          <div className="p-3.5 rounded-xl bg-[#0e1118] border border-white/[0.06] flex flex-col justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
               Sem Próximo Passo
             </span>
-            <p className="text-2xl font-extrabold text-white mt-1">
+            <p className="text-2xl font-extrabold text-white mt-1 font-mono">
               {activitiesSummary?.semProximoPasso ?? 0}
             </p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Leads sem agendamento</p>
+            <p className="text-[10px] text-zinc-400 mt-0.5">Leads sem agendamento</p>
           </div>
         </div>
       </div>
 
       {/* Seção de Casamentos Próximos (Próximos 3 Meses) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+      <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-6 space-y-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-amber-400" />
               Proximidade de Casamentos (Próximos 3 Meses)
             </h3>
             <p className="text-xs text-zinc-400 mt-0.5">
               Leads com casamentos se aproximando para reforçar o contato via Zoho Mail ou Waha WhatsApp.
             </p>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium bg-zinc-950/60 border border-zinc-850 px-2 py-1 rounded-md">
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-medium bg-[#0e1118] border border-white/[0.06] px-3 py-1 rounded-xl">
             <span>Legenda:</span>
-            <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 1 mês</span>
-            <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 2 meses</span>
-            <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> 3 meses</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 1 mês</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 2 meses</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> 3 meses</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
           {/* Coluna 1: Próximos 30 dias */}
-          <div className="bg-zinc-950/40 border border-zinc-850 rounded-xl p-4 flex flex-col h-[300px]">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-850 mb-3">
+          <div className="bg-[#0e1118] border border-white/[0.06] rounded-xl p-4 flex flex-col h-[320px]">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  🚨 Em até 1 Mês ({safeStats.upcomingWeddings?.oneMonth?.length || 0})
+                  Em até 1 Mês ({safeStats.upcomingWeddings?.oneMonth?.length || 0})
                 </span>
-                <span className="text-[9px] text-zinc-500">0 - 30 dias</span>
+                <span className="text-[10px] text-zinc-400">0 - 30 dias</span>
               </div>
               <button
                 type="button"
-                onClick={() => handleOpenBulkModal("oneMonth", "🚨 Em até 1 Mês")}
+                onClick={() => handleOpenBulkModal("oneMonth", "Em até 1 Mês")}
                 disabled={!safeStats.upcomingWeddings?.oneMonth?.length}
                 title="Disparar follow-up em lote para este grupo"
-                className="px-2 py-1 text-[9px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/30 text-rose-400 border border-rose-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 text-[11px] font-semibold bg-rose-500/15 hover:bg-rose-500/25 active:bg-rose-500/35 text-rose-300 border border-rose-500/30 rounded-lg transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer shadow-xs"
               >
-                <Sparkles className="w-2.5 h-2.5" /> Enviar Lote
+                <Sparkles className="w-3 h-3" /> Enviar Lote
               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {safeStats.upcomingWeddings?.oneMonth && safeStats.upcomingWeddings.oneMonth.length > 0 ? (
                 safeStats.upcomingWeddings.oneMonth.map((lead: any) => (
-                  <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
+                  <div key={lead.id} className="p-3 bg-[#121620] border border-white/[0.06] hover:border-white/[0.12] rounded-xl transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
                         {lead.nome}
                       </div>
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono bg-rose-500/10 text-rose-400 border border-rose-500/25 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
                         {lead.dias_restantes === 0 ? "É Hoje!" : `Faltam ${lead.dias_restantes}d`}
                       </span>
                     </div>
                     
-                    <div className="text-[10px] text-zinc-400 flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-zinc-600" />
-                        <span>Data: <strong>{lead.data_casamento}</strong></span>
+                    <div className="text-[11px] text-zinc-400 flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-zinc-400" />
+                        <span>Data: <strong className="text-zinc-200">{lead.data_casamento}</strong></span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-zinc-600" />
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3 h-3 text-zinc-400" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
                       {lead.followup_especial_1m && (
-                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                        <div className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-1 w-fit mt-0.5">
                           <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
                           F-up 1 Mês Enviado
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
-                      <span className="text-[9px] text-zinc-500 font-mono tracking-wider uppercase bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.05] justify-between">
+                      <span className="text-[10px] text-zinc-400 font-mono uppercase bg-[#0e1118] px-1.5 py-0.5 rounded border border-white/[0.06]">
                         {lead.status_funil}
                       </span>
                       <div className="flex items-center gap-1">
                         {lead.email && (
-                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white transition">
+                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-blue-600 text-zinc-400 hover:text-white transition">
                              <Mail className="w-3 h-3" />
                            </a>
                         )}
                         {lead.link_celular && (
-                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded bg-zinc-800 hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
+                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
                              <MessageSquare className="w-3 h-3" />
                            </a>
                         )}
@@ -551,7 +563,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   </div>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600 text-center py-6">
+                <div className="flex flex-col items-center justify-center h-full text-zinc-500 text-center py-6">
                   <span className="text-xs">Nenhum casamento próximo</span>
                 </div>
               )}
@@ -559,68 +571,68 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
           </div>
 
           {/* Coluna 2: De 31 a 60 dias */}
-          <div className="bg-zinc-950/40 border border-zinc-850 rounded-xl p-4 flex flex-col h-[300px]">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-850 mb-3">
+          <div className="bg-[#0e1118] border border-white/[0.06] rounded-xl p-4 flex flex-col h-[320px]">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-amber-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  ⚠️ Em até 2 Meses ({safeStats.upcomingWeddings?.twoMonths?.length || 0})
+                  Em até 2 Meses ({safeStats.upcomingWeddings?.twoMonths?.length || 0})
                 </span>
-                <span className="text-[9px] text-zinc-500">31 - 60 dias</span>
+                <span className="text-[10px] text-zinc-400">31 - 60 dias</span>
               </div>
               <button
                 type="button"
-                onClick={() => handleOpenBulkModal("twoMonths", "⚠️ Em até 2 Meses")}
+                onClick={() => handleOpenBulkModal("twoMonths", "Em até 2 Meses")}
                 disabled={!safeStats.upcomingWeddings?.twoMonths?.length}
                 title="Disparar follow-up em lote para este grupo"
-                className="px-2 py-1 text-[9px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-400 border border-amber-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 text-[11px] font-semibold bg-amber-500/15 hover:bg-amber-500/25 active:bg-amber-500/35 text-amber-300 border border-amber-500/30 rounded-lg transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer shadow-xs"
               >
-                <Sparkles className="w-2.5 h-2.5" /> Enviar Lote
+                <Sparkles className="w-3 h-3" /> Enviar Lote
               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {safeStats.upcomingWeddings?.twoMonths && safeStats.upcomingWeddings.twoMonths.length > 0 ? (
                 safeStats.upcomingWeddings.twoMonths.map((lead: any) => (
-                  <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
+                  <div key={lead.id} className="p-3 bg-[#121620] border border-white/[0.06] hover:border-white/[0.12] rounded-xl transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
                         {lead.nome}
                       </div>
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono bg-amber-500/10 text-amber-400 border border-amber-500/25 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
                         {lead.dias_restantes} dias
                       </span>
                     </div>
                     
-                    <div className="text-[10px] text-zinc-400 flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-zinc-600" />
-                        <span>Data: <strong>{lead.data_casamento}</strong></span>
+                    <div className="text-[11px] text-zinc-400 flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-zinc-400" />
+                        <span>Data: <strong className="text-zinc-200">{lead.data_casamento}</strong></span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-zinc-600" />
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3 h-3 text-zinc-400" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
                       {lead.followup_especial_2m && (
-                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                        <div className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-1 w-fit mt-0.5">
                           <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
                           F-up 2 Meses Enviado
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
-                      <span className="text-[9px] text-zinc-500 font-mono tracking-wider uppercase bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.05] justify-between">
+                      <span className="text-[10px] text-zinc-400 font-mono uppercase bg-[#0e1118] px-1.5 py-0.5 rounded border border-white/[0.06]">
                         {lead.status_funil}
                       </span>
                       <div className="flex items-center gap-1">
                         {lead.email && (
-                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white transition">
+                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-blue-600 text-zinc-400 hover:text-white transition">
                              <Mail className="w-3 h-3" />
                            </a>
                         )}
                         {lead.link_celular && (
-                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded bg-zinc-800 hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
+                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
                              <MessageSquare className="w-3 h-3" />
                            </a>
                         )}
@@ -629,7 +641,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   </div>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600 text-center py-6">
+                <div className="flex flex-col items-center justify-center h-full text-zinc-500 text-center py-6">
                   <span className="text-xs">Nenhum casamento próximo</span>
                 </div>
               )}
@@ -637,68 +649,68 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
           </div>
 
           {/* Coluna 3: De 61 a 90 dias */}
-          <div className="bg-zinc-950/40 border border-zinc-850 rounded-xl p-4 flex flex-col h-[300px]">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-850 mb-3">
+          <div className="bg-[#0e1118] border border-white/[0.06] rounded-xl p-4 flex flex-col h-[320px]">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs font-semibold text-sky-400 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                  📅 Em até 3 Meses ({safeStats.upcomingWeddings?.threeMonths?.length || 0})
+                  Em até 3 Meses ({safeStats.upcomingWeddings?.threeMonths?.length || 0})
                 </span>
-                <span className="text-[9px] text-zinc-500">61 - 90 dias</span>
+                <span className="text-[10px] text-zinc-400">61 - 90 dias</span>
               </div>
               <button
                 type="button"
-                onClick={() => handleOpenBulkModal("threeMonths", "📅 Em até 3 Meses")}
+                onClick={() => handleOpenBulkModal("threeMonths", "Em até 3 Meses")}
                 disabled={!safeStats.upcomingWeddings?.threeMonths?.length}
                 title="Disparar follow-up em lote para este grupo"
-                className="px-2 py-1 text-[9px] font-semibold bg-sky-500/10 hover:bg-sky-500/20 active:bg-sky-500/30 text-sky-400 border border-sky-500/25 rounded transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 text-[11px] font-semibold bg-sky-500/15 hover:bg-sky-500/25 active:bg-sky-500/35 text-sky-300 border border-sky-500/30 rounded-lg transition-all flex items-center gap-1 disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer shadow-xs"
               >
-                <Sparkles className="w-2.5 h-2.5" /> Enviar Lote
+                <Sparkles className="w-3 h-3" /> Enviar Lote
               </button>
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {safeStats.upcomingWeddings?.threeMonths && safeStats.upcomingWeddings.threeMonths.length > 0 ? (
                 safeStats.upcomingWeddings.threeMonths.map((lead: any) => (
-                  <div key={lead.id} className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-zinc-750 rounded-lg transition space-y-2">
+                  <div key={lead.id} className="p-3 bg-[#121620] border border-white/[0.06] hover:border-white/[0.12] rounded-xl transition space-y-2">
                     <div className="flex items-start justify-between gap-1">
                       <div className="font-semibold text-xs text-white truncate max-w-[130px]" title={lead.nome}>
                         {lead.nome}
                       </div>
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono bg-sky-500/10 text-sky-400 border border-sky-500/25 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-sky-500/15 text-sky-300 border border-sky-500/30 shrink-0">
                         {lead.dias_restantes} dias
                       </span>
                     </div>
                     
-                    <div className="text-[10px] text-zinc-400 flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-zinc-600" />
-                        <span>Data: <strong>{lead.data_casamento}</strong></span>
+                    <div className="text-[11px] text-zinc-400 flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3 text-zinc-400" />
+                        <span>Data: <strong className="text-zinc-200">{lead.data_casamento}</strong></span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-zinc-600" />
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3 h-3 text-zinc-400" />
                         <span>Convidados: {lead.convidados}</span>
                       </div>
                       {lead.followup_especial_3m && (
-                        <div className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                        <div className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-1 w-fit mt-0.5">
                           <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
                           F-up 3 Meses Enviado
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-850/60 justify-between">
-                      <span className="text-[9px] text-zinc-500 font-mono tracking-wider uppercase bg-zinc-950 px-1 py-0.5 rounded border border-zinc-850">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/[0.05] justify-between">
+                      <span className="text-[10px] text-zinc-400 font-mono uppercase bg-[#0e1118] px-1.5 py-0.5 rounded border border-white/[0.06]">
                         {lead.status_funil}
                       </span>
                       <div className="flex items-center gap-1">
                         {lead.email && (
-                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded bg-zinc-800 hover:bg-blue-600 text-zinc-400 hover:text-white transition">
+                           <a href={`mailto:${lead.email}`} title="Enviar E-mail (Zoho)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-blue-600 text-zinc-400 hover:text-white transition">
                              <Mail className="w-3 h-3" />
                            </a>
                         )}
                         {lead.link_celular && (
-                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded bg-zinc-800 hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
+                           <a href={`https://wa.me/${lead.link_celular.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" title="Enviar WhatsApp (Waha)" className="p-1 rounded-lg bg-white/[0.06] hover:bg-emerald-600 text-zinc-400 hover:text-white transition">
                              <MessageSquare className="w-3 h-3" />
                            </a>
                         )}
@@ -707,7 +719,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   </div>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600 text-center py-6">
+                <div className="flex flex-col items-center justify-center h-full text-zinc-500 text-center py-6">
                   <span className="text-xs">Nenhum casamento próximo</span>
                 </div>
               )}
@@ -717,12 +729,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
         </div>
       </div>
 
-      {/* Main Charts & Automation section */}
+      {/* Main Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Lead entries area chart */}
-        <div className="lg:col-span-8 bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col h-[320px]">
-          <span className="text-[10px] font-semibold text-zinc-500 tracking-wider uppercase block mb-4">
+        <div className="lg:col-span-8 bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex flex-col h-[330px] shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase block mb-4">
             Histórico de Inbound (Leads Recebidos nos últimos 7 dias)
           </span>
 
@@ -732,20 +744,20 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                 <AreaChart data={safeStats.historicoEntrada || []} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorEntry" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="data" stroke="#4b5563" fontSize={10} />
-                  <YAxis stroke="#4b5563" fontSize={10} allowDecimals={false} />
+                  <XAxis dataKey="data" stroke="#71717A" fontSize={10} />
+                  <YAxis stroke="#71717A" fontSize={10} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", color: "#fff", fontSize: 11 }}
+                    contentStyle={{ backgroundColor: "#12151C", borderColor: "rgba(255,255,255,0.08)", borderRadius: "12px", color: "#fff", fontSize: 11 }}
                   />
-                  <Area type="monotone" dataKey="quantidade" stroke="#f59e0b" fillOpacity={1} fill="url(#colorEntry)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="quantidade" stroke="#6366F1" fillOpacity={1} fill="url(#colorEntry)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-zinc-600">
+              <div className="flex items-center justify-center h-full text-zinc-500">
                 Nenhum lead registrado nos últimos 7 dias.
               </div>
             )}
@@ -753,8 +765,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
         </div>
 
         {/* Temperature pie chart */}
-        <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col h-[320px]">
-          <span className="text-[10px] font-semibold text-zinc-500 tracking-wider uppercase block mb-2">
+        <div className="lg:col-span-4 bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex flex-col h-[330px] shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase block mb-2">
             Distribuição por Temperatura
           </span>
 
@@ -767,7 +779,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                     cx="50%"
                     cy="50%"
                     innerRadius={55}
-                    outerRadius={75}
+                    outerRadius={78}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -776,13 +788,13 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", color: "#fff", fontSize: 11 }}
+                    contentStyle={{ backgroundColor: "#0e1118", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", color: "#fff", fontSize: 11 }}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" fontSize={10} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-zinc-600">Não há dados suficientes.</div>
+              <div className="text-zinc-500">Não há dados suficientes.</div>
             )}
           </div>
         </div>
@@ -791,17 +803,17 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
 
       {/* Modal de Disparo de Follow-up em Lote */}
       {isBulkModalOpen && (
-        <div id="bulk-followup-modal" className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
+        <div id="bulk-followup-modal" className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-[#121620] border border-white/[0.1] rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-zinc-800 shrink-0">
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.07] shrink-0">
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Disparo Especial em Lote</h3>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Disparo Especial em Lote</h3>
                 </div>
                 <p className="text-[11px] text-zinc-400">
-                  Lote selecionado: <strong className="text-amber-400">{cohortLabel}</strong>
+                  Lote selecionado: <strong className="text-amber-300">{cohortLabel}</strong>
                 </p>
               </div>
               <button
@@ -813,7 +825,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   }
                   setIsBulkModalOpen(false);
                 }}
-                className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition"
+                className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-zinc-400 hover:text-white transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -822,9 +834,9 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             {/* Content */}
             <div className="p-5 flex-1 overflow-y-auto space-y-4">
               {/* Informação sobre os leads */}
-              <div className="bg-zinc-950/40 border border-zinc-850 p-3 rounded-lg flex items-center justify-between">
+              <div className="bg-[#0e1118] border border-white/[0.06] p-3 rounded-xl flex items-center justify-between">
                 <span className="text-xs text-zinc-400">Leads qualificados neste lote:</span>
-                <span className="text-xs font-bold font-mono px-2 py-0.5 rounded bg-zinc-800 text-amber-400 border border-zinc-750">
+                <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">
                   {(() => {
                     let count = 0;
                     if (selectedCohort === "oneMonth") count = (safeStats.upcomingWeddings?.oneMonth || []).filter((l: any) => !l.followup_especial_1m).length;
@@ -838,14 +850,14 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
 
               {/* Seletor de Regra/Mensagem */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-400 block">
+                <label className="text-xs font-semibold text-zinc-300 block">
                   Selecione o Follow-up Especial ou Emergencial:
                 </label>
                 <select
                   disabled={isSendingBulk}
                   value={selectedRuleId}
                   onChange={(e) => handleRuleChange(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
                 >
                   <option value="">-- Personalizar Mensagem Avulsa --</option>
                   {specialRules.length > 0 ? (
@@ -865,16 +877,16 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               {/* Canal de Envio */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400 block">Canal de Envio:</label>
+                  <label className="text-xs font-semibold text-zinc-300 block">Canal de Envio:</label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       disabled={isSendingBulk}
                       onClick={() => setBulkCanal("WHATSAPP")}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1.5 ${
+                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                         bulkCanal === "WHATSAPP"
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                          : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white"
+                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/35"
+                          : "bg-[#0B0D12] text-zinc-400 border-white/[0.08] hover:text-white"
                       }`}
                     >
                       <MessageSquare className="w-3.5 h-3.5" /> WhatsApp (Waha)
@@ -883,10 +895,10 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                       type="button"
                       disabled={isSendingBulk}
                       onClick={() => setBulkCanal("EMAIL")}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition flex items-center justify-center gap-1.5 ${
+                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                         bulkCanal === "EMAIL"
-                          ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                          : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white"
+                          ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/35"
+                          : "bg-[#0B0D12] text-zinc-400 border-white/[0.08] hover:text-white"
                       }`}
                     >
                       <Mail className="w-3.5 h-3.5" /> E-mail (Zoho)
@@ -895,10 +907,10 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400 block">Histórico de Contato:</label>
-                  <div className="text-[11px] text-zinc-500 leading-normal flex items-start gap-1 bg-zinc-950/20 p-2 border border-zinc-850 rounded-lg">
+                  <label className="text-xs font-semibold text-zinc-300 block">Histórico de Contato:</label>
+                  <div className="text-[11px] text-zinc-400 leading-normal flex items-start gap-1.5 bg-[#0B0D12] p-2.5 border border-white/[0.06] rounded-xl">
                     <AlertCircle className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
-                    <span>Cada envio registrará automaticamente uma entrada de envio no histórico do lead.</span>
+                    <span>Cada envio registrará automaticamente uma entrada no histórico do lead.</span>
                   </div>
                 </div>
               </div>
@@ -906,14 +918,14 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               {/* Assunto (Se E-mail) */}
               {bulkCanal === "EMAIL" && (
                 <div className="space-y-1.5 animate-fade-in">
-                  <label className="text-xs font-semibold text-zinc-400 block">Assunto do E-mail:</label>
+                  <label className="text-xs font-semibold text-zinc-300 block">Assunto do E-mail:</label>
                   <input
                     type="text"
                     disabled={isSendingBulk}
                     value={bulkSubject}
                     onChange={(e) => setBulkSubject(e.target.value)}
                     placeholder="Ex: Confirmação do seu orçamento Casa Colombo"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition"
                   />
                 </div>
               )}
@@ -921,8 +933,8 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
               {/* Mensagem */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-400 block">Mensagem (Template):</label>
-                  <span className="text-[10px] text-zinc-500 font-mono">Suporta tags dinâmicas</span>
+                  <label className="text-xs font-semibold text-zinc-300 block">Mensagem (Template):</label>
+                  <span className="text-[10px] text-zinc-400 font-mono">Suporta tags dinâmicas</span>
                 </div>
                 <textarea
                   disabled={isSendingBulk}
@@ -930,16 +942,16 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                   value={bulkMessage}
                   onChange={(e) => setBulkMessage(e.target.value)}
                   placeholder="Olá {nome}, tudo bem?..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition font-mono custom-scrollbar"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono custom-scrollbar"
                 />
               </div>
 
               {/* Tags de Apoio */}
-              <div className="bg-zinc-950 border border-zinc-850 rounded-lg p-2.5 space-y-1.5">
+              <div className="bg-[#0B0D12] border border-white/[0.06] rounded-xl p-3 space-y-1.5">
                 <span className="text-[10px] font-bold text-zinc-400 block uppercase tracking-wider">Variáveis Dinâmicas Disponíveis:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {["{nome}", "{local}", "{convidados}", "{data_casamento}", "{mes_casamento}", "{status}", "{temperatura}"].map((tag) => (
-                    <span key={tag} className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded text-zinc-300">
+                    <span key={tag} className="text-[10px] font-mono bg-[#181C26] border border-white/[0.08] px-2 py-0.5 rounded-md text-zinc-300">
                       {tag}
                     </span>
                   ))}
@@ -948,24 +960,24 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
 
               {/* Progresso de Envio */}
               {bulkProgress.total > 0 && (
-                <div className="space-y-2 pt-2 border-t border-zinc-850">
+                <div className="space-y-2 pt-2 border-t border-white/[0.06]">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-zinc-300">Progresso do Envio:</span>
                     <span className="font-mono text-zinc-400">
                       {bulkProgress.current} / {bulkProgress.total} ({Math.round((bulkProgress.current / bulkProgress.total) * 100)}%)
                     </span>
                   </div>
-                  <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-800">
+                  <div className="w-full bg-[#0B0D12] h-2 rounded-full overflow-hidden border border-white/[0.08]">
                     <div
-                      className="bg-amber-500 h-full transition-all duration-300"
+                      className="bg-indigo-500 h-full transition-all duration-300"
                       style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
                     />
                   </div>
 
                   {/* Logs de Envio em Lote */}
-                  <div className="h-28 bg-zinc-950 rounded-lg border border-zinc-850 p-2.5 font-mono text-[10px] text-zinc-400 overflow-y-auto space-y-1 custom-scrollbar">
+                  <div className="h-28 bg-[#0B0D12] rounded-xl border border-white/[0.06] p-2.5 font-mono text-[10px] text-zinc-400 overflow-y-auto space-y-1 custom-scrollbar">
                     {bulkLogs.map((log, idx) => (
-                      <div key={idx} className={log.includes("✅") ? "text-emerald-400" : log.includes("❌") ? "text-rose-400" : "text-zinc-400"}>
+                      <div key={idx} className={log.includes("✅") ? "text-emerald-300" : log.includes("❌") ? "text-rose-300" : "text-zinc-400"}>
                         {log}
                       </div>
                     ))}
@@ -975,12 +987,12 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex items-center justify-end gap-3 shrink-0">
+            <div className="p-4 bg-[#0B0D12] border-t border-white/[0.07] flex items-center justify-end gap-3 shrink-0">
               <button
                 type="button"
                 disabled={isSendingBulk}
                 onClick={() => setIsBulkModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-white transition disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white transition disabled:opacity-50 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -988,7 +1000,7 @@ export default function Dashboard({ stats, onRunAutomation, onRefresh, onSelectN
                 type="button"
                 disabled={isSendingBulk || !bulkMessage.trim()}
                 onClick={handleExecuteBulkSend}
-                className="px-4 py-2 text-xs font-bold rounded-lg bg-[#89F0B2] hover:bg-[#72e29e] disabled:bg-zinc-800 disabled:text-zinc-500 text-black shadow transition flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/[0.08] disabled:text-zinc-500 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
               >
                 {isSendingBulk ? (
                   <>

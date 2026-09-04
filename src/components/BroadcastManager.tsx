@@ -498,25 +498,29 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
   return (
     <div className="space-y-6">
       {/* Upper header banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-        <h3 className="text-lg font-medium text-white flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-[#89F0B2] animate-bounce" />
-          Ações Especiais, Campanhas & Disparo em Massa (Broadcast)
-        </h3>
-        <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-          Esta tela foi projetada para lidar com ações de engajamento customizadas. Configure 
-          <strong> Follow-ups Especiais (Regras Emergenciais)</strong> para identificar leads com datas de casamento próximas ou características específicas, 
-          ou acesse o <strong>Disparo em Massa (Broadcast)</strong> para transmitir comunicados rápidos para múltiplos contatos filtrados por contexto.
-        </p>
+      <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 md:p-8 shadow-xs">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+            <Megaphone className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white font-mono uppercase tracking-wide">
+              Ações Especiais, Campanhas & Disparo em Massa
+            </h3>
+            <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed max-w-3xl">
+              Gerencie ações de engajamento segmentadas. Configure <strong className="text-zinc-200">Follow-ups Especiais (Regras Emergenciais)</strong> para abordar leads com datas próximas ou características específicas, ou utilize o <strong className="text-zinc-200">Disparo em Massa (Broadcast)</strong> para transmitir comunicados rápidos para contatos filtrados por contexto comercial.
+            </p>
+          </div>
+        </div>
 
         {/* Tab switch buttons */}
-        <div className="flex gap-2 mt-5 border-t border-zinc-800/60 pt-4">
+        <div className="flex flex-wrap gap-2.5 mt-6 border-t border-white/[0.06] pt-5">
           <button
             onClick={() => setSubTab('special')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
               subTab === 'special'
-                ? 'bg-[#89F0B2] text-zinc-950 font-bold'
-                : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-750'
+                ? 'bg-indigo-600 text-white font-medium shadow-xs'
+                : 'bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] border border-white/[0.06]'
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
@@ -525,10 +529,10 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
           <button
             onClick={() => setSubTab('bulk')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
               subTab === 'bulk'
-                ? 'bg-[#89F0B2] text-zinc-950 font-bold'
-                : 'bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-750'
+                ? 'bg-indigo-600 text-white font-medium shadow-xs'
+                : 'bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] border border-white/[0.06]'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -542,8 +546,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h4 className="text-base font-semibold text-white">Regras de Follow-up Emergencial / Especial</h4>
-              <p className="text-xs text-zinc-400">Regras dinâmicas para segmentar e disparar mensagens com ações manuais individuais.</p>
+              <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wide">
+                Regras de Follow-up Emergencial / Especial
+              </h4>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Segmentação dinâmica para identificar leads prioritários e disparar ações individuais.
+              </p>
             </div>
             
             <button
@@ -563,17 +571,17 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   setIsAddingRule(true);
                 }
               }}
-              className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 text-xs font-semibold flex items-center gap-2 transition ml-auto"
+              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-white border border-white/[0.08] text-xs font-semibold flex items-center gap-2 transition cursor-pointer ml-auto"
             >
-              <Plus className="w-4 h-4 text-[#89F0B2]" />
+              <Plus className="w-4 h-4 text-indigo-400" />
               {isAddingRule ? (editingRuleId ? "Cancelar Edição" : "Cancelar Cadastro") : "Cadastrar Nova Regra"}
             </button>
           </div>
 
           {/* ADD RULE FORM PANEL */}
           {isAddingRule && (
-            <form onSubmit={handleAddRule} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 animate-fade-in">
-              <h5 className="text-sm font-semibold text-[#89F0B2] flex items-center gap-2">
+            <form onSubmit={handleAddRule} className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-4 animate-fade-in shadow-xs">
+              <h5 className="text-xs font-bold text-indigo-400 font-mono uppercase tracking-wider flex items-center gap-2">
                 <Settings className="w-4 h-4" />
                 {editingRuleId ? "Editar Gatilho Especial" : "Definição do Gatilho Especial"}
               </h5>
@@ -587,7 +595,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     placeholder="Ex: Casamento em menos de 45 dias"
                     value={ruleName}
                     onChange={e => setRuleName(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
                   />
                 </div>
 
@@ -612,7 +620,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         if (!ruleValue || isNaN(Number(ruleValue))) setRuleValue(newField === "dias_casamento" ? "45" : "100");
                       }
                     }}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="dias_casamento">📅 Dias Restantes para o Casamento</option>
                     <option value="convidados">👥 Quantidade de Convidados</option>
@@ -628,7 +636,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     <select
                       value={ruleOperator}
                       onChange={e => setRuleOperator(e.target.value as any)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                     >
                       {ruleField === "dias_casamento" || ruleField === "convidados" ? (
                         <>
@@ -657,7 +665,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50 font-semibold"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold cursor-pointer"
                       >
                         <option value="NOVO">NOVO (Novo Lead)</option>
                         <option value="PRIMEIRO_CONTATO">PRIMEIRO CONTATO</option>
@@ -673,7 +681,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                       >
                         <option value="QUENTE">🔥 QUENTE</option>
                         <option value="MORNA">⚡ MORNA</option>
@@ -683,7 +691,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                       >
                         <option value="casamentos">Casamentos.com.br</option>
                         <option value="portal_noivas">Portal de Noivas</option>
@@ -700,16 +708,16 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         placeholder={ruleField === "dias_casamento" ? "Ex: 45" : "Ex: 100"}
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                       />
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-zinc-800/80 my-2 pt-3">
-                <h5 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-[#89F0B2]" />
+              <div className="border-t border-white/[0.06] my-2 pt-3">
+                <h5 className="text-xs font-bold text-zinc-300 font-mono uppercase tracking-wider flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-indigo-400" />
                   Mensagem e Canal de Envio
                 </h5>
               </div>
@@ -720,7 +728,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   <select
                     value={ruleCanal}
                     onChange={e => setRuleCanal(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="WHATSAPP">🟢 WhatsApp API (Waha)</option>
                     <option value="EMAIL">📧 E-mail SMTP (Zoho)</option>
@@ -736,7 +744,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       placeholder="Assunto que o lead receberá"
                       value={ruleSubject}
                       onChange={e => setRuleSubject(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                     />
                   </div>
                 )}
@@ -759,7 +767,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Olá {nome}, vimos que falta pouco ({dias_casamento} dias) para o seu grande dia no {local}. Quer fechar as lembrancinhas aromáticas? O valor total para {convidados} convidados fica {orcamento_vela_vidro}."
                   value={ruleMessage}
                   onChange={e => setRuleMessage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans focus:outline-none focus:border-[#89F0B2]/50 leading-relaxed"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-3 text-xs text-white font-sans focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
                 />
               </div>
 
@@ -777,13 +785,13 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     setRuleMessage("");
                     setIsAddingRule(false);
                   }}
-                  className="px-4 py-2 rounded-lg bg-transparent hover:bg-zinc-850 text-zinc-400 hover:text-white text-xs font-semibold transition"
+                  className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold transition cursor-pointer border border-white/[0.06]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#89F0B2] text-zinc-950 font-bold text-xs transition"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition cursor-pointer shadow-sm"
                 >
                   {editingRuleId ? "Salvar Alterações" : "Salvar Regra Especial"}
                 </button>
@@ -793,11 +801,11 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
           {/* LIST OF REGISTERED SPECIAL RULES */}
           {loadingSettings ? (
-            <div className="flex justify-center p-8">
-              <span className="text-xs text-zinc-500">Buscando regras e parâmetros no banco...</span>
+            <div className="flex justify-center p-12 bg-[#121620] border border-white/[0.07] rounded-2xl">
+              <span className="text-xs text-zinc-500 font-mono">Buscando regras e parâmetros no banco...</span>
             </div>
           ) : rules.length === 0 ? (
-            <div className="bg-zinc-900/40 border border-zinc-850 rounded-xl p-8 text-center text-zinc-500 text-xs">
+            <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-10 text-center text-zinc-400 text-xs shadow-xs">
               Nenhum follow-up especial configurado ainda. Clique em "Cadastrar Nova Regra" acima para criar as regras emergenciais de atendimento (ex: casamento muito próximo).
             </div>
           ) : (
@@ -807,35 +815,37 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 const isExpanded = expandedRuleId === rule.id;
 
                 return (
-                  <div key={rule.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden transition-all duration-300">
+                  <div key={rule.id} className="bg-[#12151C] border border-white/[0.08] hover:border-white/[0.12] rounded-2xl overflow-hidden transition-all duration-200 shadow-xs">
                     {/* Header info bar */}
-                    <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-zinc-850/40 border-b border-zinc-850">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          rule.canal === "WHATSAPP" ? "bg-emerald-500/15 text-emerald-400" : "bg-blue-500/15 text-blue-400"
+                    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-[#171d2b]/40 border-b border-white/[0.06]">
+                      <div className="flex items-start gap-3.5">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                          rule.canal === "WHATSAPP" 
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                            : "bg-sky-500/10 text-sky-400 border-sky-500/20"
                         }`}>
                           {rule.canal === "WHATSAPP" ? <MessageSquare className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
                         </div>
                         <div>
-                          <h5 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <h5 className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
                             {rule.nome}
-                            <span className="text-[10px] bg-[#89F0B2]/10 text-[#89F0B2] px-1.5 py-0.5 rounded font-mono uppercase">
+                            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-mono uppercase tracking-wide">
                               {rule.campo_gatilho} {rule.operador} {rule.valor_gatilho}
                             </span>
                           </h5>
-                          <p className="text-xs text-zinc-400 mt-0.5 max-w-xl truncate">{rule.mensagem_template}</p>
+                          <p className="text-xs text-zinc-400 mt-1 max-w-xl line-clamp-1">{rule.mensagem_template}</p>
                         </div>
                       </div>
 
                       {/* Right action tools */}
-                      <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                        <span className="text-xs text-zinc-400 bg-zinc-950 px-2 py-1 rounded-md border border-zinc-800">
-                          🎯 {eligibleLeads.length} leads elegíveis
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <span className="text-xs font-mono text-zinc-300 bg-[#0B0D12] px-2.5 py-1.5 rounded-lg border border-white/[0.07]">
+                          🎯 {eligibleLeads.length} {eligibleLeads.length === 1 ? "lead elegível" : "leads elegíveis"}
                         </span>
 
                         <button
                           onClick={() => loadSpecialRuleAsTemplate(rule)}
-                          className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-[11px] text-zinc-300 hover:text-white transition"
+                          className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-[11px] font-semibold text-zinc-300 hover:text-white transition cursor-pointer"
                           title="Carregar esta regra no Disparo em Massa"
                         >
                           Usar em Lote
@@ -843,14 +853,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                         <button
                           onClick={() => setExpandedRuleId(isExpanded ? null : rule.id)}
-                          className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded transition"
+                          className="p-1.5 hover:bg-white/[0.06] text-zinc-400 hover:text-white rounded-lg transition cursor-pointer border border-white/[0.06]"
                         >
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
 
                         <button
                           onClick={() => startEditingRule(rule)}
-                          className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-[#89F0B2] rounded transition border border-transparent hover:border-zinc-700/50"
+                          className="p-1.5 hover:bg-white/[0.06] text-zinc-400 hover:text-indigo-400 rounded-lg transition border border-white/[0.06] cursor-pointer"
                           title="Editar e visualizar esta regra"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -858,7 +868,8 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                         <button
                           onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1.5 hover:bg-red-950/40 text-zinc-500 hover:text-red-400 rounded transition border border-transparent hover:border-red-900/30"
+                          className="p-1.5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 rounded-lg transition border border-white/[0.06] hover:border-rose-500/20 cursor-pointer"
+                          title="Excluir regra"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -867,48 +878,48 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                     {/* Expandable list of eligible leads */}
                     {isExpanded && (
-                      <div className="p-4 bg-zinc-950/40 animate-fade-in space-y-3">
-                        <div className="flex items-center justify-between text-xs text-zinc-500 pb-2 border-b border-zinc-900">
-                          <span>Lista de Leads que cumprem a condição da regra</span>
-                          <span>Ações Individuais Manuais</span>
+                      <div className="p-4 sm:p-5 bg-[#0B0D12]/60 animate-fade-in space-y-3 border-t border-white/[0.06]">
+                        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-zinc-400 pb-2 border-b border-white/[0.06]">
+                          <span>Leads que cumprem a condição ({eligibleLeads.length})</span>
+                          <span>Ação Manual</span>
                         </div>
 
                         {eligibleLeads.length === 0 ? (
-                          <p className="text-xs text-zinc-500 text-center py-4">Nenhum lead elegível com as condições atuais.</p>
+                          <p className="text-xs text-zinc-500 text-center py-6">Nenhum lead elegível com as condições atuais.</p>
                         ) : (
-                          <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                          <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {eligibleLeads.map((lead) => {
                               const daysLeft = getDaysToWedding(lead);
                               const keyStr = `${lead.id}-${rule.id}`;
                               const isSendingThis = sendingLeadId === keyStr;
 
                               return (
-                                <div key={lead.id} className="flex items-center justify-between bg-zinc-900 p-2.5 rounded-lg border border-zinc-850 hover:border-zinc-800 text-xs">
+                                <div key={lead.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#12151C] p-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] text-xs transition-colors">
                                   <div className="space-y-1">
                                     <div className="font-semibold text-white flex items-center gap-2">
                                       {lead.nome}
                                       {daysLeft !== null && (
-                                        <span className={`text-[10px] font-mono px-1 rounded ${
-                                          daysLeft <= 30 ? "bg-red-500/10 text-red-400 font-bold" : "bg-zinc-800 text-zinc-400"
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                                          daysLeft <= 30 ? "bg-rose-500/15 text-rose-300 font-bold border border-rose-500/25" : "bg-white/[0.06] text-zinc-300 border border-white/[0.08]"
                                         }`}>
                                           Faltam {daysLeft} dias
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-[10px] text-zinc-500 flex items-center gap-3">
+                                    <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-3">
                                       <span>💍 {lead.local || "Local não informado"}</span>
                                       <span>👥 {lead.convidados} convidados</span>
-                                      <span>🚦 {lead.status_funil}</span>
+                                      <span className="font-mono text-[10px] uppercase bg-[#0B0D12] px-1.5 py-0.5 rounded border border-white/[0.06]">{lead.status_funil}</span>
                                     </div>
                                   </div>
 
                                   <button
                                     onClick={() => handleSendSpecial(lead, rule)}
                                     disabled={isSendingThis}
-                                    className={`px-3 py-1.5 rounded-md font-bold text-[11px] flex items-center gap-1.5 transition ${
+                                    className={`px-3.5 py-2 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 ${
                                       rule.canal === "WHATSAPP" 
-                                        ? "bg-emerald-500 hover:bg-emerald-600 text-zinc-950" 
-                                        : "bg-[#89F0B2] hover:bg-[#72e29e] text-zinc-950"
+                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
+                                        : "bg-sky-500 hover:bg-sky-400 text-white"
                                     }`}
                                   >
                                     <Send className={`w-3.5 h-3.5 ${isSendingThis ? "animate-spin" : ""}`} />
@@ -934,23 +945,26 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* LEFT COLUMN: CRITERIA, CONFIGURATION & MESSAGE EDITOR */}
-          <div className="lg:col-span-5 bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
-            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Filter className="w-4 h-4 text-[#89F0B2]" />
-              1. Filtrar Contexto de Disparo
-            </h4>
+          <div className="lg:col-span-5 bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-5 shadow-xs">
+            <div>
+              <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <Filter className="w-4 h-4 text-indigo-400" />
+                1. Filtrar Contexto de Disparo
+              </h4>
+              <p className="text-xs text-zinc-400 mt-1">Selecione os parâmetros para segmentar a lista de envio.</p>
+            </div>
 
             {/* Quick Context Filter Dropdowns */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Status Funil</label>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Status Funil</label>
                 <select
                   value={bulkFilterStatus}
                   onChange={e => {
                     setBulkFilterStatus(e.target.value);
                     setSelectedLeads([]); // Reset selection
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="ALL">Todos os Status</option>
                   <option value="NOVO">NOVO</option>
@@ -963,14 +977,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Temperatura</label>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Temperatura</label>
                 <select
                   value={bulkFilterTemp}
                   onChange={e => {
                     setBulkFilterTemp(e.target.value);
                     setSelectedLeads([]); // Reset selection
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="ALL">Todas as Temps</option>
                   <option value="QUENTE">🔥 QUENTE</option>
@@ -980,14 +994,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Mês / Ano do Casamento</label>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Mês do Evento</label>
                 <select
                   value={bulkFilterMonth}
                   onChange={e => {
                     setBulkFilterMonth(e.target.value);
                     setSelectedLeads([]); // Reset selection
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="ALL">Todos os Meses</option>
                   <option value="Janeiro">Janeiro</option>
@@ -1006,14 +1020,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Canal Origem</label>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Canal Origem</label>
                 <select
                   value={bulkFilterPortal}
                   onChange={e => {
                     setBulkFilterPortal(e.target.value);
                     setSelectedLeads([]); // Reset selection
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="ALL">Todas as Origens</option>
                   {portals.map(p => (
@@ -1023,56 +1037,56 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
             </div>
 
-            <div className="border-t border-zinc-800 my-1 pt-3">
-              <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#89F0B2]" />
-                2. Configurar Transmissão
+            <div className="border-t border-white/[0.06] pt-4">
+              <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-400" />
+                2. Configurar Mensagem
               </h4>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-mono text-zinc-400 mb-1">Canal de Envio</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-2">Canal de Envio</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer bg-[#0B0D12] px-3 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/30 transition-colors">
                     <input
                       type="radio"
                       name="bulkCanal"
                       checked={bulkCanal === 'WHATSAPP'}
                       onChange={() => setBulkCanal('WHATSAPP')}
-                      className="accent-[#89F0B2]"
+                      className="accent-indigo-600"
                     />
-                    🟢 WhatsApp API (Waha)
+                    <span className="font-medium">WhatsApp API (Waha)</span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer bg-[#0B0D12] px-3 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/30 transition-colors">
                     <input
                       type="radio"
                       name="bulkCanal"
                       checked={bulkCanal === 'EMAIL'}
                       onChange={() => setBulkCanal('EMAIL')}
-                      className="accent-[#89F0B2]"
+                      className="accent-indigo-600"
                     />
-                    📧 E-mail (Zoho SMTP)
+                    <span className="font-medium">E-mail (SMTP Zoho)</span>
                   </label>
                 </div>
               </div>
 
               {bulkCanal === "EMAIL" && (
                 <div>
-                  <label className="block text-[10px] font-mono text-zinc-400 mb-1">Assunto do E-mail</label>
+                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Assunto do E-mail</label>
                   <input
                     type="text"
                     value={bulkSubject}
                     onChange={e => setBulkSubject(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-mono text-zinc-400">Texto / Corpo da Mensagem</label>
-                  <span className="text-[9px] text-zinc-500 font-mono">Suporta todas as variáveis do sistema</span>
+                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400">Texto / Mensagem</label>
+                  <span className="text-[10px] text-zinc-500 font-mono">Suporta variáveis dinâmicas</span>
                 </div>
 
                 <VariablePicker 
@@ -1084,7 +1098,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   rows={6}
                   value={bulkMessage}
                   onChange={e => setBulkMessage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-[#89F0B2]/50"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-indigo-500 resize-none"
                   placeholder="Olá {nome}, preparamos um orçamento especial para o seu evento em {local} ({mes_casamento}). O total fica {orcamento_vela_vidro}..."
                 />
               </div>
@@ -1094,9 +1108,9 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 type="button"
                 onClick={handleStartBulkBroadcast}
                 disabled={isDispatching || selectedLeads.length === 0}
-                className="w-full py-2.5 rounded-xl bg-[#89F0B2] hover:bg-[#72e29e] disabled:bg-zinc-800 text-zinc-950 disabled:text-zinc-550 font-bold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/[0.05] text-white disabled:text-zinc-500 font-medium text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shadow-sm"
               >
-                <Play className="w-4 h-4 fill-zinc-950" />
+                <Play className="w-4 h-4 fill-current" />
                 {isDispatching ? "Disparando Lote..." : `Disparar para ${selectedLeads.length} Selecionados`}
               </button>
             </div>
@@ -1107,25 +1121,25 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             
             {/* PROGRESS BAR & LIVE RUNS LOGS IF DISPATCHING */}
             {isDispatching && (
-              <div className="bg-zinc-900 border border-[#89F0B2]/20 rounded-xl p-5 space-y-3">
+              <div className="bg-[#12151C] border border-indigo-500/30 rounded-2xl p-5 space-y-3 shadow-xs animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#89F0B2] flex items-center gap-2">
-                    <Clock className="w-4 h-4 animate-spin text-[#89F0B2]" />
-                    Progresso do Disparo
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono flex items-center gap-2">
+                    <Clock className="w-4 h-4 animate-spin text-indigo-400" />
+                    Progresso do Disparo em Massa
                   </h4>
-                  <span className="text-xs text-zinc-400 font-mono">
+                  <span className="text-xs text-zinc-300 font-mono">
                     {dispatchProgress.current} de {dispatchProgress.total} ({Math.round((dispatchProgress.current / dispatchProgress.total) * 100)}%)
                   </span>
                 </div>
 
-                <div className="w-full h-2 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800">
+                <div className="w-full h-2.5 bg-[#0B0D12] rounded-full overflow-hidden border border-white/[0.08]">
                   <div 
-                    className="h-full bg-[#89F0B2] transition-all duration-300" 
+                    className="h-full bg-indigo-600 transition-all duration-300 rounded-full" 
                     style={{ width: `${(dispatchProgress.current / dispatchProgress.total) * 100}%` }}
                   />
                 </div>
 
-                <div className="bg-zinc-950 border border-zinc-850 rounded-lg p-3 h-32 overflow-y-auto font-mono text-[10px] text-zinc-400 space-y-1">
+                <div className="bg-[#0B0D12] border border-white/[0.06] rounded-xl p-3 h-32 overflow-y-auto font-mono text-[11px] text-zinc-400 space-y-1 custom-scrollbar">
                   {dispatchLogs.map((log, index) => (
                     <div key={index} className="truncate">{log}</div>
                   ))}
@@ -1133,17 +1147,22 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
             )}
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+            <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#89F0B2]" />
-                  3. Selecionar Destinatários ({filteredLeadsForBulk.length} Filtrados)
-                </h4>
+                <div>
+                  <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-400" />
+                    3. Selecionar Destinatários ({filteredLeadsForBulk.length} Filtrados)
+                  </h4>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {selectedLeads.length} de {filteredLeadsForBulk.length} contatos selecionados
+                  </p>
+                </div>
 
                 <button
                   type="button"
                   onClick={handleToggleSelectAll}
-                  className="text-[11px] font-bold text-[#89F0B2] hover:text-[#72e29e]"
+                  className="text-xs font-medium font-mono text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
                 >
                   {selectedLeads.length === filteredLeadsForBulk.length ? "Desmarcar Todos" : "Marcar Todos"}
                 </button>
@@ -1156,14 +1175,14 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Filtrar destinatários por nome..."
                   value={bulkNameSearch}
                   onChange={(e) => setBulkNameSearch(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]/50"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl pl-9 pr-14 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
                 />
-                <Filter className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" />
+                <Filter className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
                 {bulkNameSearch && (
                   <button
                     type="button"
                     onClick={() => setBulkNameSearch("")}
-                    className="text-[10px] text-zinc-400 hover:text-white absolute right-2.5 top-2.5"
+                    className="text-[11px] font-mono text-zinc-400 hover:text-white absolute right-3 top-2.5 px-2 py-0.5 rounded bg-white/[0.05] cursor-pointer"
                   >
                     Limpar
                   </button>
@@ -1171,11 +1190,11 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               {filteredLeadsForBulk.length === 0 ? (
-                <div className="text-center p-8 text-zinc-500 text-xs">
-                  Nenhum lead cumpre as condições de filtros especificadas na coluna esquerda.
+                <div className="text-center p-12 text-zinc-400 text-xs bg-[#0B0D12] rounded-xl border border-white/[0.06]">
+                  Nenhum lead cumpre as condições de filtros especificadas.
                 </div>
               ) : (
-                <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                <div className="max-h-[420px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                   {filteredLeadsForBulk.map((lead) => {
                     const isSelected = selectedLeads.includes(lead.id);
 
@@ -1183,23 +1202,23 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <div 
                         key={lead.id} 
                         onClick={() => handleToggleLeadSelect(lead.id)}
-                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-150 ${
                           isSelected 
-                            ? "bg-zinc-800/80 border-[#89F0B2]/30 text-white" 
-                            : "bg-zinc-950/40 border-zinc-850 hover:border-zinc-800 text-zinc-400"
+                            ? "bg-indigo-500/10 border-indigo-500/35 text-white shadow-xs" 
+                            : "bg-[#0B0D12] border-white/[0.06] hover:border-white/[0.12] text-zinc-400"
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            className={`p-0.5 rounded transition ${isSelected ? "text-[#89F0B2]" : "text-zinc-600"}`}
+                            className={`p-0.5 rounded transition ${isSelected ? "text-indigo-400" : "text-zinc-600"}`}
                           >
                             {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                           </button>
                           
                           <div className="space-y-0.5">
                             <span className="text-xs font-semibold block text-white">{lead.nome}</span>
-                            <span className="text-[10px] text-zinc-500 flex items-center gap-2">
+                            <span className="text-[10px] text-zinc-400 flex flex-wrap items-center gap-2">
                               <span>💍 {lead.local || "Não inf."}</span>
                               <span>📅 {lead.data_casamento || "Sem data"}</span>
                               <span>👥 {lead.convidados} conv.</span>
@@ -1207,15 +1226,15 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded uppercase font-mono">
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[9px] bg-[#12151C] border border-white/[0.08] text-zinc-300 px-2 py-0.5 rounded font-mono uppercase">
                             {lead.status_funil}
                           </span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-mono ${
-                            String(lead.temperatura || "").toUpperCase() === "QUENTE" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
-                            String(lead.temperatura || "").toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                            String(lead.temperatura || "").toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                            "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                          <span className={`text-[9px] px-2 py-0.5 rounded font-mono uppercase font-bold ${
+                            String(lead.temperatura || "").toUpperCase() === "QUENTE" ? "bg-rose-500/15 text-rose-300 border border-rose-500/25" :
+                            String(lead.temperatura || "").toUpperCase() === "MORNA" ? "bg-amber-500/15 text-amber-300 border border-amber-500/25" :
+                            String(lead.temperatura || "").toUpperCase() === "CLIENTE" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25" :
+                            "bg-sky-500/15 text-sky-300 border border-sky-500/25"
                           }`}>
                             {String(lead.temperatura || "FRIA").toUpperCase()}
                           </span>

@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Flame, MessageCircle, MapPin, Clock, Zap, CheckCircle2 } from "lucide-react";
 import { Lead, LeadStatus, LeadTemperatura, PortalSource } from "../types";
+import { Button, Badge, SearchInput, Select, Input, Textarea, FormField, Modal } from "./ui";
 
 interface LeadsListProps {
   leads: Lead[];
@@ -151,7 +152,7 @@ export function getDaysUntilWedding(dateStr?: string): { days: number | null; la
   const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
   if (days === 0) {
-    return { days: 0, label: "Hoje!", badgeColor: "bg-[#89F0B2]/20 text-[#89F0B2] border-[#89F0B2]/40 font-bold animate-pulse" };
+    return { days: 0, label: "Hoje!", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold animate-pulse" };
   } else if (days < 0) {
     return { days, label: `${Math.abs(days)}d atrás`, badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
   } else if (days <= 30) {
@@ -159,7 +160,7 @@ export function getDaysUntilWedding(dateStr?: string): { days: number | null; la
   } else if (days <= 90) {
     return { days, label: `${days}d restantes`, badgeColor: "bg-sky-500/15 text-sky-300 border-sky-500/30 font-semibold" };
   } else {
-    return { days, label: `${days}d restantes`, badgeColor: "bg-[#89F0B2]/15 text-[#89F0B2] border-[#89F0B2]/30 font-semibold" };
+    return { days, label: `${days}d restantes`, badgeColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30 font-medium" };
   }
 }
 
@@ -509,613 +510,680 @@ export default function LeadsList({
   const activeLeadsCount = leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda) && !isConvertido(l.status_funil)).length;
   const negociacaoCount = leads.filter(isNegociacaoLead).length;
 
+  const hasActiveFilters = 
+    searchTerm !== "" || 
+    selectedStatus !== "ALL" || 
+    selectedStatusConversa !== "ALL" || 
+    selectedTemp !== "ALL" || 
+    selectedPortal !== "ALL" || 
+    negociacaoFilterOnly;
+
+  const handleClearAllFilters = () => {
+    setSearchTerm("");
+    setSelectedStatus("ALL");
+    setSelectedStatusConversa("ALL");
+    setSelectedTemp("ALL");
+    setSelectedPortal("ALL");
+    setNegociacaoFilterOnly(false);
+    if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+  };
+
   return (
     <div className="space-y-4">
-      {/* Quick View Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setNegociacaoFilterOnly(false);
-              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition ${
-              !negociacaoFilterOnly
-                ? "bg-zinc-800 text-white border border-zinc-700 shadow-sm"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
-            }`}
-          >
-            <span>Todos os Leads Ativos</span>
-            <span className="bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] text-zinc-400 font-mono">
-              {activeLeadsCount}
+      
+      {/* CABEÇALHO: Lista de Leads, descrição curta / quantidade, [+ Novo Lead] */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-white tracking-tight">Lista de Leads</h1>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-white/[0.08] text-zinc-300">
+              {filteredLeads.length} {filteredLeads.length === 1 ? "lead" : "leads"}
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setNegociacaoFilterOnly(true)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition ${
-              negociacaoFilterOnly
-                ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/50 shadow-sm"
-                : "bg-zinc-900 text-zinc-400 hover:text-[#89F0B2] hover:bg-[#89F0B2]/10 border border-zinc-800"
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-[#89F0B2] fill-[#89F0B2] animate-pulse" />
-            <span>🔥 Visão Leads em Negociação</span>
-            <span className="bg-[#89F0B2]/20 text-[#89F0B2] px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-[#89F0B2]/40">
-              {negociacaoCount}
-            </span>
-          </button>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1">
+            Gerenciamento do funil comercial de noivas e histórico de atendimentos
+          </p>
         </div>
 
-        {negociacaoFilterOnly && (
-          <div className="text-xs text-[#89F0B2]/90 font-medium flex items-center gap-1.5 bg-[#89F0B2]/10 px-3 py-1 rounded-lg border border-[#89F0B2]/20">
-            <span>Exibindo apenas leads com <strong>Status: Respondido</strong> e <strong>Temperatura: Quente</strong></span>
-            <button 
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRefresh}
+            title="Sincronizar leads"
+            icon={<RefreshCw className="w-3.5 h-3.5 text-zinc-400" />}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsAddingLead(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            Novo Lead
+          </Button>
+        </div>
+      </div>
+
+      {/* SEGUNDA LINHA: [Buscar...] + [Filtros principais com labels inequívocos] */}
+      <div className="bg-[#12151C] border border-white/[0.06] rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Buscar */}
+          <div className="flex-1 min-w-[260px] max-w-lg">
+            <SearchInput
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClear={() => setSearchTerm("")}
+              placeholder="Buscar por noiva, e-mail, telefone..."
+              className="w-full text-xs"
+            />
+          </div>
+
+          {/* Quick Segmented Controls */}
+          <div className="flex items-center gap-1.5 p-1 bg-[#181C26] border border-white/[0.06] rounded-xl self-start sm:self-auto">
+            <button
+              type="button"
               onClick={() => {
                 setNegociacaoFilterOnly(false);
                 if (onClearNegociacaoOnly) onClearNegociacaoOnly();
-              }} 
-              className="text-[#89F0B2] hover:text-[#78e0a1] underline font-semibold ml-1"
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer ${
+                !negociacaoFilterOnly
+                  ? "bg-[#202534] text-white border border-white/[0.08] shadow-xs"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
             >
-              Limpar filtro
+              <span>Todos Ativos</span>
+              <span className="bg-black/30 px-1.5 py-0.5 rounded text-[10px] text-zinc-400 font-medium">
+                {activeLeadsCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setNegociacaoFilterOnly(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer ${
+                negociacaoFilterOnly
+                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-xs"
+                  : "text-zinc-400 hover:text-amber-300"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <span>Em Negociação</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                negociacaoFilterOnly ? "bg-amber-500/25 text-amber-300" : "bg-black/30 text-zinc-400"
+              }`}>
+                {negociacaoCount}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Structured Contextual Filter Selects with explicit labels */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-2.5 border-t border-white/[0.04]">
+          <div>
+            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+              Etapa do Funil
+            </label>
+            <Select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              options={[
+                { value: "ALL", label: `Todas as Etapas (${activeLeadsCount})` },
+                ...(statusList.length > 0 
+                  ? statusList.map(st => ({ value: st, label: st }))
+                  : [
+                      { value: "NOVO", label: "Novos" },
+                      { value: "PRIMEIRO_CONTATO", label: "Primeiro Contato" },
+                      { value: "FOLLOWUP1", label: "Follow-up 1" },
+                      { value: "FOLLOWUP2", label: "Follow-up 2" },
+                      { value: "FOLLOWUP3", label: "Follow-up 3" },
+                      { value: "FOLLOWUPFINAL", label: "Follow-up Final" },
+                      { value: "RESPONDIDO", label: "Respondidos" },
+                      { value: "FECHOU", label: "Fechou (Convertido)" },
+                      { value: "PERDIDO", label: "Perdidos / Encerrados" }
+                    ])
+              ]}
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+              Status da Conversa
+            </label>
+            <Select
+              value={selectedStatusConversa}
+              onChange={(e) => setSelectedStatusConversa(e.target.value)}
+              options={[
+                { value: "ALL", label: "Todas as Conversas" },
+                { value: "NUNCA_RESPONDEU", label: "Nunca respondeu" },
+                { value: "RESPONDEU", label: "Respondeu" },
+                { value: "EM_ATENDIMENTO", label: "Em atendimento" },
+                { value: "ESCOLHENDO_MODELO", label: "Escolhendo modelo" },
+                { value: "ORCAMENTO_ENVIADO", label: "Orçamento enviado" },
+                { value: "NEGOCIACAO", label: "Negociação" },
+                { value: "CLIENTE", label: "Cliente (Fechou)" },
+                { value: "PERDIDO", label: "Perdido" }
+              ]}
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+              Temperatura
+            </label>
+            <Select
+              value={selectedTemp}
+              onChange={(e) => setSelectedTemp(e.target.value)}
+              options={[
+                { value: "ALL", label: "Todas Temperaturas" },
+                { value: "FRIA", label: "Fria" },
+                { value: "MORNA", label: "Morna" },
+                { value: "QUENTE", label: "Quente" },
+                { value: "CLIENTE", label: "Cliente" }
+              ]}
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+              Canal de Origem
+            </label>
+            <Select
+              value={selectedPortal}
+              onChange={(e) => setSelectedPortal(e.target.value)}
+              options={[
+                { value: "ALL", label: "Todos os Canais" },
+                ...availablePortalsForFilter.map(pName => ({ value: pName, label: pName }))
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* Removable Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.04] text-xs">
+            <span className="text-zinc-500 text-[11px] font-medium">Filtros ativos:</span>
+            
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs">
+                <span>Busca: "{searchTerm}"</span>
+                <button type="button" onClick={() => setSearchTerm("")} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {negociacaoFilterOnly && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs">
+                <span>Em Negociação</span>
+                <button type="button" onClick={() => { setNegociacaoFilterOnly(false); if (onClearNegociacaoOnly) onClearNegociacaoOnly(); }} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedStatus !== "ALL" && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
+                <span>Status: {selectedStatus}</span>
+                <button type="button" onClick={() => setSelectedStatus("ALL")} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedStatusConversa !== "ALL" && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
+                <span>Conversa: {selectedStatusConversa}</span>
+                <button type="button" onClick={() => setSelectedStatusConversa("ALL")} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedTemp !== "ALL" && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
+                <span>Temp: {selectedTemp}</span>
+                <button type="button" onClick={() => setSelectedTemp("ALL")} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedPortal !== "ALL" && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
+                <span>Canal: {selectedPortal}</span>
+                <button type="button" onClick={() => setSelectedPortal("ALL")} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="text-xs text-zinc-400 hover:text-zinc-200 ml-auto underline cursor-pointer"
+            >
+              Limpar todos
             </button>
           </div>
         )}
       </div>
 
-      {/* Search & Filter Header bar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+      {/* Redesigned Tabular Leads Container */}
+      <div className="bg-[#0e1118] border border-white/[0.07] rounded-2xl overflow-hidden shadow-sm">
         
-        {/* Search bar */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Pesquisar por nome, email, celular ou ID..."
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-8 py-2 text-sm text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-600"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded transition"
-              title="Limpar pesquisa"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        {/* Table Column Headers */}
+        <div className="bg-[#181C26] border-b border-white/[0.06] px-4 py-3 text-xs font-medium text-zinc-400 hidden md:grid grid-cols-12 gap-4 items-center">
+          <button 
+            onClick={() => toggleSort("nome")} 
+            className="col-span-3 flex items-center gap-1.5 text-left hover:text-white cursor-pointer transition"
+          >
+            <span>Lead & Noiva</span>
+            <ArrowUpDown className={`w-3 h-3 ${sortField === "nome" ? "text-indigo-400" : "text-zinc-500"}`} />
+          </button>
+          
+          <span className="col-span-2">Contato & Local</span>
+          
+          <button 
+            onClick={() => toggleSort("convidados")} 
+            className="col-span-1 flex items-center gap-1 hover:text-white cursor-pointer transition"
+          >
+            <span>Conv.</span>
+            <ArrowUpDown className={`w-3 h-3 ${sortField === "convidados" ? "text-indigo-400" : "text-zinc-500"}`} />
+          </button>
+          
+          <button 
+            onClick={() => toggleSort("data_casamento")} 
+            className="col-span-1 flex items-center gap-1 text-left hover:text-white cursor-pointer transition"
+          >
+            <span>Evento</span>
+            <ArrowUpDown className={`w-3 h-3 ${sortField === "data_casamento" ? "text-indigo-400" : "text-zinc-500"}`} />
+          </button>
+          
+          <span className="col-span-2">Etapa & Status</span>
+          
+          <button 
+            onClick={() => toggleSort("ultima_interacao")} 
+            className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between cursor-pointer transition"
+          >
+            <span>Última Interação</span>
+            <ArrowUpDown className={`w-3 h-3 ${sortField === "ultima_interacao" ? "text-indigo-400" : "text-zinc-500"}`} />
+          </button>
+          
+          <button 
+            onClick={() => toggleSort("dias_evento")} 
+            className="col-span-1 flex items-center gap-1 text-left hover:text-white justify-end cursor-pointer transition"
+          >
+            <span>Dias</span>
+            <ArrowUpDown className={`w-3 h-3 ${sortField === "dias_evento" ? "text-indigo-400" : "text-zinc-500"}`} />
+          </button>
+        </div>
+
+        {/* Rows Container */}
+        <div className="divide-y divide-white/[0.04] max-h-[620px] overflow-y-auto">
+          {filteredLeads.length > 0 ? (
+            filteredLeads.map((lead) => {
+              const interaction = getLastInteractionInfo(lead);
+              const isEmNegociacao = isNegociacaoLead(lead);
+              const weddingDays = getDaysUntilWedding(lead.data_casamento);
+              const hasProximoPasso = Boolean(
+                (lead.proxima_atividade_em && String(lead.proxima_atividade_em).trim() !== "") ||
+                (lead.proxima_acao_em && String(lead.proxima_acao_em).trim() !== "")
+              );
+
+              const tempVariant = 
+                lead.temperatura === "QUENTE" ? "hot" :
+                lead.temperatura === "MORNA" ? "warm" :
+                lead.temperatura === "CLIENTE" ? "success" : "cold";
+              
+              return (
+                <div
+                  key={lead.id}
+                  onClick={() => onSelectLead(lead.id)}
+                  className={`group w-full cursor-pointer px-4 py-3.5 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3 items-start md:items-center text-xs text-zinc-300 text-left transition-colors duration-150 ${
+                    isEmNegociacao
+                      ? "bg-amber-500/[0.03] hover:bg-amber-500/[0.07]"
+                      : "hover:bg-white/[0.02]"
+                  }`}
+                >
+                  {/* Lead identity & avatar */}
+                  <div className="md:col-span-3 w-full flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-semibold text-xs shrink-0 transition-transform group-hover:scale-105 ${
+                      isEmNegociacao
+                        ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                        : hasProximoPasso
+                        ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                        : "bg-[#181C26] text-zinc-200 border border-white/[0.08]"
+                    }`}>
+                      {lead.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="truncate min-w-0 flex-1">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className={`font-semibold text-sm block truncate transition-colors ${
+                          hasProximoPasso 
+                            ? "text-indigo-300" 
+                            : isEmNegociacao
+                            ? "text-zinc-100 group-hover:text-amber-300"
+                            : "text-zinc-100 group-hover:text-white"
+                        }`}>
+                          {lead.nome}
+                        </span>
+                        {isEmNegociacao && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
+                            <Flame className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                            Negociação
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-zinc-400 block mt-0.5">#{lead.id}</span>
+                    </div>
+                  </div>
+
+                  {/* Contact info & Quick 1-Click Actions */}
+                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 space-y-1">
+                    <div className="flex items-center gap-1.5 text-zinc-300">
+                      <Mail className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      <span className="truncate text-xs">{lead.email}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-zinc-400">
+                      <Phone className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      <span className="text-xs">{lead.link_celular || "Sem telefone"}</span>
+                    </div>
+                    {lead.local && (
+                      <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] truncate" title={lead.local}>
+                        <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
+                        <span className="truncate">{lead.local}</span>
+                      </div>
+                    )}
+
+                    {/* 1-Click Direct Action Buttons */}
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {lead.link_celular && (
+                        <a
+                          href={`https://wa.me/${lead.link_celular.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.nome}! Tudo bem? Gostaria de conversar sobre o seu orçamento de casamento na Casa Colombo Artesanal.`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Abrir WhatsApp direto"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 rounded-md text-[10px] font-medium transition cursor-pointer"
+                        >
+                          <MessageCircle className="w-3 h-3 text-emerald-400" />
+                          WhatsApp
+                        </a>
+                      )}
+                      {lead.email && (
+                        <a
+                          href={`mailto:${lead.email}?subject=${encodeURIComponent(`Acompanhamento de Orçamento - ${lead.nome}`)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          title="Enviar E-mail direto"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/25 rounded-md text-[10px] font-medium transition cursor-pointer"
+                        >
+                          <Mail className="w-3 h-3 text-sky-400" />
+                          E-mail
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Guests */}
+                  <div className="md:col-span-1 w-full flex justify-between md:block text-zinc-300 border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 font-medium text-xs">
+                    <span className="md:hidden font-normal text-zinc-400">Convidados:</span>
+                    <span>{lead.convidados}</span>
+                  </div>
+
+                  {/* Wedding Date */}
+                  <div className="md:col-span-1 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex items-center pr-1">
+                    <div className="flex items-center gap-1.5 text-zinc-300">
+                      <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="font-medium text-xs truncate">{lead.data_casamento || "N/I"}</span>
+                    </div>
+                  </div>
+
+                  {/* Status & Temp */}
+                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex flex-col gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${getStatusColor(lead.status_funil)}`}>
+                        {lead.status_funil}
+                      </span>
+                      <Badge variant={tempVariant} size="sm">
+                        {String(lead.temperatura || "FRIA").trim().toUpperCase()}
+                      </Badge>
+                    </div>
+                    <span className="text-[11px] text-zinc-400 truncate block">Etapa: {lead.etapa_contato}</span>
+                  </div>
+
+                  {/* Last Interaction */}
+                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1">
+                    <div className="flex items-center justify-between md:justify-start gap-1.5">
+                      <span className="md:hidden text-zinc-400 font-normal">Última Interação:</span>
+                      <div className="flex items-center gap-1 text-zinc-300 text-[11px] font-medium">
+                        <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
+                        <span>{interaction.formattedDate}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-200 font-medium truncate" title={interaction.acao}>
+                        {interaction.canalIcon === "whatsapp" && <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                        {interaction.canalIcon === "email" && <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                        {interaction.canalIcon === "manual" && <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                        {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                        <span className="truncate">{interaction.acao}</span>
+                      </div>
+                      <span className="text-[11px] text-zinc-400 truncate">{interaction.origem}</span>
+                    </div>
+                  </div>
+
+                  {/* Countdown & Open details arrow */}
+                  <div className="md:col-span-1 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex items-center justify-between md:justify-end gap-2">
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${weddingDays.badgeColor}`}>
+                      {weddingDays.label}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition shrink-0" />
+                  </div>
+
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-500">
+                <Search className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Nenhum lead encontrado</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Tente ajustar seus termos de busca ou filtros aplicados.</p>
+              </div>
+              {hasActiveFilters && (
+                <Button variant="secondary" size="sm" onClick={handleClearAllFilters}>
+                  Limpar todos os filtros
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Filters Selects */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          {/* Status filter */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
-          >
-            <option value="ALL">Todos Status Ativos ({activeLeadsCount})</option>
-            {statusList.length > 0 ? (
-              statusList.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))
-            ) : (
-              <>
-                <option value="NOVO">Novos</option>
-                <option value="PRIMEIRO_CONTATO">Primeiro Contato</option>
-                <option value="FOLLOWUP1">Follow-up 1</option>
-                <option value="FOLLOWUP2">Follow-up 2</option>
-                <option value="FOLLOWUP3">Follow-up 3</option>
-                <option value="FOLLOWUPFINAL">Follow-up Final</option>
-                <option value="RESPONDIDO">Respondidos</option>
-                <option value="FECHOU">Fechou (Convertido)</option>
-                <option value="PERDIDO">Perdidos / Encerrados</option>
-              </>
-            )}
-          </select>
-
-          {/* Pipeline Status Conversa filter */}
-          <select
-            value={selectedStatusConversa}
-            onChange={(e) => setSelectedStatusConversa(e.target.value)}
-            className="bg-zinc-950 border border-[#89F0B2]/30 rounded-lg px-3 py-1.5 text-xs text-[#89F0B2] focus:outline-none focus:border-[#89F0B2] font-semibold"
-          >
-            <option value="ALL">Status da Conversa (Todos)</option>
-            <option value="NUNCA_RESPONDEU">Nunca respondeu</option>
-            <option value="RESPONDEU">Respondeu</option>
-            <option value="EM_ATENDIMENTO">Em atendimento</option>
-            <option value="ESCOLHENDO_MODELO">Escolhendo modelo</option>
-            <option value="ORCAMENTO_ENVIADO">Orçamento enviado</option>
-            <option value="NEGOCIACAO">Negociação</option>
-            <option value="CLIENTE">Cliente (Fechou)</option>
-            <option value="PERDIDO">Perdido</option>
-          </select>
-
-          {/* Temperature filter */}
-          <select
-            value={selectedTemp}
-            onChange={(e) => setSelectedTemp(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
-          >
-            <option value="ALL">Todas Temperaturas</option>
-            {tempsList.length > 0 ? (
-              tempsList.map((tmp) => {
-                const normTmp = String(tmp).trim().toUpperCase();
-                return <option key={normTmp} value={normTmp}>{normTmp}</option>;
-              })
-            ) : (
-              <>
-                <option value="FRIA">FRIA</option>
-                <option value="MORNA">MORNA</option>
-                <option value="QUENTE">QUENTE</option>
-                <option value="CLIENTE">CLIENTE</option>
-              </>
-            )}
-          </select>
-
-          {/* Origin Portal filter */}
-          <select
-            value={selectedPortal}
-            onChange={(e) => setSelectedPortal(e.target.value)}
-            className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-[#89F0B2]"
-          >
-            <option value="ALL">Todos os Canais Originários</option>
-            {availablePortalsForFilter.map((pName) => (
-              <option key={pName} value={pName}>{pName}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={onRefresh}
-            className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg border border-zinc-800 hover:border-zinc-700 transition"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setIsAddingLead(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold text-xs rounded-lg transition shadow-md"
-          >
-            <Plus className="w-4 h-4" />
-            Criar Lead
-          </button>
+        {/* Table Footer Summary */}
+        <div className="px-4 py-3 bg-[#121620]/60 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-medium">
+          <span>Mostrando {filteredLeads.length} de {leads.length} leads cadastrados</span>
+          <span className="text-[11px] text-zinc-500 font-mono">Clique em qualquer linha para abrir a Ficha Completa</span>
         </div>
 
       </div>
 
-      {/* Database table header sort indicators */}
-      <div className="bg-zinc-950 border border-zinc-900 rounded-lg px-4 py-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hidden md:grid grid-cols-12 gap-4 items-center shrink-0">
-        <button onClick={() => toggleSort("nome")} className="col-span-2 flex items-center gap-1 text-left hover:text-white">
-          Lead
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
-        <span className="col-span-2">Email • Telefone</span>
-        <button onClick={() => toggleSort("convidados")} className="col-span-1 flex items-center gap-1 hover:text-white">
-          Conv.
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
-        <button onClick={() => toggleSort("data_casamento")} className="col-span-1 flex items-center gap-1 text-left hover:text-white">
-          EVENTO
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
-        <span className="col-span-2">Status / Etapa</span>
-        <button onClick={() => toggleSort("ultima_interacao")} className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between">
-          <span>ÚLTIMA INTERAÇÃO</span>
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
-        <button onClick={() => toggleSort("dias_evento")} className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between">
-          <span>DIAS P/ EVENTO</span>
-          <ArrowUpDown className="w-3 h-3" />
-        </button>
-      </div>
+      {/* Add Lead Modal */}
+      <Modal
+        isOpen={isAddingLead}
+        onClose={() => setIsAddingLead(false)}
+        title="Cadastrar Novo Lead"
+        size="lg"
+      >
+        <form onSubmit={handleAddSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField label="Nome do Lead" required>
+              <Input
+                required
+                value={formNome}
+                onChange={(e) => setFormNome(e.target.value)}
+                placeholder="Larissa Souza"
+              />
+            </FormField>
+            <FormField label="E-mail" required>
+              <Input
+                type="email"
+                required
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder="larissa@gmail.com"
+              />
+            </FormField>
+          </div>
 
-      {/* Database Leads list row entries */}
-      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-        {filteredLeads.length > 0 ? (
-          filteredLeads.map((lead) => {
-            const interaction = getLastInteractionInfo(lead);
-            const isEmNegociacao = isNegociacaoLead(lead);
-            const weddingDays = getDaysUntilWedding(lead.data_casamento);
-            const hasProximoPasso = Boolean(
-              (lead.proxima_atividade_em && String(lead.proxima_atividade_em).trim() !== "") ||
-              (lead.proxima_acao_em && String(lead.proxima_acao_em).trim() !== "")
-            );
-            
-            return (
-              <div
-                key={lead.id}
-                onClick={() => onSelectLead(lead.id)}
-                className={`w-full cursor-pointer rounded-xl p-4 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3.5 items-start md:items-center text-xs text-zinc-300 text-left transition ${
-                  isEmNegociacao
-                    ? "bg-emerald-950/20 hover:bg-emerald-950/35 border border-[#89F0B2]/40 hover:border-[#89F0B2] shadow-sm shadow-emerald-500/5"
-                    : "bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField label="WhatsApp / Celular">
+              <Input
+                value={formPhone}
+                onChange={(e) => setFormPhone(e.target.value)}
+                placeholder="(13) 99655-1212"
+              />
+            </FormField>
+            <FormField label="Número de Convidados (Estimativa)">
+              <Input
+                type="number"
+                min="0"
+                value={formGuests}
+                onChange={(e) => setFormGuests(Number(e.target.value))}
+              />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField label="Data do Casamento (DD/MM/AAAA)">
+              <Input
+                value={formDate}
+                onChange={(e) => handleWeddingDateChange(e.target.value)}
+                placeholder="12/10/2026"
+                className="font-mono"
+              />
+            </FormField>
+            <FormField label="Mês / Ano do Casamento (Extenso)">
+              <Input
+                value={formMonth}
+                onChange={(e) => setFormMonth(e.target.value)}
+                placeholder="Outubro de 2026"
+              />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField label="Local do Casamento">
+              <Input
+                value={formVenue}
+                onChange={(e) => setFormVenue(e.target.value)}
+                placeholder="Recanto dos Sonhos, Santos"
+              />
+            </FormField>
+            <FormField label="Canal Originário">
+              <Select
+                value={formPortal}
+                onChange={(e) => setFormPortal(e.target.value)}
+                options={
+                  portals && portals.length > 0
+                    ? portals.filter((p) => p.ativo !== false).map((p) => ({ value: p.nome, label: p.nome }))
+                    : [
+                        { value: "Manual (CRM Interior)", label: "Manual (CRM Interior)" },
+                        { value: "Portal Noivas", label: "Portal Noivas" },
+                        { value: "Casamentos.com.br", label: "Casamentos.com.br" },
+                        { value: "Zankyou", label: "Zankyou" },
+                        { value: "Instagram / Meta", label: "Instagram / Meta" },
+                        { value: "Google Ads / Pesquisa", label: "Google Ads / Pesquisa" },
+                        { value: "Indicação / Recomendação", label: "Indicação / Recomendação" },
+                        { value: "Formulário Site Direto", label: "Formulário Site Direto" },
+                        { value: "Outros", label: "Outros" }
+                      ]
+                }
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Serviços Solicitados">
+            <Input
+              value={formServices}
+              onChange={(e) => setFormServices(e.target.value)}
+              placeholder="Lembrancinhas Mini Velas, Difusores etc."
+            />
+          </FormField>
+
+          <FormField label="Observações Iniciais">
+            <Textarea
+              rows={3}
+              value={formNotes}
+              onChange={(e) => setFormNotes(e.target.value)}
+              placeholder="Lead solicitou rótulo personalizado rústico."
+            />
+          </FormField>
+
+          {/* Pergunta: Enviar 1ª mensagem da sequência agora ou agendar para 3 dias */}
+          <div className="p-3.5 bg-[#0B0D12] border border-white/[0.06] rounded-xl space-y-2">
+            <label className="text-zinc-300 font-medium text-xs block">
+              Enviar a 1ª mensagem da sequência de automação agora?
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setEnviarPrimeiraMensagem(true)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  enviarPrimeiraMensagem
+                    ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/40 font-semibold"
+                    : "bg-[#181C26] text-zinc-400 border-white/[0.06] hover:bg-white/[0.04]"
                 }`}
               >
-                {/* Bride identity */}
-                <div className="md:col-span-2 w-full flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                    isEmNegociacao
-                      ? "bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/30"
-                      : hasProximoPasso
-                      ? "bg-yellow-400/20 text-yellow-300 border border-yellow-400/30"
-                      : "bg-zinc-800 text-zinc-300"
-                  }`}>
-                    {lead.nome.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="truncate">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span
-                        style={{ color: hasProximoPasso ? "#facc15" : undefined }}
-                        className={`font-semibold block truncate ${
-                          hasProximoPasso ? "text-yellow-400 font-bold" : "text-white"
-                        }`}
-                      >
-                        {lead.nome}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">{lead.id}</span>
-                    {isEmNegociacao && (
-                      <div className="mt-1">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-[#89F0B2]/20 text-[#89F0B2] border border-[#89F0B2]/40 shadow-sm animate-pulse">
-                          <Flame className="w-2.5 h-2.5 text-[#89F0B2] fill-[#89F0B2]" />
-                          Em Negociação
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Email / phone contact & location & 1-Click Quick Actions */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate space-y-1">
-                  <div className="flex items-center gap-1.5 text-zinc-400">
-                    <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <span className="truncate">{lead.email}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-zinc-400">
-                    <Phone className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <span>{lead.link_celular || "Sem fone"}</span>
-                  </div>
-                  {lead.local && (
-                    <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] truncate" title={lead.local}>
-                      <MapPin className="w-3.5 h-3.5 text-[#89F0B2]/80 shrink-0" />
-                      <span className="truncate">{lead.local}</span>
-                    </div>
-                  )}
-
-                  {/* 1-Click Quick Action Buttons */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {lead.link_celular && (
-                      <a
-                        href={`https://wa.me/${lead.link_celular.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.nome}! Tudo bem? Gostaria de conversar sobre o seu orçamento de casamento na Casa Colombo Artesanal.`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Abrir WhatsApp direto (1-Clique)"
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded text-[10px] font-bold transition"
-                      >
-                        <MessageCircle className="w-3 h-3 text-emerald-400 fill-emerald-400/20" />
-                        WhatsApp
-                      </a>
-                    )}
-                    {lead.email && (
-                      <a
-                        href={`mailto:${lead.email}?subject=${encodeURIComponent(`Acompanhamento de Orçamento - ${lead.nome}`)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        title="Enviar E-mail direto (1-Clique)"
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/15 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 rounded text-[10px] font-bold transition"
-                      >
-                        <Mail className="w-3 h-3 text-sky-400" />
-                        E-mail
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                {/* Guests */}
-                <div className="md:col-span-1 w-full flex justify-between md:block text-zinc-400 md:text-white border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 font-semibold">
-                  <span className="md:hidden font-medium text-zinc-500">Convidados:</span>
-                  <span>{lead.convidados}</span>
-                </div>
-
-                {/* Event Date */}
-                <div className="md:col-span-1 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 md:truncate flex items-center pr-1">
-                  <div className="flex items-center gap-1 text-zinc-300">
-                    <Calendar className="w-3.5 h-3.5 text-[#89F0B2]/80 shrink-0" />
-                    <span className="truncate font-medium">{lead.data_casamento || "N/I"}</span>
-                  </div>
-                </div>
-
-                {/* Status Badges */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col gap-1.5">
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border ${getStatusColor(lead.status_funil)}`}>
-                      {lead.status_funil}
-                    </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border ${getTempColor(lead.temperatura)}`}>
-                      {String(lead.temperatura || "FRIA").trim().toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-zinc-500 truncate block">Etapa: {lead.etapa_contato}</span>
-                </div>
-
-                {/* Last Interaction, Action & Source */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1">
-                  <div className="flex items-center justify-between md:justify-start gap-1.5">
-                    <span className="md:hidden text-zinc-500 font-medium">Última Interação:</span>
-                    <div className="flex items-center gap-1 text-zinc-200 font-mono text-[10px] font-semibold">
-                      <Clock className="w-3 h-3 text-[#89F0B2] shrink-0" />
-                      <span>{interaction.formattedDate}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-1 text-[11px] text-zinc-200 font-medium truncate" title={interaction.acao}>
-                      {interaction.canalIcon === "whatsapp" && <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                      {interaction.canalIcon === "email" && <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
-                      {interaction.canalIcon === "manual" && <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                      {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-[#89F0B2] shrink-0" />}
-                      <span className="truncate">{interaction.acao}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="inline-block px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[9px] font-medium border border-zinc-700/60 truncate">
-                        {interaction.origem}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Days Until Wedding/Event Column */}
-                <div className="md:col-span-2 w-full border-t border-zinc-850/60 pt-3 md:pt-0 md:border-t-0 flex flex-col justify-center items-start">
-                  <span className="md:hidden text-zinc-500 font-medium text-[10px] block mb-1">Dias p/ Evento:</span>
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${weddingDays.badgeColor}`}>
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    <span>{weddingDays.label}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="bg-zinc-900/20 border border-zinc-800 border-dashed rounded-xl p-12 text-center text-zinc-500">
-            Nenhum lead encontrado com os filtros e busca aplicados.
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                Sim, enviar agora
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnviarPrimeiraMensagem(false)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  !enviarPrimeiraMensagem
+                    ? "bg-amber-500/15 text-amber-300 border-amber-500/40 font-semibold"
+                    : "bg-[#181C26] text-zinc-400 border-white/[0.06] hover:bg-white/[0.04]"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                Não, agendar p/ 3 dias
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500 leading-snug">
+              {enviarPrimeiraMensagem
+                ? "A 1ª mensagem do fluxo será enviada imediatamente ao cadastrar o lead."
+                : "A 1ª mensagem da sequência será agendada para daqui a 3 dias. O fluxo seguirá o prazo normal a partir de então."}
+            </p>
           </div>
-        )}
-      </div>
 
-      {/* Add Lead Drawer Modal Overlay */}
-      {isAddingLead && createPortal(
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <form 
-            onSubmit={handleAddSubmit} 
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[85vh] h-auto my-auto animate-fade-in"
-          >
-            
-            {/* Modal Header */}
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/40 shrink-0">
-              <div className="flex items-center gap-2">
-                <Plus className="w-5 h-5 text-[#89F0B2]" />
-                <h3 className="text-base font-semibold text-white">Cadastrar Novo Lead</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddingLead(false)}
-                className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="p-3 bg-[#0B0D12] border border-white/[0.06] rounded-xl flex items-center gap-2 text-[11px] text-zinc-400">
+            <Calculator className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span>O CRM calculará os orçamentos para {formGuests} convidados de forma automática ao salvar.</span>
+          </div>
 
-            {/* Modal Form scrollable body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs min-h-0">
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Nome do Lead *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formNome}
-                    onChange={(e) => setFormNome(e.target.value)}
-                    placeholder="Larissa Souza"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">E-mail *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="larissa@gmail.com"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">WhatsApp / Celular</label>
-                  <input
-                    type="text"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="(13) 99655-1212"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Número de Convidados (Estimativa)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formGuests}
-                    onChange={(e) => setFormGuests(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Data do Casamento (DD/MM/AAAA)</label>
-                  <input
-                    type="text"
-                    value={formDate}
-                    onChange={(e) => handleWeddingDateChange(e.target.value)}
-                    placeholder="12/10/2026"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700 font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Mês / Ano do Casamento (Extenso)</label>
-                  <input
-                    type="text"
-                    value={formMonth}
-                    onChange={(e) => setFormMonth(e.target.value)}
-                    placeholder="Outubro de 2026"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Local do Casamento</label>
-                  <input
-                    type="text"
-                    value={formVenue}
-                    onChange={(e) => setFormVenue(e.target.value)}
-                    placeholder="Recanto dos Sonhos, Santos"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-zinc-400 font-medium">Canal Originário</label>
-                  <select
-                    value={formPortal}
-                    onChange={(e) => setFormPortal(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2]"
-                  >
-                    {portals && portals.length > 0 ? (
-                      portals.filter((p) => p.ativo !== false).map((p) => (
-                        <option key={p.id} value={p.nome}>
-                          {p.nome}
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="Manual (CRM Interior)">Manual (CRM Interior)</option>
-                        <option value="Portal Noivas">Portal Noivas</option>
-                        <option value="Casamentos.com.br">Casamentos.com.br</option>
-                        <option value="Zankyou">Zankyou</option>
-                        <option value="Instagram / Meta">Instagram / Meta</option>
-                        <option value="Google Ads / Pesquisa">Google Ads / Pesquisa</option>
-                        <option value="Indicação / Recomendação">Indicação / Recomendação</option>
-                        <option value="Formulário Site Direto">Formulário Site Direto</option>
-                        <option value="Outros">Outros</option>
-                      </>
-                    )}
-                    {formPortal && portals && !portals.some((p) => p.nome === formPortal) && (
-                      <option value={formPortal}>{formPortal}</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-zinc-400 font-medium">Serviços Solicitados</label>
-                <input
-                  type="text"
-                  value={formServices}
-                  onChange={(e) => setFormServices(e.target.value)}
-                  placeholder="Lembrancinhas Mini Velas, Difusores etc."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-zinc-400 font-medium">Observações Iniciais</label>
-                <textarea
-                  rows={3}
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Lead solicitou rótulo personalizado rústico."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-white focus:outline-none focus:border-[#89F0B2] placeholder-zinc-700 resize-none"
-                />
-              </div>
-
-              {/* Pergunta: Enviar 1ª mensagem da sequência agora ou agendar para 3 dias */}
-              <div className="p-3.5 bg-zinc-950/90 border border-zinc-800 rounded-xl space-y-2">
-                <label className="text-zinc-300 font-medium text-xs block">
-                  Enviar a 1ª mensagem da sequência de automação agora?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEnviarPrimeiraMensagem(true)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
-                      enviarPrimeiraMensagem
-                        ? "bg-[#89F0B2]/15 text-[#89F0B2] border-[#89F0B2]/50 font-semibold"
-                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
-                    }`}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    Sim, enviar agora
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEnviarPrimeiraMensagem(false)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
-                      !enviarPrimeiraMensagem
-                        ? "bg-amber-500/15 text-amber-400 border-amber-500/50 font-semibold"
-                        : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800"
-                    }`}
-                  >
-                    <Clock className="w-3.5 h-3.5 shrink-0" />
-                    Não, agendar p/ 3 dias
-                  </button>
-                </div>
-                <p className="text-[11px] text-zinc-500 leading-snug">
-                  {enviarPrimeiraMensagem
-                    ? "A 1ª mensagem do fluxo será enviada imediatamente ao cadastrar o lead."
-                    : "A 1ª mensagem da sequência será agendada para daqui a 3 dias. O fluxo seguirá o prazo normal a partir de então."}
-                </p>
-              </div>
-
-              {/* Informative Auto budget calculation */}
-              <div className="p-3 bg-zinc-950 border border-zinc-800/85 rounded-lg flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-                <Calculator className="w-4 h-4 text-zinc-600" />
-                <span>O CRM calculará os orçamentos para {formGuests} convidados de forma automática ao salvar.</span>
-              </div>
-
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2.5 p-5 border-t border-zinc-800 bg-zinc-950/20 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsAddingLead(false)}
-                className="px-4 py-2 hover:bg-zinc-800 text-zinc-300 rounded-lg font-medium transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold rounded-lg transition"
-              >
-                Cadastrar Lead
-              </button>
-            </div>
-
-          </form>
-        </div>,
-        document.body
-      )}
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-white/[0.06]">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsAddingLead(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+            >
+              Cadastrar Lead
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
     </div>
   );

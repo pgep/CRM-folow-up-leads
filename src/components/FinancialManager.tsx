@@ -625,83 +625,83 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Contratado */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-center justify-between shadow-lg shadow-zinc-950/20 relative overflow-hidden group">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between shadow-xs transition-all hover:border-white/[0.12] group">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-zinc-500">
+            <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">
               Total Contratado (Ativos)
             </span>
-            <div className="text-xl font-bold font-mono text-zinc-100">
+            <div className="text-2xl font-bold font-mono text-white tracking-tight">
               {formatBRL(dashboardStats.totalContratado)}
             </div>
-            <span className="text-[9px] text-zinc-500 font-medium">Contratos com status Ativo</span>
+            <span className="text-[11px] text-zinc-400">Contratos com status Ativo</span>
           </div>
-          <div className="w-12 h-12 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition">
-            <FileText className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform shrink-0">
+            <FileText className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 2: Total Recebido */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-center justify-between shadow-lg shadow-zinc-950/20 relative overflow-hidden group">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between shadow-xs transition-all hover:border-white/[0.12] group">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-zinc-500">
+            <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">
               Total Recebido (Pago)
             </span>
-            <div className="text-xl font-bold font-mono text-emerald-400">
+            <div className="text-2xl font-bold font-mono text-emerald-400 tracking-tight">
               {formatBRL(dashboardStats.totalRecebido)}
             </div>
-            <span className="text-[9px] text-emerald-500/80 font-medium">Todas as parcelas pagas</span>
+            <span className="text-[11px] text-emerald-400/80">Todas as parcelas quitadas</span>
           </div>
-          <div className="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition">
-            <Check className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
+            <Check className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 3: Total em Atraso */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-center justify-between shadow-lg shadow-zinc-950/20 relative overflow-hidden group">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between shadow-xs transition-all hover:border-white/[0.12] group">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-zinc-500">
+            <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">
               Total em Atraso (Vencido)
             </span>
-            <div className="text-xl font-bold font-mono text-rose-500">
+            <div className="text-2xl font-bold font-mono text-rose-400 tracking-tight">
               {formatBRL(dashboardStats.totalEmAtraso)}
             </div>
-            <span className="text-[9px] text-rose-400/80 font-medium">Parcelas vencidas em aberto</span>
+            <span className="text-[11px] text-rose-400/80">Parcelas vencidas em aberto</span>
           </div>
-          <div className="w-12 h-12 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
-            <AlertTriangle className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-105 transition-transform shrink-0">
+            <AlertTriangle className="w-5 h-5" />
           </div>
         </div>
 
         {/* Card 4: % de Inadimplência */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-center justify-between shadow-lg shadow-zinc-950/20 relative overflow-hidden group">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-5 flex items-center justify-between shadow-xs transition-all hover:border-white/[0.12] group">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-wider font-mono font-bold text-zinc-500">
+            <span className="text-[11px] font-semibold text-zinc-400 tracking-wider uppercase">
               Inadimplência
             </span>
-            <div className="text-xl font-bold font-mono text-amber-500">
+            <div className="text-2xl font-bold font-mono text-amber-400 tracking-tight">
               {dashboardStats.percentInadimplencia}%
             </div>
-            <span className="text-[9px] text-amber-400/80 font-medium">Atraso sobre total ativo</span>
+            <span className="text-[11px] text-amber-400/80">Atraso sobre total ativo</span>
           </div>
-          <div className="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition">
-            <Percent className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform shrink-0">
+            <Percent className="w-5 h-5" />
           </div>
         </div>
 
       </div>
 
       {/* Navigation controls / Subtabs */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               setSubTab("installments");
               setEditingContractId(null);
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
               subTab === "installments"
-                ? "bg-[#89F0B2] text-zinc-950 font-bold"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                ? "bg-indigo-600 text-white font-medium shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             <Clock className="w-4 h-4" />
@@ -712,10 +712,10 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               setSubTab("contracts");
               setEditingContractId(null);
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
               subTab === "contracts"
-                ? "bg-[#89F0B2] text-zinc-950 font-bold"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                ? "bg-indigo-600 text-white font-medium shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -732,10 +732,10 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               setObservations("");
               setSubTab("new_contract");
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all flex items-center gap-2 cursor-pointer ${
               subTab === "new_contract" && !editingContractId
-                ? "bg-[#89F0B2] text-zinc-950 font-bold"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                ? "bg-indigo-600 text-white font-medium shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.05]"
             }`}
           >
             <Plus className="w-4 h-4" />
@@ -746,9 +746,9 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
         {subTab === "installments" && (
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-semibold tracking-wide transition flex items-center justify-center gap-2 border border-zinc-700 self-start md:self-auto"
+            className="px-3.5 py-2 bg-white/[0.05] hover:bg-white/[0.08] text-white rounded-xl text-xs font-semibold tracking-tight transition-all flex items-center justify-center gap-2 border border-white/[0.08] self-start md:self-auto cursor-pointer shadow-xs"
           >
-            <Download className="w-4 h-4 text-[#89F0B2]" />
+            <Download className="w-4 h-4 text-indigo-400" />
             Inadimplentes em CSV
           </button>
         )}
@@ -761,30 +761,30 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
         <div className="space-y-4">
           
           {/* Quick Filters, Search Bar & Period Report Date Pickers */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4 shadow-md">
+          <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-4 space-y-4 shadow-xs">
             
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-zinc-500 font-medium mr-2">Filtrar por:</span>
+              <span className="text-xs text-zinc-400 font-medium mr-1">Filtrar por:</span>
               <button
                 onClick={() => setQuickFilter("all")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  quickFilter === "all" ? "bg-zinc-800 text-white border border-zinc-700" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  quickFilter === "all" ? "bg-white/[0.1] text-white border border-white/[0.15]" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
               >
                 Todas ({installments.length})
               </button>
               <button
                 onClick={() => setQuickFilter("pending")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  quickFilter === "pending" ? "bg-zinc-850 text-amber-400 border border-amber-500/20" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  quickFilter === "pending" ? "bg-amber-500/15 text-amber-300 border border-amber-500/30" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
               >
                 Pendentes ({installments.filter(i => i.status === "pending").length})
               </button>
               <button
                 onClick={() => setQuickFilter("overdue")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  quickFilter === "overdue" ? "bg-zinc-850 text-rose-400 border border-rose-500/20" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  quickFilter === "overdue" ? "bg-rose-500/15 text-rose-300 border border-rose-500/30" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
               >
                 Vencidas ({installments.filter(i => {
@@ -794,16 +794,16 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               </button>
               <button
                 onClick={() => setQuickFilter("paid")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  quickFilter === "paid" ? "bg-zinc-850 text-emerald-400 border border-emerald-500/20" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  quickFilter === "paid" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
               >
                 Pagas ({installments.filter(i => i.status === "paid").length})
               </button>
               <button
                 onClick={() => setQuickFilter("next7")}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  quickFilter === "next7" ? "bg-zinc-850 text-indigo-400 border border-indigo-500/20" : "text-zinc-400 hover:text-white"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  quickFilter === "next7" ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
               >
                 Vencem em 7 dias
@@ -814,18 +814,18 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               
               {/* Search input */}
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <input
                   type="text"
                   placeholder="Buscar por Lead ou Contrato..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
+                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition placeholder:text-zinc-500"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded transition"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded-lg transition cursor-pointer"
                     title="Limpar pesquisa"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -835,23 +835,23 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
               {/* Start Date */}
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-500 shrink-0">De:</span>
+                <span className="text-[11px] text-zinc-400 shrink-0 font-medium">De:</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2 py-1.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition"
                 />
               </div>
 
               {/* End Date */}
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-zinc-500 shrink-0">Até:</span>
+                <span className="text-[11px] text-zinc-400 shrink-0 font-medium">Até:</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2 py-1.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition"
                 />
               </div>
 
@@ -860,7 +860,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
           </div>
 
           {/* Table display */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+          <div className="bg-[#121620] border border-white/[0.07] rounded-2xl overflow-hidden shadow-xs">
             {filteredInstallments.length === 0 ? (
               <div className="p-12 text-center text-zinc-500">
                 <Clock className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
@@ -869,18 +869,18 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
+                  <thead className="bg-[#0e1118] border-b border-white/[0.06] text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
                     <tr>
-                      <th className="p-4">Lead (Noiva / Noivo)</th>
-                      <th className="p-4">Contrato</th>
-                      <th className="p-4">Parcela</th>
-                      <th className="p-4">Vencimento</th>
-                      <th className="p-4 text-right">Valor</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4 text-center">Ações</th>
+                      <th className="p-4 font-semibold">Lead (Noiva / Noivo)</th>
+                      <th className="p-4 font-semibold">Contrato</th>
+                      <th className="p-4 font-semibold">Parcela</th>
+                      <th className="p-4 font-semibold">Vencimento</th>
+                      <th className="p-4 font-semibold text-right">Valor</th>
+                      <th className="p-4 font-semibold">Status</th>
+                      <th className="p-4 font-semibold text-center">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
+                  <tbody className="divide-y divide-white/[0.05]">
                     {filteredInstallments.map((inst) => {
                       const contract = contracts.find(c => c.id === inst.contract_id);
                       const lead = contract ? leadMap.get(contract.lead_id) : null;
@@ -889,7 +889,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                       return (
                         <tr 
                           key={inst.id} 
-                          className={`hover:bg-zinc-850/30 transition ${getInstallmentHighlightClass(inst)}`}
+                          className={`hover:bg-white/[0.02] transition ${getInstallmentHighlightClass(inst)}`}
                         >
                           {/* Lead Name info */}
                           <td className="p-4">
@@ -899,7 +899,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                                   {lead.nome}
                                 </span>
                                 {lead.local && (
-                                  <span className="text-[10px] text-zinc-500 block">
+                                  <span className="text-[11px] text-zinc-400 block mt-0.5">
                                     Local: {lead.local}
                                   </span>
                                 )}
@@ -922,7 +922,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
                           {/* Installment sequence */}
                           <td className="p-4">
-                            <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-400 font-bold">
+                            <span className="px-2 py-0.5 rounded-lg bg-[#0e1118] border border-white/[0.08] text-[10px] font-mono text-zinc-300 font-bold">
                               {inst.installment_number === 0 ? "Entrada" : `${inst.installment_number}ª Parcela`}
                             </span>
                           </td>
@@ -930,7 +930,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                           {/* Due Date */}
                           <td className="p-4">
                             <div className="flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                              <Calendar className="w-3.5 h-3.5 text-zinc-400" />
                               <span className="font-mono text-zinc-300">
                                 {new Date(inst.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
                               </span>
@@ -938,25 +938,25 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                           </td>
 
                           {/* Value */}
-                          <td className="p-4 text-right font-mono font-bold text-zinc-100">
+                          <td className="p-4 text-right font-mono font-bold text-white">
                             {formatBRL(inst.value)}
                           </td>
 
                           {/* Status */}
                           <td className="p-4">
                             {inst.status === "paid" ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center gap-1 w-fit">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center gap-1 w-fit">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                                 Pago
                               </span>
                             ) : isOverdue ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-red-500/15 border border-red-500/20 text-rose-400 flex items-center gap-1 w-fit animate-pulse">
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-rose-500/15 border border-rose-500/25 text-rose-300 flex items-center gap-1 w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
                                 Vencido
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1 w-fit">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-500/15 border border-amber-500/25 text-amber-300 flex items-center gap-1 w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                                 Pendente
                               </span>
                             )}
@@ -968,7 +968,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                               {inst.status === "pending" ? (
                                 <button
                                   onClick={() => handleOpenPayModal(inst)}
-                                  className="px-2.5 py-1 bg-[#89F0B2] hover:bg-[#78e0a1] text-zinc-950 text-[11px] font-bold rounded shadow-sm transition"
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium rounded-lg shadow-xs transition cursor-pointer"
                                 >
                                   Dar Baixa
                                 </button>
@@ -983,10 +983,10 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                                       });
                                     }
                                   }}
-                                  className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-[#89F0B2] hover:text-[#78e0a1] text-[11px] font-bold rounded border border-zinc-700 flex items-center gap-1 transition"
+                                  className="px-2.5 py-1 bg-white/[0.06] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-[11px] font-medium rounded-lg border border-white/[0.08] transition cursor-pointer flex items-center gap-1.5"
                                   title="Ver Recibo de Pagamento"
                                 >
-                                  <Printer className="w-3 h-3" />
+                                  <Printer className="w-3 h-3 text-indigo-400" />
                                   Recibo
                                 </button>
                               )}
@@ -1009,7 +1009,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
       {/* CONTRATOS EMITIDOS TABLE                                      */}
       {/* ------------------------------------------------------------- */}
       {subTab === "contracts" && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-lg">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl overflow-hidden shadow-xs">
           {contracts.length === 0 ? (
             <div className="p-12 text-center text-zinc-500">
               <FileText className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
@@ -1018,26 +1018,26 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
+                <thead className="bg-[#0e1118] border-b border-white/[0.06] text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
                   <tr>
-                    <th className="p-4">Nº Contrato</th>
-                    <th className="p-4">Data Contrato</th>
-                    <th className="p-4">Lead Vinculado</th>
-                    <th className="p-4">Forma Pagto.</th>
-                    <th className="p-4">Parcelas</th>
-                    <th className="p-4 text-right">Valor Total</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-center">Opções</th>
+                    <th className="p-4 font-semibold">Nº Contrato</th>
+                    <th className="p-4 font-semibold">Data Contrato</th>
+                    <th className="p-4 font-semibold">Lead Vinculado</th>
+                    <th className="p-4 font-semibold">Forma Pagto.</th>
+                    <th className="p-4 font-semibold">Parcelas</th>
+                    <th className="p-4 font-semibold text-right">Valor Total</th>
+                    <th className="p-4 font-semibold">Status</th>
+                    <th className="p-4 font-semibold text-center">Opções</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
+                <tbody className="divide-y divide-white/[0.05] text-zinc-300">
                   {contracts.map((c) => {
                     const lead = leadMap.get(c.lead_id);
                     const contractInsts = installments.filter(i => i.contract_id === c.id);
                     const paidCount = contractInsts.filter(i => i.status === "paid").length;
 
                     return (
-                      <tr key={c.id} className="hover:bg-zinc-850/30 transition">
+                      <tr key={c.id} className="hover:bg-white/[0.02] transition">
                         <td className="p-4 font-mono font-bold text-white">{c.contract_number}</td>
                         <td className="p-4">
                           {new Date(c.contract_date + "T12:00:00").toLocaleDateString("pt-BR")}
@@ -1049,8 +1049,8 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                                 {lead.nome}
                               </span>
                               {lead.local && (
-                                <span className="text-[10px] text-zinc-500 block">
-                                  {lead.local}
+                                <span className="text-[11px] text-zinc-400 block mt-0.5">
+                                  Local: {lead.local}
                                 </span>
                               )}
                             </div>
@@ -1060,11 +1060,11 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                         </td>
                         <td className="p-4 uppercase text-[10px] font-mono">
                           {c.payment_method === "a_vista" ? (
-                            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold">
+                            <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold">
                               À Vista
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold">
+                            <span className="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-bold">
                               Parcelado
                             </span>
                           )}
@@ -1088,11 +1088,11 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                         </td>
                         <td className="p-4">
                           {c.status === "completed" ? (
-                            <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase bg-emerald-500/15 border border-emerald-500/20 text-emerald-400">
+                            <span className="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase bg-emerald-500/15 border border-emerald-500/25 text-emerald-300">
                               Finalizado
                             </span>
                           ) : (
-                            <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase bg-indigo-500/15 border border-indigo-500/20 text-indigo-400">
+                            <span className="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase bg-indigo-500/15 border border-indigo-500/25 text-indigo-300">
                               Ativo
                             </span>
                           )}
@@ -1101,14 +1101,14 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleEditContract(c)}
-                              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition"
+                              className="p-1.5 bg-white/[0.05] hover:bg-white/[0.1] text-zinc-400 hover:text-white rounded-lg transition cursor-pointer"
                               title="Editar Contrato"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteContract(c)}
-                              className="p-1.5 bg-zinc-850 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 rounded border border-zinc-800 transition"
+                              className="p-1.5 bg-white/[0.05] hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 rounded-lg border border-white/[0.06] transition cursor-pointer"
                               title="Excluir Contrato"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1129,39 +1129,41 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
       {/* 3. FORMULÁRIO DE VINCULAÇÃO DE CONTRATO (POST & PUT)          */}
       {/* ------------------------------------------------------------- */}
       {subTab === "new_contract" && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-lg max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
-            <div className="w-10 h-10 rounded-full bg-[#89F0B2]/10 border border-[#89F0B2]/25 flex items-center justify-center text-[#89F0B2]">
+        <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-6 md:p-8 shadow-xs max-w-3xl mx-auto space-y-6">
+          <div className="flex items-center gap-3 border-b border-white/[0.07] pb-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
               <FileText className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
                 {editingContractId ? "Editar Vínculo de Contrato" : "Novo Vínculo de Contrato"}
               </h3>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[12px] text-zinc-400 mt-0.5">
                 Gere o fluxo de parcelas e controle financeiro para um lead do sistema.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleSaveContractSubmit} className="space-y-4">
+          <form onSubmit={handleSaveContractSubmit} className="space-y-5">
             
             {/* Lead Search Dropdown Section */}
             <div className="relative space-y-1.5">
               <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                Selecionar Lead do CRM <span className="text-amber-500">*</span>
+                Selecionar Lead do CRM <span className="text-indigo-400">*</span>
               </label>
               
               {selectedLead ? (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-amber-500/30 text-xs">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-amber-500" />
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#0B0D12] border border-indigo-500/30 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                      <User className="w-4 h-4" />
+                    </div>
                     <div>
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-white block">
                         {selectedLead.nome}
                       </span>
                       {selectedLead.local && (
-                        <span className="text-[10px] text-zinc-500 block">
+                        <span className="text-[11px] text-zinc-400 block mt-0.5">
                           Local: {selectedLead.local}
                         </span>
                       )}
@@ -1173,7 +1175,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                       setSelectedLead(null);
                       setLeadSearch("");
                     }}
-                    className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-rose-400 transition"
+                    className="p-1.5 hover:bg-white/[0.06] rounded-lg text-zinc-400 hover:text-rose-400 transition cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1190,22 +1192,22 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                       setIsLeadDropdownOpen(true);
                     }}
                     onFocus={() => setIsLeadDropdownOpen(true)}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-600"
+                    className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition placeholder:text-zinc-500"
                   />
                   {leadSearch && (
                     <button
                       type="button"
                       onClick={() => setLeadSearch("")}
-                      className="absolute right-2.5 top-3 p-0.5 text-zinc-400 hover:text-white rounded transition"
+                      className="absolute right-2.5 top-3 p-0.5 text-zinc-400 hover:text-white rounded transition cursor-pointer"
                       title="Limpar pesquisa"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                   {isLeadDropdownOpen && (
-                    <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg bg-zinc-950 border border-zinc-800 shadow-xl z-50 divide-y divide-zinc-900">
+                    <div className="absolute left-0 right-0 mt-1.5 max-h-56 overflow-y-auto rounded-xl bg-[#0e1118] border border-white/[0.1] shadow-2xl z-50 divide-y divide-white/[0.05]">
                       {filteredLeadOptions.length === 0 ? (
-                        <div className="p-3 text-center text-xs text-zinc-600">
+                        <div className="p-3 text-center text-xs text-zinc-500">
                           Nenhum lead encontrado.
                         </div>
                       ) : (
@@ -1217,17 +1219,17 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                               setSelectedLead(l);
                               setIsLeadDropdownOpen(false);
                             }}
-                            className="w-full text-left p-3 hover:bg-zinc-900 transition flex items-center justify-between text-xs"
+                            className="w-full text-left p-3 hover:bg-white/[0.04] transition flex items-center justify-between text-xs cursor-pointer"
                           >
                             <div>
                               <span className="font-bold text-white block">
                                 {l.nome}
                               </span>
-                              <span className="text-[10px] text-zinc-500">
+                              <span className="text-[11px] text-zinc-400 mt-0.5 block">
                                 {l.local || "Sem local"} • {l.origem_portal || "Sem canal"}
                               </span>
                             </div>
-                            <Plus className="w-3.5 h-3.5 text-zinc-500" />
+                            <Plus className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                         ))
                       )}
@@ -1250,20 +1252,20 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: CTR-5023 (Deixe em branco p/ automático)"
                   value={contractNumber}
                   onChange={(e) => setContractNumber(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-700"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition placeholder:text-zinc-600 font-mono"
                 />
               </div>
 
               {/* Contract Date */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Data de Assinatura <span className="text-amber-500">*</span>
+                  Data de Assinatura <span className="text-indigo-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={contractDate}
                   onChange={(e) => setContractDate(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition [color-scheme:dark]"
                   required
                 />
               </div>
@@ -1276,7 +1278,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               {/* Products/Services Subtotal */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Valor dos Produtos (R$) <span className="text-amber-500">*</span>
+                  Valor dos Produtos (R$) <span className="text-indigo-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -1284,7 +1286,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: 5000.00"
                   value={totalValue}
                   onChange={(e) => setTotalValue(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono font-medium"
                   required
                 />
               </div>
@@ -1300,7 +1302,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: 150.00 (Opcional)"
                   value={freightValue}
                   onChange={(e) => setFreightValue(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono"
                 />
               </div>
 
@@ -1315,7 +1317,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: 200.00 (Opcional)"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono"
                 />
               </div>
 
@@ -1323,36 +1325,36 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
             {/* Dynamic Contract Total Breakdown & Simulation Card */}
             {Boolean(totalValue || freightValue || discountValue) && (
-              <div className="p-4 bg-zinc-950/80 border border-amber-500/30 rounded-xl space-y-3 animate-fade-in">
-                <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
-                  <span className="text-[11px] font-bold uppercase font-mono text-amber-400 tracking-wider">
+              <div className="p-4 bg-[#0B0D12] border border-indigo-500/20 rounded-xl space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+                  <span className="text-[11px] font-bold uppercase font-mono text-indigo-400 tracking-wider">
                     Resumo do Valor Final do Contrato
                   </span>
-                  <span className="text-sm font-mono font-extrabold text-amber-400">
+                  <span className="text-base font-mono font-bold text-white">
                     {formatBRL(Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)))}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono text-zinc-400">
                   <div>
-                    <span className="block text-[9px] uppercase text-zinc-500">Produtos / Base</span>
+                    <span className="block text-[10px] uppercase text-zinc-500">Produtos / Base</span>
                     <span className="text-zinc-200 font-bold">{formatBRL(Number(totalValue) || 0)}</span>
                   </div>
                   <div>
-                    <span className="block text-[9px] uppercase text-zinc-500">(+) Frete</span>
+                    <span className="block text-[10px] uppercase text-zinc-500">(+) Frete</span>
                     <span className="text-amber-300 font-bold">+{formatBRL(Number(freightValue) || 0)}</span>
                   </div>
                   <div>
-                    <span className="block text-[9px] uppercase text-zinc-500">(-) Desconto</span>
+                    <span className="block text-[10px] uppercase text-zinc-500">(-) Desconto</span>
                     <span className="text-emerald-400 font-bold">-{formatBRL(Number(discountValue) || 0)}</span>
                   </div>
                 </div>
                 {paymentMethod === "parcelado" && (
-                  <div className="pt-2 border-t border-zinc-850 text-[11px] text-zinc-300 flex flex-wrap justify-between items-center gap-2 font-mono">
+                  <div className="pt-2.5 border-t border-white/[0.06] text-[11px] text-zinc-300 flex flex-wrap justify-between items-center gap-2 font-mono">
                     <span>
-                      Entrada: <strong className="text-amber-400">{formatBRL(Number(downPayment) || 0)}</strong> (paga no ato)
+                      Entrada: <strong className="text-emerald-400">{formatBRL(Number(downPayment) || 0)}</strong> (paga no ato)
                     </span>
                     <span>
-                      Saldo: <strong className="text-white">{formatBRL(Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)))}</strong> em <strong className="text-white">{installmentsCount}x</strong> de <strong className="text-amber-400">{formatBRL(installmentsCount > 0 ? (Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)) / installmentsCount) : 0)}</strong>
+                      Saldo: <strong className="text-white">{formatBRL(Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)))}</strong> em <strong className="text-white">{installmentsCount}x</strong> de <strong className="text-indigo-400">{formatBRL(installmentsCount > 0 ? (Math.max(0, Math.max(0, (Number(totalValue) || 0) + (Number(freightValue) || 0) - (Number(discountValue) || 0)) - (Number(downPayment) || 0)) / installmentsCount) : 0)}</strong>
                     </span>
                   </div>
                 )}
@@ -1365,12 +1367,12 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               {/* Payment selection dropdown */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Forma de Pagamento <span className="text-amber-500">*</span>
+                  Forma de Pagamento <span className="text-indigo-400">*</span>
                 </label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as "a_vista" | "parcelado")}
-                  className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition cursor-pointer"
                 >
                   <option value="parcelado">Parcelado</option>
                   <option value="a_vista">À Vista</option>
@@ -1381,12 +1383,12 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
             {/* Conditional fields for Parcelado */}
             {paymentMethod === "parcelado" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-950/60 p-4 rounded-lg border border-zinc-850/60 animate-fade-in">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#0e1118] p-4.5 rounded-xl border border-white/[0.06] animate-fade-in">
                 
                 {/* Installments count input (2 to 24) */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
-                    Número de Parcelas <span className="text-amber-500">*</span>
+                    Número de Parcelas <span className="text-indigo-400">*</span>
                   </label>
                   <input
                     type="number"
@@ -1394,10 +1396,10 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                     max="24"
                     value={installmentsCount}
                     onChange={(e) => setInstallmentsCount(parseInt(e.target.value, 10) || 2)}
-                    className="w-full p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                    className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono"
                     required
                   />
-                  <span className="text-[10px] text-zinc-500 block">Número de parcelas de 2 a 24</span>
+                  <span className="text-[11px] text-zinc-400 block mt-0.5">Número de parcelas de 2 a 24</span>
                 </div>
 
                 {/* Entry down_payment amount */}
@@ -1411,9 +1413,9 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                     placeholder="Deixe em branco se não houver"
                     value={downPayment}
                     onChange={(e) => setDownPayment(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                    className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono"
                   />
-                  <span className="text-[10px] text-zinc-500 block">Será gerada como parcela paga à vista hoje</span>
+                  <span className="text-[11px] text-zinc-400 block mt-0.5">Será gerada como parcela paga à vista hoje</span>
                 </div>
 
               </div>
@@ -1429,12 +1431,12 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                 placeholder="Insira detalhes de faturamento, prazos especiais de recebimento..."
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
-                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-700"
+                className="w-full p-3 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition placeholder:text-zinc-600 resize-none"
               />
             </div>
 
             {/* Actions submit buttons */}
-            <div className="flex items-center justify-end gap-3 border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -1449,13 +1451,13 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   setObservations("");
                   setSubTab("installments");
                 }}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold transition"
+                className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 rounded-xl text-xs font-semibold transition cursor-pointer border border-white/[0.06]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 bg-[#89F0B2] hover:bg-[#78e0a1] text-zinc-950 font-bold rounded-lg text-xs shadow transition"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs shadow-sm transition cursor-pointer"
               >
                 {editingContractId ? "Atualizar Contrato" : "Salvar Contrato"}
               </button>
@@ -1469,55 +1471,55 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
       {/* 5. MODAL DE PAGAMENTO / DAR BAIXA                            */}
       {/* ------------------------------------------------------------- */}
       {payingInstallment && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl relative animate-scale-up">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-[#121620] border border-white/[0.08] rounded-2xl p-6 max-w-md w-full shadow-2xl relative animate-scale-up">
             
             {/* Close button */}
             <button
               onClick={() => setPayingInstallment(null)}
-              className="absolute right-4 top-4 p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition"
+              className="absolute right-4 top-4 p-1.5 hover:bg-white/[0.06] rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Header */}
-            <div className="flex items-center gap-2.5 border-b border-zinc-800 pb-4 mb-4">
-              <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
-                <DollarSign className="w-4 h-4" />
+            <div className="flex items-center gap-3 border-b border-white/[0.07] pb-4 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <DollarSign className="w-5 h-5" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
                   Dar Baixa em Parcela
                 </h4>
-                <p className="text-[10px] text-zinc-500">
-                  Confirme o pagamento para gerar o recibo digital.
+                <p className="text-[11px] text-zinc-400 mt-0.5">
+                  Confirme o pagamento para atualizar o fluxo financeiro.
                 </p>
               </div>
             </div>
 
             {/* Info details */}
-            <div className="bg-zinc-950 p-3.5 rounded-lg border border-zinc-850 text-xs space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Nº Contrato:</span>
+            <div className="bg-[#0B0D12] p-4 rounded-xl border border-white/[0.06] text-xs space-y-2.5 mb-4">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Nº Contrato:</span>
                 <span className="font-mono font-bold text-white">
                   {contracts.find(c => c.id === payingInstallment.contract_id)?.contract_number || "CTR-0"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Parcela:</span>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Parcela:</span>
                 <span className="font-semibold text-zinc-200">
                   {payingInstallment.installment_number === 0 ? "Entrada" : `${payingInstallment.installment_number}ª Parcela`}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Valor Original:</span>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Valor Original:</span>
                 <span className="font-mono font-bold text-white">
                   {formatBRL(payingInstallment.value)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-zinc-500">Vencimento:</span>
-                <span className="font-mono text-amber-400 font-semibold">
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-400">Vencimento:</span>
+                <span className="font-mono text-amber-300 font-semibold">
                   {new Date(payingInstallment.due_date + "T12:00:00").toLocaleDateString("pt-BR")}
                 </span>
               </div>
@@ -1528,22 +1530,22 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
               
               {/* Payment Date Picker */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Data de Recebimento <span className="text-amber-500">*</span>
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
+                  Data de Recebimento <span className="text-indigo-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition [color-scheme:dark]"
                   required
                 />
               </div>
 
               {/* Value received (can be partial) */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Valor Pago (R$) <span className="text-amber-500">*</span>
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
+                  Valor Pago (R$) <span className="text-indigo-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -1551,21 +1553,21 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: 2500.00"
                   value={paymentValue}
                   onChange={(e) => setPaymentValue(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition font-mono font-bold"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition font-mono font-bold"
                   required
                 />
-                <span className="text-[9px] text-zinc-500 block">Pode ser informado valor parcial</span>
+                <span className="text-[11px] text-zinc-500 block">Pode ser informado valor parcial</span>
               </div>
 
               {/* Payment Method */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-zinc-400 font-mono uppercase block">
-                  Meio de Pagamento <span className="text-amber-500">*</span>
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
+                  Meio de Pagamento <span className="text-indigo-400">*</span>
                 </label>
                 <select
                   value={paymentMethodForm}
                   onChange={(e) => setPaymentMethodForm(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition cursor-pointer"
                   required
                 >
                   <option value="Pix">Pix</option>
@@ -1578,7 +1580,7 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
 
               {/* Observations */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-zinc-400 font-mono uppercase block">
+                <label className="text-[11px] font-semibold text-zinc-400 font-mono uppercase block">
                   Observações do Pagamento
                 </label>
                 <input
@@ -1586,22 +1588,22 @@ export default function FinancialManager({ leads }: FinancialManagerProps) {
                   placeholder="Ex: Comprovante enviado via Whatsapp"
                   value={paymentObservations}
                   onChange={(e) => setPaymentObservations(e.target.value)}
-                  className="w-full p-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500 transition placeholder:text-zinc-700"
+                  className="w-full p-2.5 rounded-xl bg-[#0B0D12] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-indigo-500 transition placeholder:text-zinc-600"
                 />
               </div>
 
               {/* Actions submit button */}
-              <div className="flex items-center justify-end gap-3 border-t border-zinc-800 pt-3">
+              <div className="flex items-center justify-end gap-3 border-t border-white/[0.07] pt-4">
                 <button
                   type="button"
                   onClick={() => setPayingInstallment(null)}
-                  className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition"
+                  className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 rounded-xl text-xs font-semibold transition cursor-pointer border border-white/[0.06]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4.5 py-1.5 bg-[#89F0B2] hover:bg-[#78e0a1] text-zinc-950 font-bold rounded text-xs transition"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs shadow-sm transition cursor-pointer"
                 >
                   Confirmar Pagamento
                 </button>

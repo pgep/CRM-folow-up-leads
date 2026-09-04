@@ -4,10 +4,15 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { X, Calendar, User, Mail, Phone, MapPin, Gift, Clipboard, Calculator, Tag, MessageSquare, Plus, Check, Clock, AlertCircle, Trash2, CalendarCheck, Sparkles, Flame, MessageCircle } from "lucide-react";
+import { 
+  X, Calendar, User, Mail, Phone, MapPin, Gift, Clipboard, 
+  Calculator, Tag, MessageSquare, Plus, Check, Clock, AlertCircle, 
+  Trash2, CalendarCheck, Sparkles, Flame, MessageCircle, Edit2, 
+  CheckCircle2, ArrowRight
+} from "lucide-react";
 import { Lead, LeadStatus, LeadEtapa, LeadTemperatura, LeadHistory } from "../types";
 import { useToast } from "./Toast";
+import { Button, Badge, Modal, Input, Textarea, Select, FormField } from "./ui";
 
 interface LeadDetailsModalProps {
   leadId: string;
@@ -54,26 +59,26 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
     switch (type) {
       case "RESPONDER":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-            <MessageCircle className="w-3 h-3" /> RESPONDER
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            <MessageCircle className="w-3 h-3 text-amber-400" /> RESPONDER
           </span>
         );
       case "ACOMPANHAR":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-            <Clock className="w-3 h-3" /> ACOMPANHAR
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+            <Clock className="w-3 h-3 text-sky-400" /> ACOMPANHAR
           </span>
         );
       case "REATIVAR":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
-            <Flame className="w-3 h-3" /> REATIVAR
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+            <Flame className="w-3 h-3 text-purple-400" /> REATIVAR
           </span>
         );
       case "CATIVAR":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            <Sparkles className="w-3 h-3" /> CATIVAR
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+            <Sparkles className="w-3 h-3 text-emerald-400" /> CATIVAR
           </span>
         );
       default:
@@ -297,7 +302,6 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
     if (!lead) return;
     try {
       await onUpdateLead(lead.id, { [field]: value });
-      // Fetch details again to refresh history timeline and model states
       fetchLeadDetails();
     } catch (err) {
       console.error(err);
@@ -355,7 +359,7 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
       if (response.ok) {
         setNewNote("");
-        fetchLeadDetails(); // refresh details and history logs
+        fetchLeadDetails();
       }
     } catch (err) {
       console.error(err);
@@ -366,10 +370,10 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
   if (loading && !lead) {
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 max-w-sm w-full text-center">
-          <Clock className="w-8 h-8 text-[#89F0B2] animate-spin mx-auto mb-3" />
-          <p className="text-sm text-zinc-400">Carregando detalhes do lead...</p>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50">
+        <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <Clock className="w-8 h-8 text-indigo-400 animate-spin mx-auto mb-3" />
+          <p className="text-sm text-zinc-300 font-medium">Carregando detalhes do lead...</p>
         </div>
       </div>
     );
@@ -377,47 +381,70 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
   if (!lead) return null;
 
+  const tempVariant = 
+    lead.temperatura === "QUENTE" ? "hot" :
+    lead.temperatura === "MORNA" ? "warm" :
+    lead.temperatura === "CLIENTE" ? "success" : "cold";
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl h-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2.5rem)] md:h-[90vh] flex flex-col overflow-hidden shadow-2xl my-auto">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-[#0B0D12] border border-white/[0.08] rounded-2xl w-full max-w-5xl h-full max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2.5rem)] md:h-[90vh] flex flex-col overflow-hidden shadow-2xl my-auto animate-fade-in">
         
         {/* Header bar */}
-        <div className="p-3.5 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50 shrink-0 gap-2">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#89F0B2]/10 flex items-center justify-center text-[#89F0B2] font-bold font-mono text-xs sm:text-base shrink-0">
+        <div className="p-4 sm:p-5 border-b border-white/[0.06] flex items-center justify-between bg-[#12151C] shrink-0 gap-3">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-base shrink-0 shadow-xs">
               {lead.nome.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
-                <h3 className="text-xs sm:text-base font-semibold text-white truncate max-w-[130px] sm:max-w-xs">{lead.nome}</h3>
-                <span className="text-[9px] sm:text-[10px] font-mono bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded shrink-0">
-                  {lead.id}
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">{lead.nome}</h3>
+                <span className="text-[10px] font-mono bg-white/[0.06] text-zinc-400 px-2 py-0.5 rounded-md border border-white/[0.08]">
+                  #{lead.id}
                 </span>
+                <Badge variant={tempVariant} size="sm">
+                  {String(lead.temperatura || "FRIA").trim().toUpperCase()}
+                </Badge>
               </div>
-              <p className="text-[10px] sm:text-xs text-zinc-500 truncate">
-                Origem: <strong>{lead.origem_portal}</strong> • Cadastrado em:{" "}
+              <p className="text-xs text-zinc-400 truncate mt-0.5">
+                Origem: <strong className="text-zinc-200">{lead.origem_portal}</strong> • Cadastrado em:{" "}
                 {new Date(lead.created_at).toLocaleDateString("pt-BR")}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {lead.link_celular && (
+              <a
+                href={`https://wa.me/${lead.link_celular.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.nome}! Tudo bem? Gostaria de falar sobre o seu evento.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition cursor-pointer"
+                title="Conversar no WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                WhatsApp
+              </a>
+            )}
+
             {onDeleteLead && (
-              <button
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 border border-rose-500/30 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg text-[11px] sm:text-xs font-semibold transition disabled:opacity-40"
+                className="gap-1.5"
                 title="Excluir Lead"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{isDeleting ? "Excluindo..." : "Excluir Lead"}</span>
-                <span className="sm:hidden">{isDeleting ? "..." : "Excluir"}</span>
-              </button>
+                <span className="hidden sm:inline">{isDeleting ? "Excluindo..." : "Excluir"}</span>
+              </Button>
             )}
 
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition"
+              className="p-2 hover:bg-white/[0.08] text-zinc-400 hover:text-white rounded-lg transition cursor-pointer"
+              title="Fechar (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
@@ -425,21 +452,21 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
         </div>
 
         {/* Content Panel Scrollable */}
-        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-zinc-800">
+        <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.06]">
           
           {/* Left Column - Metadata & Budgets */}
-          <div className="lg:col-span-7 p-4 sm:p-6 space-y-5 sm:space-y-6">
+          <div className="lg:col-span-7 p-4 sm:p-6 space-y-5">
             
             {/* Quick Status Changers */}
-            <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-[#89F0B2] uppercase tracking-wider block">
-                  Status Conversa (Kanban)
+            <div className="bg-[#12151C] border border-white/[0.07] rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <span className="text-xs font-semibold text-indigo-400 block mb-1">
+                  Status Conversa
                 </span>
                 <select
                   value={lead.status_conversa || "NUNCA_RESPONDEU"}
                   onChange={(e) => handleUpdateStatus("status_conversa", e.target.value)}
-                  className="w-full bg-zinc-900 border border-[#89F0B2]/40 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#89F0B2] font-semibold"
+                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium cursor-pointer"
                 >
                   <option value="NUNCA_RESPONDEU">Nunca respondeu</option>
                   <option value="RESPONDEU">Respondeu</option>
@@ -452,14 +479,14 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
-                  Status Funil (Automação)
+              <div>
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Status Funil
                 </span>
                 <select
                   value={mapLegacyValue("status_funil", lead.status_funil)}
                   onChange={(e) => handleUpdateStatus("status_funil", e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 font-medium"
+                  className="w-full bg-[#0e121a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-white/[0.2] font-medium cursor-pointer"
                 >
                   {statusList.length > 0 ? (
                     statusList.map((st) => (
@@ -481,14 +508,14 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
+              <div>
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
                   Etapa de Contato
                 </span>
                 <select
                   value={mapLegacyValue("etapa_contato", lead.etapa_contato)}
                   onChange={(e) => handleUpdateStatus("etapa_contato", e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 font-medium"
+                  className="w-full bg-[#0e121a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-white/[0.2] font-medium cursor-pointer"
                 >
                   {etapasList.length > 0 ? (
                     etapasList.map((et) => (
@@ -509,14 +536,14 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">
+              <div>
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
                   Temperatura
                 </span>
                 <select
                   value={mapLegacyValue("temperatura", lead.temperatura)}
                   onChange={(e) => handleUpdateStatus("temperatura", e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 font-medium"
+                  className="w-full bg-[#0e121a] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-white/[0.2] font-medium cursor-pointer"
                 >
                   {tempsList.length > 0 ? (
                     tempsList.map((tmp) => {
@@ -536,24 +563,24 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
             </div>
 
             {/* PRÓXIMO PASSO (Atividade Comercial Manual) */}
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-3.5 sm:p-4 space-y-3">
+            <div className="bg-[#12151C] border border-white/[0.08] rounded-xl p-4 space-y-3 shadow-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CalendarCheck className="w-4 h-4 text-[#89F0B2]" />
-                  <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                    PRÓXIMO PASSO
+                  <CalendarCheck className="w-4 h-4 text-indigo-400" />
+                  <span className="text-xs font-semibold text-white tracking-tight">
+                    Próximo Passo do Atendimento
                   </span>
                 </div>
 
                 {lead?.proxima_atividade_em && (
-                  <span className="text-[10px] font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">
-                    Previsto para: {formatDateBR(lead.proxima_atividade_em)}
+                  <span className="text-[11px] font-mono bg-white/[0.06] px-2.5 py-0.5 rounded-md text-zinc-300 border border-white/[0.08]">
+                    Previsto: {formatDateBR(lead.proxima_atividade_em)}
                   </span>
                 )}
               </div>
 
               {lead?.proxima_atividade_em ? (
-                <div className="bg-zinc-950/80 border border-zinc-850 rounded-lg p-3 space-y-2">
+                <div className="bg-[#0B0D12] border border-white/[0.07] rounded-xl p-3.5 space-y-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {getTypeBadge(lead.tipo_proxima_atividade)}
@@ -564,216 +591,201 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   </div>
 
                   {lead.observacao_proxima_atividade && (
-                    <p className="text-xs text-zinc-300 bg-zinc-900/60 p-2.5 rounded border border-zinc-800/80 font-mono">
+                    <p className="text-xs text-zinc-300 bg-[#181C26] p-2.5 rounded-lg border border-white/[0.06]">
                       &quot;{lead.observacao_proxima_atividade}&quot;
                     </p>
                   )}
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1 border-t border-zinc-850">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={handleOpenActivityModal}
-                      className="px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition"
                     >
-                      ALTERAR
-                    </button>
-                    <button
-                      type="button"
+                      Alterar
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setIsRescheduleOpen(true)}
-                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded transition"
                     >
-                      REAGENDAR
-                    </button>
-                    <button
-                      type="button"
+                      Reagendar
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={handleCompleteActivity}
-                      className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded transition flex items-center gap-1"
+                      className="gap-1.5"
                     >
-                      <Check className="w-3.5 h-3.5" /> CONCLUIR
-                    </button>
+                      <Check className="w-3.5 h-3.5" /> Concluir
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-zinc-950/50 p-3 rounded-lg border border-dashed border-zinc-800 gap-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#0B0D12] p-3.5 rounded-xl border border-dashed border-white/[0.08] gap-3">
                   <p className="text-xs text-zinc-400 italic">
-                    Nenhuma atividade manual agendada para este lead.
+                    Nenhuma atividade comercial agendada para este lead.
                   </p>
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleOpenActivityModal}
-                    className="px-3 py-1.5 bg-[#89F0B2] text-zinc-950 font-bold text-xs rounded-lg hover:bg-[#73e09d] transition flex items-center gap-1.5 shrink-0"
+                    className="gap-1.5 shrink-0"
                   >
-                    <Plus className="w-3.5 h-3.5" /> DEFINIR PRÓXIMO PASSO
-                  </button>
+                    <Plus className="w-3.5 h-3.5" /> Definir Próximo Passo
+                  </Button>
                 </div>
               )}
 
-              {/* Discrete Automation Info (Section 17) */}
+              {/* Discrete Automation Info */}
               {lead?.proxima_acao_em && (
-                <div className="text-[11px] font-mono text-zinc-500 flex items-center gap-1.5 pt-1 border-t border-zinc-850/60">
-                  <Clock className="w-3 h-3 text-zinc-600 shrink-0" />
+                <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5 pt-1 border-t border-white/[0.04]">
+                  <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
                   <span>Automação: próxima etapa programada ({formatDateBR(lead.proxima_acao_em)})</span>
                 </div>
               )}
             </div>
 
             {/* General Metadata form / display */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-amber-500" />
-                  Informações Cadastrais do Lead
+                <h4 className="text-xs font-semibold text-zinc-200 tracking-tight flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 text-indigo-400" />
+                  Informações Cadastrais da Noiva
                 </h4>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsEditingMetadata(!isEditingMetadata)}
-                  className="text-xs text-amber-400 hover:text-amber-300 font-medium transition"
+                  className="gap-1.5 text-xs text-zinc-400 hover:text-white"
                 >
+                  <Edit2 className="w-3 h-3" />
                   {isEditingMetadata ? "Cancelar" : "Editar Dados"}
-                </button>
+                </Button>
               </div>
 
               {isEditingMetadata ? (
-                <div className="bg-zinc-950/30 border border-zinc-800 rounded-xl p-3 sm:p-4 space-y-3 sm:space-y-4 text-xs">
+                <div className="bg-[#121620] border border-white/[0.07] rounded-xl p-4 space-y-3.5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Nome</label>
-                      <input
-                        type="text"
+                    <FormField label="Nome">
+                      <Input
                         value={nome}
                         onChange={(e) => setNome(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">E-mail</label>
-                      <input
+                    </FormField>
+                    <FormField label="E-mail">
+                      <Input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Celular</label>
-                      <input
-                        type="text"
+                    </FormField>
+                    <FormField label="Celular">
+                      <Input
                         value={linkCelular}
                         onChange={(e) => setLinkCelular(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Número Convidados</label>
-                      <input
+                    </FormField>
+                    <FormField label="Número Convidados">
+                      <Input
                         type="number"
                         value={convidados}
                         onChange={(e) => setConvidados(Number(e.target.value))}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Data Casamento (DD/MM/AAAA)</label>
-                      <input
-                        type="text"
+                    </FormField>
+                    <FormField label="Data Casamento (DD/MM/AAAA)">
+                      <Input
                         value={dataCasamento}
                         onChange={(e) => setDataCasamento(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                        className="font-mono"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Mês / Ano do Casamento</label>
-                      <input
-                        type="text"
+                    </FormField>
+                    <FormField label="Mês / Ano do Casamento">
+                      <Input
                         value={mesCasamento}
                         onChange={(e) => setMesCasamento(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
+                    </FormField>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Local da Cerimônia</label>
-                      <input
-                        type="text"
+                    <FormField label="Local da Cerimônia">
+                      <Input
                         value={local}
                         onChange={(e) => setLocal(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-zinc-500">Serviços Solicitados</label>
-                      <input
-                        type="text"
+                    </FormField>
+                    <FormField label="Serviços Solicitados">
+                      <Input
                         value={servicos}
                         onChange={(e) => setServicos(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-amber-500"
                       />
-                    </div>
+                    </FormField>
                   </div>
 
-                  <div className="flex justify-end pt-2">
-                    <button
+                  <div className="flex justify-end pt-2 border-t border-white/[0.06]">
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={handleSaveMetadata}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-[#89F0B2] hover:bg-[#72e29e] text-black font-semibold rounded-lg text-xs transition"
+                      className="gap-1.5"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Salvar Dados
-                    </button>
+                      <Check className="w-3.5 h-3.5" /> Salvar Dados
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <div className="bg-zinc-950/20 border border-zinc-800/80 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
-                  <div className="space-y-2.5 min-w-0">
-                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
+                <div className="bg-[#121620] border border-white/[0.07] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-3 min-w-0">
+                    <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                       <User className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span className="text-white font-medium truncate">{lead.nome}</span>
+                      <span className="text-zinc-100 font-semibold truncate">{lead.nome}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
+                    <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                       <Mail className="w-4 h-4 text-zinc-500 shrink-0" />
                       <span className="truncate">{lead.email}</span>
                     </div>
 
-                    <div className="flex flex-col gap-1 text-zinc-400 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                         <Phone className="w-4 h-4 text-zinc-500 shrink-0" />
-                        <span className="truncate">{lead.link_celular || "Telefone não informado"}</span>
+                        <span className="font-mono truncate">{lead.link_celular || "Telefone não informado"}</span>
                       </div>
                       {lead.whatsapp_validation_status && (
-                        <div className="pl-6 flex flex-wrap items-center gap-1.5">
+                        <div className="pl-6.5 flex flex-wrap items-center gap-1.5">
                           {lead.whatsapp_validation_status === "NUMERO_SEM_WHATSAPP" && (
                             <span
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30"
                               title={lead.whatsapp_validation_error || "Número sem WhatsApp"}
                             >
-                              🚫 Número sem WhatsApp
+                              Sem WhatsApp
                             </span>
                           )}
                           {lead.whatsapp_validation_status === "ERRO_TEMPORARIO_WAHA" && (
                             <span
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30"
                               title={lead.whatsapp_validation_error || "Erro Temporário WAHA"}
                             >
-                              ⚠️ Erro Temporário WAHA {lead.whatsapp_validation_http_code ? `(HTTP ${lead.whatsapp_validation_http_code})` : ""}
+                              Erro Temporário WAHA {lead.whatsapp_validation_http_code ? `(HTTP ${lead.whatsapp_validation_http_code})` : ""}
                             </span>
                           )}
                           {lead.whatsapp_validation_status === "ERRO_COMUNICACAO" && (
                             <span
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700"
+                              className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white/[0.06] text-zinc-400 border border-white/[0.08]"
                               title={lead.whatsapp_validation_error || "Erro de Comunicação com WAHA"}
                             >
-                              ⚡ Erro Conexão WAHA
+                              Erro Conexão WAHA
                             </span>
                           )}
                           {lead.whatsapp_validation_status === "ENVIADO_SUCESSO" && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              ✓ WhatsApp Válido
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              WhatsApp Válido
                             </span>
                           )}
                           {lead.whatsapp_validated_at && (
-                            <span className="text-[10px] text-zinc-500">
-                              ({new Date(lead.whatsapp_validated_at).toLocaleDateString("pt-BR")} {new Date(lead.whatsapp_validated_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})
+                            <span className="text-[10px] text-zinc-400 font-mono">
+                              ({new Date(lead.whatsapp_validated_at).toLocaleDateString("pt-BR")})
                             </span>
                           )}
                         </div>
@@ -781,22 +793,24 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                     </div>
                   </div>
 
-                  <div className="space-y-2.5 min-w-0">
-                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
+                  <div className="space-y-3 min-w-0">
+                    <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                       <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
                       <span className="truncate">
-                        Casamento: {lead.data_casamento || "Sem data"} ({lead.mes_casamento})
+                        Casamento: <strong className="text-zinc-100">{lead.data_casamento || "Sem data"}</strong> ({lead.mes_casamento})
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
+                    <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                       <MapPin className="w-4 h-4 text-zinc-500 shrink-0" />
                       <span className="truncate">{lead.local || "Local não informado"}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-zinc-400 min-w-0">
+                    <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
                       <Gift className="w-4 h-4 text-zinc-500 shrink-0" />
-                      <span className="truncate">{lead.convidados} convidados • {lead.servicos || "Geral"}</span>
+                      <span className="truncate">
+                        <strong className="text-zinc-100">{lead.convidados}</strong> convidados • {lead.servicos || "Geral"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -805,13 +819,13 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
             {/* Estimated budget cards */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                <Calculator className="w-4 h-4 text-amber-500" />
-                Orçamento Sugerido Automático ({lead.convidados} itens)
+              <h4 className="text-xs font-semibold text-zinc-200 tracking-tight flex items-center gap-2">
+                <Calculator className="w-3.5 h-3.5 text-indigo-400" />
+                Orçamento Sugerido Automático ({lead.convidados} convidados)
               </h4>
 
               {products.length === 0 ? (
-                <div className="border border-zinc-800/80 rounded-xl p-4 text-center text-zinc-500 text-xs">
+                <div className="border border-white/[0.06] rounded-xl p-4 text-center text-zinc-400 text-xs bg-[#12151C]">
                   Nenhum produto cadastrado no catálogo para cálculo de orçamentos dinâmicos.
                 </div>
               ) : (
@@ -819,19 +833,19 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                   {products.map((prod) => {
                     const totalOrcamento = prod.valor_unitario * (lead.convidados || 0);
                     return (
-                      <div key={prod.id} className="bg-zinc-950/25 border border-zinc-800 rounded-lg p-3 flex flex-col justify-between">
+                      <div key={prod.id} className="bg-[#12151C] border border-white/[0.07] rounded-xl p-3.5 flex flex-col justify-between hover:border-white/[0.15] transition shadow-xs">
                         <div>
-                          <span className="text-[10px] text-zinc-400 block uppercase font-bold truncate" title={prod.descricao}>
+                          <span className="text-xs text-zinc-400 block font-medium truncate" title={prod.descricao}>
                             {prod.descricao}
                           </span>
-                          <span className="text-sm font-extrabold text-amber-500 mt-1 block">
+                          <span className="text-base font-bold text-amber-400 mt-1 block font-mono">
                             {totalOrcamento.toLocaleString("pt-BR", {
                               style: "currency",
                               currency: "BRL"
                             })}
                           </span>
                         </div>
-                        <span className="text-[9px] text-zinc-600 block mt-1">
+                        <span className="text-[11px] text-zinc-400 block mt-2 font-mono border-t border-white/[0.04] pt-1.5">
                           Unitário: {prod.valor_unitario.toLocaleString("pt-BR", {
                             style: "currency",
                             currency: "BRL"
@@ -846,51 +860,53 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
 
             {/* Observacoes / notas adicionais */}
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                <Clipboard className="w-4 h-4 text-amber-500" />
+              <h4 className="text-xs font-semibold text-zinc-200 tracking-tight flex items-center gap-2">
+                <Clipboard className="w-3.5 h-3.5 text-indigo-400" />
                 Histórico de Observações do CRM
               </h4>
-              <div className="bg-zinc-950/40 border border-zinc-800 rounded-xl p-3 sm:p-4 max-h-36 sm:max-h-40 overflow-y-auto text-xs text-zinc-400 font-mono whitespace-pre-wrap leading-relaxed">
+              <div className="bg-[#12151C] border border-white/[0.07] rounded-xl p-4 max-h-36 sm:max-h-40 overflow-y-auto text-xs text-zinc-300 font-mono whitespace-pre-wrap leading-relaxed custom-scrollbar">
                 {lead.observacoes || "Nenhuma observação cadastrada no momento."}
               </div>
             </div>
           </div>
 
           {/* Right Column - Timeline Logs & Manual note creator */}
-          <div className="lg:col-span-5 p-4 sm:p-6 flex flex-col space-y-5 lg:space-y-4 lg:h-full lg:overflow-hidden min-h-0">
+          <div className="lg:col-span-5 p-4 sm:p-6 flex flex-col space-y-4 lg:h-full lg:overflow-hidden min-h-0 bg-[#0B0D12]">
             
             {/* Note Creator form */}
-            <form onSubmit={handleAddNote} className="space-y-2 shrink-0">
-              <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                <Tag className="w-4 h-4 text-[#89F0B2]" />
+            <form onSubmit={handleAddNote} className="space-y-2.5 shrink-0 bg-[#12151C] border border-white/[0.07] rounded-xl p-3.5 shadow-xs">
+              <h4 className="text-xs font-semibold text-white flex items-center gap-1.5 tracking-tight">
+                <Tag className="w-3.5 h-3.5 text-indigo-400" />
                 Registrar Atendimento Manual
               </h4>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
+                <Input
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Escreva nota: 'Lead ligou solicitando caixinha...'"
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-[#89F0B2]"
+                  placeholder="Ex: 'Noiva solicitou foto das velas pelo WhatsApp...'"
+                  className="text-xs"
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="sm"
                   disabled={isSubmittingNote || !newNote.trim()}
-                  className="px-3.5 py-2 bg-[#89F0B2] hover:bg-[#72e29e] disabled:opacity-40 rounded-lg text-black font-semibold text-xs transition flex items-center justify-center gap-1 shrink-0"
+                  className="gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Salvar Note
-                </button>
+                  Salvar
+                </Button>
               </div>
             </form>
 
             {/* Chronological timeline list */}
             <div className="flex flex-col lg:flex-1 lg:min-h-0 pt-2 lg:pt-0">
-              <h4 className="text-xs font-semibold text-zinc-500 tracking-wider uppercase mb-3 shrink-0">
-                Timeline de Interações
+              <h4 className="text-xs font-semibold text-zinc-300 tracking-tight mb-3 shrink-0 flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                Histórico de Interações ({history.length})
               </h4>
 
-              <div className="max-h-[350px] sm:max-h-[450px] lg:max-h-none lg:flex-1 overflow-y-auto pr-1 space-y-4 relative pl-3 border-l border-zinc-800">
+              <div className="max-h-[350px] sm:max-h-[450px] lg:max-h-none lg:flex-1 overflow-y-auto pr-1 space-y-4 relative pl-4 border-l border-white/[0.08] custom-scrollbar">
                 {history.length > 0 ? (
                   history.map((event) => {
                     const eventDate = new Date(event.created_at);
@@ -898,33 +914,33 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                     return (
                       <div key={event.id} className="relative group text-xs">
                         {/* Dot indicator on timeline line */}
-                        <div className="absolute -left-[17px] top-1.5 w-2.5 h-2.5 rounded-full bg-zinc-800 border-2 border-zinc-900 group-hover:bg-amber-400 transition shrink-0" />
+                        <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#181C26] border-2 border-indigo-500/60 group-hover:border-indigo-400 group-hover:bg-indigo-500 transition shrink-0" />
                         
                         <div className="space-y-1">
                           <div className="flex items-center justify-between flex-wrap gap-1">
-                            <span className="font-semibold text-white leading-none">
+                            <span className="font-semibold text-zinc-100 leading-none">
                               {event.titulo}
                             </span>
-                            <span className="text-[10px] text-zinc-500 shrink-0">
+                            <span className="text-[10px] text-zinc-400 font-mono shrink-0">
                               {eventDate.toLocaleDateString("pt-BR")} às {eventDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-1.5">
-                            <span className={`text-[9px] font-mono px-1 rounded uppercase font-semibold ${
-                              event.canal === "WHATSAPP" ? "bg-emerald-500/10 text-emerald-400" :
-                              event.canal === "EMAIL" ? "bg-blue-500/10 text-blue-400" :
-                              event.canal === "MANUAL" ? "bg-purple-500/10 text-purple-400" :
-                              "bg-zinc-800 text-zinc-400"
+                            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${
+                              event.canal === "WHATSAPP" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" :
+                              event.canal === "EMAIL" ? "bg-sky-500/15 text-sky-300 border border-sky-500/30" :
+                              event.canal === "MANUAL" ? "bg-purple-500/15 text-purple-300 border border-purple-500/30" :
+                              "bg-white/[0.06] text-zinc-300 border border-white/[0.08]"
                             }`}>
                               {event.canal}
                             </span>
-                            <span className="text-[9px] text-zinc-600 uppercase font-bold tracking-wider">{event.tipo}</span>
+                            <span className="text-[9px] text-zinc-400 uppercase font-mono tracking-wider">{event.tipo}</span>
                           </div>
 
                           {event.detalhes && (
                             <div
-                              className="mt-1.5 p-2 bg-zinc-950/60 border border-zinc-850 rounded-lg text-[11px] text-zinc-400 font-sans leading-relaxed break-words"
+                              className="mt-1.5 p-2.5 bg-[#121620] border border-white/[0.06] rounded-lg text-[11px] text-zinc-300 leading-relaxed break-words"
                               dangerouslySetInnerHTML={{ __html: event.detalhes }}
                             />
                           )}
@@ -933,8 +949,8 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
                     );
                   })
                 ) : (
-                  <div className="text-center py-8 text-zinc-600 text-xs">
-                    <Clock className="w-5 h-5 mx-auto mb-2 text-zinc-750" />
+                  <div className="text-center py-8 text-zinc-500 text-xs">
+                    <Clock className="w-5 h-5 mx-auto mb-2 text-zinc-600" />
                     Nenhuma interação registrada.
                   </div>
                 )}
@@ -948,247 +964,219 @@ export default function LeadDetailsModal({ leadId, onClose, onUpdateLead, onDele
       </div>
 
       {/* MODAL: Definir / Alterar Próximo Passo */}
-      {isActivityModalOpen && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 max-w-md w-full space-y-4 shadow-2xl my-auto">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="font-bold text-sm text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <CalendarCheck className="w-4 h-4 text-[#89F0B2]" />
-                Definir Próximo Passo
-              </h3>
+      <Modal
+        isOpen={isActivityModalOpen}
+        onClose={() => setIsActivityModalOpen(false)}
+        title="Definir Próximo Passo"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+              Tipo da Atividade Manual
+            </label>
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setIsActivityModalOpen(false)}
-                className="text-zinc-500 hover:text-white text-xs font-mono"
+                type="button"
+                onClick={() => setModalActivityType("RESPONDER")}
+                className={`p-3 rounded-xl border text-left transition font-semibold text-xs flex items-center gap-2 cursor-pointer ${
+                  modalActivityType === "RESPONDER"
+                    ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                    : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                }`}
               >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[11px] font-mono text-zinc-400 mb-1.5">
-                  Tipo da Atividade Manual
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setModalActivityType("RESPONDER")}
-                    className={`p-2.5 rounded-lg border text-left transition font-semibold text-xs flex items-center gap-1.5 ${
-                      modalActivityType === "RESPONDER"
-                        ? "bg-amber-500/20 border-amber-500 text-amber-300"
-                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <MessageCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs">RESPONDER</p>
-                      <p className="text-[10px] text-zinc-400 font-normal">Pendente do usuário</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalActivityType("ACOMPANHAR")}
-                    className={`p-2.5 rounded-lg border text-left transition font-semibold text-xs flex items-center gap-1.5 ${
-                      modalActivityType === "ACOMPANHAR"
-                        ? "bg-blue-500/20 border-blue-500 text-blue-300"
-                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <Clock className="w-4 h-4 text-blue-400 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs">ACOMPANHAR</p>
-                      <p className="text-[10px] text-zinc-400 font-normal">Aguardando retorno</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalActivityType("REATIVAR")}
-                    className={`p-2.5 rounded-lg border text-left transition font-semibold text-xs flex items-center gap-1.5 ${
-                      modalActivityType === "REATIVAR"
-                        ? "bg-purple-500/20 border-purple-500 text-purple-300"
-                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <Flame className="w-4 h-4 text-purple-400 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs">REATIVAR</p>
-                      <p className="text-[10px] text-zinc-400 font-normal">Conversa esfriou</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setModalActivityType("CATIVAR")}
-                    className={`p-2.5 rounded-lg border text-left transition font-semibold text-xs flex items-center gap-1.5 ${
-                      modalActivityType === "CATIVAR"
-                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
-                        : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div>
-                      <p className="font-bold text-xs">CATIVAR</p>
-                      <p className="text-[10px] text-zinc-400 font-normal">Criar oportunidade</p>
-                    </div>
-                  </button>
+                <MessageCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <p className="font-bold text-xs">RESPONDER</p>
+                  <p className="text-[10px] text-zinc-400 font-normal">Pendente do usuário</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono text-zinc-400 mb-1">
-                  Data Prevista
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={modalActivityDate}
-                  onChange={(e) => setModalActivityDate(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#89F0B2]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono text-zinc-400 mb-1">
-                  Observação
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Ex: Checar se recebeu a amostra das essências..."
-                  value={modalActivityObs}
-                  onChange={(e) => setModalActivityObs(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#89F0B2]"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-              <button
-                type="button"
-                onClick={() => setIsActivityModalOpen(false)}
-                className="px-3 py-2 text-xs text-zinc-400 hover:text-white rounded-lg"
-              >
-                Cancelar
               </button>
+
               <button
                 type="button"
-                onClick={handleSaveNextActivity}
-                disabled={isActivitySaving || !modalActivityDate}
-                className="px-4 py-2 bg-[#89F0B2] text-zinc-950 font-bold text-xs rounded-lg hover:bg-[#73e09d] transition disabled:opacity-50"
+                onClick={() => setModalActivityType("ACOMPANHAR")}
+                className={`p-3 rounded-xl border text-left transition font-semibold text-xs flex items-center gap-2 cursor-pointer ${
+                  modalActivityType === "ACOMPANHAR"
+                    ? "bg-sky-500/20 border-sky-500 text-sky-300"
+                    : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                }`}
               >
-                {isActivitySaving ? "Salvando..." : "AGENDAR"}
+                <Clock className="w-4 h-4 text-sky-400 shrink-0" />
+                <div>
+                  <p className="font-bold text-xs">ACOMPANHAR</p>
+                  <p className="text-[10px] text-zinc-400 font-normal">Aguardando retorno</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalActivityType("REATIVAR")}
+                className={`p-3 rounded-xl border text-left transition font-semibold text-xs flex items-center gap-2 cursor-pointer ${
+                  modalActivityType === "REATIVAR"
+                    ? "bg-purple-500/20 border-purple-500 text-purple-300"
+                    : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                }`}
+              >
+                <Flame className="w-4 h-4 text-purple-400 shrink-0" />
+                <div>
+                  <p className="font-bold text-xs">REATIVAR</p>
+                  <p className="text-[10px] text-zinc-400 font-normal">Conversa esfriou</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalActivityType("CATIVAR")}
+                className={`p-3 rounded-xl border text-left transition font-semibold text-xs flex items-center gap-2 cursor-pointer ${
+                  modalActivityType === "CATIVAR"
+                    ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
+                    : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="font-bold text-xs">CATIVAR</p>
+                  <p className="text-[10px] text-zinc-400 font-normal">Criar oportunidade</p>
+                </div>
               </button>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <FormField label="Data Prevista" required>
+            <Input
+              type="date"
+              required
+              value={modalActivityDate}
+              onChange={(e) => setModalActivityDate(e.target.value)}
+            />
+          </FormField>
+
+          <FormField label="Observação">
+            <Textarea
+              rows={3}
+              placeholder="Ex: Checar se recebeu a amostra das essências..."
+              value={modalActivityObs}
+              onChange={(e) => setModalActivityObs(e.target.value)}
+            />
+          </FormField>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-800">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsActivityModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleSaveNextActivity}
+              disabled={isActivitySaving || !modalActivityDate}
+            >
+              {isActivitySaving ? "Salvando..." : "Agendar"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* MODAL: Reagendar Rápido */}
-      {isRescheduleOpen && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl my-auto">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="font-bold text-sm text-white font-mono uppercase tracking-wider">
-                Reagendar Atividade
-              </h3>
-              <button
-                onClick={() => setIsRescheduleOpen(false)}
-                className="text-zinc-500 hover:text-white text-xs font-mono"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                onClick={() => handleQuickReschedule(0)}
-                className="p-2.5 bg-zinc-950 border border-zinc-800 hover:border-[#89F0B2] text-white rounded-lg font-semibold text-center transition"
-              >
-                Hoje
-              </button>
-              <button
-                onClick={() => handleQuickReschedule(1)}
-                className="p-2.5 bg-zinc-950 border border-zinc-800 hover:border-[#89F0B2] text-white rounded-lg font-semibold text-center transition"
-              >
-                Amanhã
-              </button>
-              <button
-                onClick={() => handleQuickReschedule(3)}
-                className="p-2.5 bg-zinc-950 border border-zinc-800 hover:border-[#89F0B2] text-white rounded-lg font-semibold text-center transition"
-              >
-                Em 3 dias
-              </button>
-              <button
-                onClick={() => handleQuickReschedule(7)}
-                className="p-2.5 bg-zinc-950 border border-zinc-800 hover:border-[#89F0B2] text-white rounded-lg font-semibold text-center transition"
-              >
-                Em 7 dias
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-zinc-800 space-y-2">
-              <label className="block text-[10px] font-mono text-zinc-400">
-                Ou escolha outra data:
-              </label>
-              <input
-                type="date"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#89F0B2]"
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleQuickReschedule(e.target.value);
-                  }
-                }}
-              />
-            </div>
+      <Modal
+        isOpen={isRescheduleOpen}
+        onClose={() => setIsRescheduleOpen(false)}
+        title="Reagendar Atividade"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => handleQuickReschedule(0)}
+              className="p-3 bg-[#12151C] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-white/[0.04] text-white rounded-xl font-medium text-center transition cursor-pointer text-xs"
+            >
+              Hoje
+            </button>
+            <button
+              onClick={() => handleQuickReschedule(1)}
+              className="p-3 bg-[#12151C] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-white/[0.04] text-white rounded-xl font-medium text-center transition cursor-pointer text-xs"
+            >
+              Amanhã
+            </button>
+            <button
+              onClick={() => handleQuickReschedule(3)}
+              className="p-3 bg-[#12151C] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-white/[0.04] text-white rounded-xl font-medium text-center transition cursor-pointer text-xs"
+            >
+              Em 3 dias
+            </button>
+            <button
+              onClick={() => handleQuickReschedule(7)}
+              className="p-3 bg-[#12151C] border border-white/[0.08] hover:border-indigo-500/50 hover:bg-white/[0.04] text-white rounded-xl font-medium text-center transition cursor-pointer text-xs"
+            >
+              Em 7 dias
+            </button>
           </div>
-        </div>,
-        document.body
-      )}
+
+          <div className="pt-2 border-t border-zinc-800 space-y-2">
+            <label className="block text-xs font-medium text-zinc-400">
+              Ou escolha outra data:
+            </label>
+            <Input
+              type="date"
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleQuickReschedule(e.target.value);
+                }
+              }}
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* MODAL: Pós Conclusão */}
-      {isPostCompleteOpen && createPortal(
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl text-center my-auto">
-            <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <Check className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-white">Atividade Concluída!</h3>
-              <p className="text-xs text-zinc-400 mt-1">
-                Registrada com sucesso no histórico deste lead.
-              </p>
-            </div>
-
-            <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-left text-xs space-y-1">
-              <p className="font-semibold text-zinc-300">Deseja agendar o próximo passo?</p>
-              <p className="text-[11px] text-zinc-500">
-                Garanta que este lead continuará no radar de atendimento.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-1">
-              <button
-                onClick={() => {
-                  setIsPostCompleteOpen(false);
-                  handleOpenActivityModal();
-                }}
-                className="w-full py-2.5 bg-[#89F0B2] text-zinc-950 font-bold text-xs rounded-lg hover:bg-[#73e09d] transition flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> SIM, AGENDAR PRÓXIMO PASSO
-              </button>
-              <button
-                onClick={() => setIsPostCompleteOpen(false)}
-                className="w-full py-2 bg-zinc-800 text-zinc-400 hover:text-white text-xs rounded-lg transition"
-              >
-                Não, concluir por enquanto
-              </button>
-            </div>
+      <Modal
+        isOpen={isPostCompleteOpen}
+        onClose={() => setIsPostCompleteOpen(false)}
+        title="Atividade Concluída"
+        size="sm"
+      >
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
+            <Check className="w-6 h-6" />
           </div>
-        </div>,
-        document.body
-      )}
+          <div>
+            <h3 className="font-bold text-base text-white">Atividade Concluída!</h3>
+            <p className="text-xs text-zinc-400 mt-1">
+              Registrada com sucesso no histórico deste lead.
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-zinc-950 rounded-xl border border-zinc-800 text-left text-xs space-y-1">
+            <p className="font-semibold text-zinc-200">Deseja agendar o próximo passo?</p>
+            <p className="text-[11px] text-zinc-500">
+              Garanta que este lead continuará no radar de atendimento.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setIsPostCompleteOpen(false);
+                handleOpenActivityModal();
+              }}
+              className="w-full gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Sim, Agendar Próximo Passo
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setIsPostCompleteOpen(false)}
+              className="w-full text-zinc-400"
+            >
+              Não, concluir por enquanto
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

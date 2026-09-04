@@ -481,48 +481,52 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   };
 
   return (
-    <div className="space-y-6">
-      {/* Tab Selector */}
-      <div className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap border-b border-zinc-850 gap-1.5 p-1 bg-zinc-950/60 border border-zinc-800/60 rounded-xl w-fit">
+    <div className="space-y-6 text-white">
+      {/* SubTab Selector Pills */}
+      <div className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap gap-1.5 p-1 bg-[#0B0D12] border border-white/[0.08] rounded-xl w-fit">
         <button
+          type="button"
           onClick={() => setActiveSubTab("followup")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "followup"
-              ? "bg-[#89F0B2] text-zinc-950 font-bold"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+              ? "bg-indigo-600 text-white font-medium shadow-sm"
+              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
           }`}
         >
           <Sliders className="w-3.5 h-3.5" />
           Esteira de Automação (Follow-up)
         </button>
         <button
+          type="button"
           onClick={() => setActiveSubTab("scheduler")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "scheduler"
-              ? "bg-[#89F0B2] text-zinc-950 font-bold"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+              ? "bg-indigo-600 text-white font-medium shadow-sm"
+              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
           Disparo Automático
         </button>
         <button
+          type="button"
           onClick={() => setActiveSubTab("general")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "general"
-              ? "bg-[#89F0B2] text-zinc-950 font-bold"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+              ? "bg-indigo-600 text-white font-medium shadow-sm"
+              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
           }`}
         >
           <Settings className="w-3.5 h-3.5" />
           Parâmetros Zoho & WAHA
         </button>
         <button
+          type="button"
           onClick={() => setActiveSubTab("lists")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "lists"
-              ? "bg-[#89F0B2] text-zinc-950 font-bold"
-              : "text-zinc-400 hover:text-white hover:bg-zinc-800/30"
+              ? "bg-indigo-600 text-white font-medium shadow-sm"
+              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
           }`}
         >
           <ListOrdered className="w-3.5 h-3.5" />
@@ -534,46 +538,51 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         // --- VIEW 1: FOLLOWUP CONFIGURATION ---
         <div className="space-y-6">
           {/* Banner explanation */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col md:flex-row gap-6 items-start justify-between">
-            <div className="space-y-1">
-              <h3 className="text-lg font-medium text-white flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-[#89F0B2]" />
-                Configurador de Mensagens & Prazos
-              </h3>
-              <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
-                Personalize a esteira automatizada de Follow-up (V2). Para cada etapa do contato, você pode alterar a mensagem enviada (WhatsApp ou E-mail), o prazo de carência em dias para a próxima ação e os gatilhos automáticos do CRM.
-              </p>
+          <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between shadow-xs">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-mono uppercase tracking-wide">
+                  Configurador de Mensagens & Prazos
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 max-w-3xl leading-relaxed">
+                  Personalize a esteira automatizada de Follow-up (V2). Para cada etapa do contato, você pode alterar a mensagem enviada (WhatsApp ou E-mail), o prazo de carência em dias para a próxima ação e os gatilhos automáticos do CRM.
+                </p>
+              </div>
             </div>
 
             <button
+              type="button"
               onClick={handleReset}
               disabled={isResetting}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 rounded-lg text-sm font-medium transition shrink-0"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.08] rounded-xl text-xs font-mono uppercase tracking-wider transition shrink-0 cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 ${isResetting ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isResetting ? "animate-spin" : ""}`} />
               Restaurar Padrões
             </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Stages Sidebar list (Visual Contact Queue) */}
-            <div className="lg:col-span-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col h-fit">
-              <div className="flex items-center justify-between mb-3 px-2">
-                <span className="text-xs font-semibold text-zinc-400 tracking-wider uppercase flex items-center gap-1.5">
-                  <ListOrdered className="w-3.5 h-3.5 text-[#89F0B2]" />
-                  Sequência do Fluxo (Fila)
+            <div className="lg:col-span-4 bg-[#12151C] border border-white/[0.08] rounded-2xl p-5 flex flex-col h-fit shadow-xs">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <span className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <ListOrdered className="w-3.5 h-3.5 text-indigo-400" />
+                  Sequência do Fluxo
                 </span>
-                <span className="text-[10px] font-mono text-zinc-500 font-bold bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-850">
+                <span className="text-[10px] font-mono text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
                   {stages.length} Passos
                 </span>
               </div>
 
               {/* Step Sequence Timeline container */}
-              <div className="relative pl-3 space-y-4">
+              <div className="relative pl-3 space-y-3">
                 {/* Dotted connector line running down */}
-                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-[#89F0B2]/30 via-zinc-800 to-zinc-800/20 border-l border-dashed border-zinc-800 pointer-events-none" />
+                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-indigo-500/30 via-white/[0.1] to-white/[0.03] border-l border-dashed border-white/[0.15] pointer-events-none" />
 
-                {getOrderedStages(stages).map((stage, idx, arr) => {
+                {getOrderedStages(stages).map((stage, idx) => {
                   const isSelected = selectedEtapa === stage.etapa;
                   const isSystemStage = stage.etapa === "SEM_CONTATO" || stage.etapa === "ENCERRADO";
                   const orderNum = String(idx + 1).padStart(2, "0");
@@ -589,26 +598,26 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       onDragOver={(e) => handleDragOver(e, idx)}
                       onDrop={(e) => handleDrop(e, idx)}
                       onDragEnd={handleDragEnd}
-                      className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
+                      className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
                         isSelected
-                          ? "bg-[#89F0B2]/5 border-[#89F0B2]/30 shadow-md shadow-emerald-950/10"
-                          : "bg-zinc-950/20 border-zinc-850 hover:bg-zinc-900/40 hover:border-zinc-800"
+                          ? "bg-indigo-500/10 border-indigo-500/40 shadow-xs"
+                          : "bg-[#0B0D12] border-white/[0.06] hover:border-white/[0.15]"
                       } ${
-                        isDragOver ? "border-[#89F0B2]/50 bg-[#89F0B2]/10 scale-[1.01]" : ""
+                        isDragOver ? "border-indigo-500 bg-indigo-500/15 scale-[1.01]" : ""
                       } ${
                         isDragged ? "opacity-40 border-dashed" : ""
                       }`}
                     >
                       {/* Drag Handle Icon */}
-                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-[#89F0B2]/60 transition-colors">
+                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-indigo-400 transition-colors">
                         <GripVertical className="w-3.5 h-3.5" />
                       </div>
 
                       {/* Step Number Circle */}
-                      <div className={`relative z-10 shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono transition-all border ${
+                      <div className={`relative z-10 shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono transition-all border ${
                         isSelected
-                          ? "bg-[#89F0B2] text-zinc-950 border-[#89F0B2]"
-                          : "bg-zinc-900 text-zinc-400 border-zinc-800 group-hover:border-zinc-700"
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-[#12151C] text-zinc-400 border-white/[0.08] group-hover:border-white/[0.2]"
                       }`}>
                         {orderNum}
                       </div>
@@ -617,11 +626,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       <div className="flex-1 min-w-0 pr-1">
                         <div className="flex items-center justify-between gap-1.5">
                           <span className={`text-[10px] font-bold font-mono tracking-wide truncate flex items-center gap-1 ${
-                            isSelected ? "text-[#89F0B2]" : "text-zinc-500"
+                            isSelected ? "text-indigo-400" : "text-zinc-400"
                           }`}>
                             {stage.etapa}
                             {stage.ordem ? (
-                              <span className="text-[9px] bg-zinc-950 px-1 py-0.2 rounded border border-zinc-850 text-zinc-400">
+                              <span className="text-[9px] bg-[#12151C] px-1 py-0.2 rounded border border-white/[0.08] text-zinc-400">
                                 #{stage.ordem}
                               </span>
                             ) : null}
@@ -630,17 +639,17 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                           {/* Channel icon */}
                           <div className="shrink-0">
                             {stage.canal === "WHATSAPP" && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-0.5 font-semibold">
-                                <MessageSquare className="w-2.5 h-2.5" /> WhatsApp
+                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1 font-semibold">
+                                <MessageSquare className="w-2.5 h-2.5" /> WA
                               </span>
                             )}
                             {stage.canal === "EMAIL" && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/25 flex items-center gap-0.5 font-semibold">
+                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/25 flex items-center gap-1 font-semibold">
                                 <Mail className="w-2.5 h-2.5" /> E-mail
                               </span>
                             )}
                             {!stage.canal && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-750 flex items-center gap-0.5 font-mono font-bold">
+                              <span className="text-[9px] px-2 py-0.5 rounded bg-white/[0.05] text-zinc-400 border border-white/[0.08] flex items-center gap-0.5 font-mono font-bold">
                                 FIM
                               </span>
                             )}
@@ -653,13 +662,13 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                           {stage.descricao}
                         </div>
 
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[10px] text-zinc-500 flex items-center gap-1 font-mono bg-zinc-950/60 px-1 py-0.5 rounded border border-zinc-900">
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono bg-[#12151C] px-2 py-0.5 rounded border border-white/[0.06]">
                             ⏰ {stage.esperar_dias} {stage.esperar_dias === 1 ? "dia" : "dias"}
                           </span>
                           {stage.temperatura && (
-                            <span className={`text-[9px] px-1 py-0.5 rounded font-bold uppercase ${
-                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${
+                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
                               String(stage.temperatura).toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
                               String(stage.temperatura).toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
                               "bg-sky-500/10 text-sky-400 border border-sky-500/20"
@@ -672,7 +681,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                       {/* Delete Actions hover-revealed */}
                       {!isSystemStage && (
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-lg shadow-lg">
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-[#12151C] border border-white/[0.1] p-1 rounded-xl shadow-lg">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -680,9 +689,9 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                               handleDeleteStep(stage.etapa);
                             }}
                             title="Excluir este passo"
-                            className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
@@ -695,7 +704,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               <button
                 type="button"
                 onClick={() => setIsAddingStep(true)}
-                className="mt-5 w-full py-2.5 border border-dashed border-zinc-800 hover:border-amber-500/40 hover:bg-amber-500/5 text-zinc-400 hover:text-amber-400 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5"
+                className="mt-5 w-full py-3 border border-dashed border-white/[0.12] hover:border-indigo-500/50 hover:bg-indigo-500/5 text-zinc-400 hover:text-indigo-400 text-xs font-mono uppercase tracking-wider font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Adicionar Passo de Follow-up
@@ -703,29 +712,29 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
             </div>
 
             {/* Form Editor Panel */}
-            <div className="lg:col-span-8 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              <div className="p-5 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between">
+            <div className="lg:col-span-8 bg-[#12151C] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xs">
+              <div className="p-6 border-b border-white/[0.06] bg-[#0B0D12]/40 flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-semibold text-zinc-500 tracking-wider uppercase font-mono">
-                    Editor de Etapa: {selectedEtapa}
+                  <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase font-mono">
+                    Editor de Etapa: <span className="text-indigo-400">{selectedEtapa}</span>
                   </h4>
-                  <p className="text-sm text-zinc-300 font-medium mt-1">{descricao}</p>
+                  <p className="text-sm text-white font-medium mt-1">{descricao}</p>
                 </div>
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-zinc-800 border border-zinc-700 text-zinc-400">
+                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-white/[0.05] border border-white/[0.08] text-zinc-300">
                   ID: {selectedEtapa}
                 </span>
               </div>
 
-              <form onSubmit={handleSaveStage} className="p-6 space-y-5">
+              <form onSubmit={handleSaveStage} className="p-6 space-y-6">
                 {concurrencyNotice && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5 text-xs text-amber-400">
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-start gap-2.5 text-xs text-amber-400 font-mono">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="font-semibold">Concomitância de Sequência Ajustada</p>
-                      <p className="mt-0.5">{concurrencyNotice}</p>
+                      <p className="font-bold uppercase tracking-wider">Concomitância de Sequência Ajustada</p>
+                      <p className="mt-0.5 text-zinc-300 font-sans">{concurrencyNotice}</p>
                     </div>
-                    <button type="button" onClick={() => setConcurrencyNotice(null)} className="text-zinc-500 hover:text-zinc-300">
-                      <X className="w-3.5 h-3.5" />
+                    <button type="button" onClick={() => setConcurrencyNotice(null)} className="text-zinc-500 hover:text-zinc-300 cursor-pointer">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
@@ -733,34 +742,34 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Descricao */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Nome Amigável / Descrição</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Nome Amigável / Descrição</label>
                     <input
                       type="text"
                       value={descricao}
                       onChange={(e) => setDescricao(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                     />
                   </div>
 
                   {/* Número de Sequência (Ordem) */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Posição na Sequência (Ordem)</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Posição na Sequência (Ordem)</label>
                     <input
                       type="number"
                       min="1"
                       value={ordem}
                       onChange={(e) => setOrdem(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 font-mono"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                     />
                   </div>
 
                   {/* Canal Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Canal de Envio</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Canal de Envio</label>
                     <select
                       value={canal || ""}
                       onChange={(e) => setCanal((e.target.value === "" ? null : e.target.value) as "WHATSAPP" | "EMAIL" | null)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                     >
                       <option value="">Nenhum (Estado Fim de Funil)</option>
                       <option value="WHATSAPP">WhatsApp</option>
@@ -770,14 +779,14 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                   {/* Esperar Dias */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Prazo de Carência (Dias de espera)</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Prazo de Carência (Dias de espera)</label>
                     <input
                       type="number"
                       min="0"
                       max="60"
                       value={esperarDias}
                       onChange={(e) => setEsperarDias(Number(e.target.value))}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                     />
                     <span className="text-[10px] text-zinc-500 block">
                       Após este envio, aguardará este número de dias antes de rodar o próximo passo.
@@ -786,11 +795,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                   {/* Temperatura */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Gatilho de Temperatura</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Gatilho de Temperatura</label>
                     <select
                       value={temperatura}
                       onChange={(e) => setTemperatura(e.target.value as LeadTemperatura)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
                     >
                       <option value="FRIA">FRIA</option>
                       <option value="MORNA">MORNA</option>
@@ -801,11 +810,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                   {/* Proximo Status */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Gatilho de Status do Funil</label>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Gatilho de Status do Funil</label>
                     <select
                       value={proximoStatus}
                       onChange={(e) => setProximoStatus(e.target.value as LeadStatus)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
                     >
                       <option value="">Manter anterior</option>
                       <option value="NOVO">Novo</option>
@@ -824,40 +833,40 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Template content - conditionally visible */}
                 {canal && (
-                  <div className="space-y-4 pt-3 border-t border-zinc-800">
+                  <div className="space-y-4 pt-4 border-t border-white/[0.06]">
                     {canal === "EMAIL" && (
                       <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-zinc-400">Assunto do E-mail</label>
+                        <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Assunto do E-mail</label>
                         <input
                           type="text"
                           value={assuntoTemplate}
                           onChange={(e) => setAssuntoTemplate(e.target.value)}
                           placeholder="Ex: Separei novas opções para você, {{nome}}"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                          className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
                         />
                       </div>
                     )}
 
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-medium text-zinc-400">Mensagem Template</label>
-                        <span className="text-[10px] text-amber-500 flex items-center gap-1 font-semibold">
+                      <div className="flex items-center justify-between pb-1">
+                        <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Mensagem Template</label>
+                        <span className="text-[10px] font-mono text-indigo-400 flex items-center gap-1">
                           <HelpCircle className="w-3.5 h-3.5" />
-                          Suporta todas as variáveis do sistema
+                          Suporta variáveis dinâmicas
                         </span>
                       </div>
 
                       <VariablePicker onInsert={(tag) => insertTextAtCursor(tag)} className="mb-2" />
 
                       {/* Enhanced Formatting Toolbar & Emoji Selector */}
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-t-lg p-2 flex flex-wrap gap-2 items-center justify-between border-b-0">
+                      <div className="bg-[#0B0D12] border border-white/[0.08] rounded-t-xl p-2.5 flex flex-wrap gap-2 items-center justify-between border-b-0">
                         {/* Rich Styling Tools */}
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => handleFormatText("bold")}
                             title="Negrito"
-                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center"
+                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center cursor-pointer"
                           >
                             <Bold className="w-3.5 h-3.5" />
                           </button>
@@ -865,7 +874,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             type="button"
                             onClick={() => handleFormatText("italic")}
                             title="Itálico"
-                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center"
+                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center cursor-pointer"
                           >
                             <Italic className="w-3.5 h-3.5" />
                           </button>
@@ -873,22 +882,22 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             type="button"
                             onClick={() => handleFormatText("link")}
                             title="Inserir Hiperlink"
-                            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800/80 transition flex items-center justify-center gap-1 px-2 text-[10px] font-semibold"
+                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center gap-1 px-2.5 text-[10px] font-mono uppercase cursor-pointer"
                           >
                             <Link className="w-3 h-3" /> Link
                           </button>
                         </div>
 
                         {/* Quick Emoji Tray */}
-                        <div className="flex items-center gap-1 border-l border-zinc-850 pl-2">
-                          <span className="text-[9px] text-zinc-500 font-bold uppercase select-none mr-1">Rápido:</span>
+                        <div className="flex items-center gap-1 border-l border-white/[0.06] pl-2.5">
+                          <span className="text-[9px] font-mono text-zinc-500 font-bold uppercase select-none mr-1">Rápido:</span>
                           <div className="flex items-center gap-1">
                             {["💍", "✨", "💌", "❤️", "📅", "🚨", "⚠️", "💬", "🌸", "🥂", "👰", "🎁"].map((emoji) => (
                               <button
                                 key={emoji}
                                 type="button"
                                 onClick={() => insertTextAtCursor(emoji)}
-                                className="w-6 h-6 flex items-center justify-center hover:scale-125 transition text-xs hover:bg-zinc-900 rounded"
+                                className="w-6 h-6 flex items-center justify-center hover:scale-125 transition text-xs hover:bg-white/[0.06] rounded cursor-pointer"
                               >
                                 {emoji}
                               </button>
@@ -907,21 +916,21 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             ? "Escreva o corpo do e-mail em formato HTML..."
                             : "Escreva a mensagem do WhatsApp..."
                         }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-b-none p-3 font-mono text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600 resize-y"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-b-none p-3.5 font-mono text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600 resize-y"
                       />
 
                       {/* Dynamic Variable Quick Insert Panel */}
-                      <div className="bg-zinc-950 border border-t-0 border-zinc-800 rounded-b-lg p-4 space-y-4">
-                        <div className="flex items-center gap-1.5 text-xs text-amber-500 font-bold">
-                          <Sparkles className="w-4 h-4" />
+                      <div className="bg-[#0B0D12] border border-t-0 border-white/[0.08] rounded-b-xl p-4 space-y-4">
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-mono uppercase font-bold">
+                          <Sparkles className="w-3.5 h-3.5" />
                           <span>Clique para Inserir Campo Variável no Texto:</span>
                         </div>
                         
                         <div className="space-y-3">
                           {/* 1. Basic Fields */}
                           <div>
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">Dados Principais do Lead:</span>
-                            <div className="flex flex-wrap gap-1.5">
+                            <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider block mb-2">Dados Principais do Lead:</span>
+                            <div className="flex flex-wrap gap-2">
                               {[
                                 { label: "Nome do Noivo(a)", value: "{nome}" },
                                 { label: "Mês / Ano do Casamento", value: "{mesCasamento}" },
@@ -934,10 +943,10 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                   key={item.value}
                                   type="button"
                                   onClick={() => insertTextAtCursor(item.value)}
-                                  className="px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-amber-500 rounded border border-zinc-850 hover:border-amber-500/30 text-[10px] font-semibold transition flex items-center gap-1"
+                                  className="px-2.5 py-1.5 bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-indigo-400 rounded-lg border border-white/[0.06] hover:border-indigo-500/30 text-[10px] font-semibold transition flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <span>{item.label}</span>
-                                  <code className="text-amber-500/80 font-mono font-normal bg-zinc-950 px-1 py-0.5 rounded text-[9px]">{item.value}</code>
+                                  <code className="text-indigo-400 font-mono font-normal bg-[#0B0D12] px-1 py-0.5 rounded text-[9px]">{item.value}</code>
                                 </button>
                               ))}
                             </div>
@@ -945,17 +954,17 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                           {/* 2. Product Fields */}
                           {products.length > 0 && (
-                            <div className="pt-2 border-t border-zinc-900/60">
-                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1.5">Produtos Cadastrados (Valores Calculados):</span>
-                              <div className="grid grid-cols-1 gap-2">
+                            <div className="pt-3 border-t border-white/[0.06]">
+                              <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider block mb-2">Produtos Cadastrados (Valores Calculados):</span>
+                              <div className="grid grid-cols-1 gap-2.5">
                                 {products.map((prod) => (
-                                  <div key={prod.id} className="bg-zinc-900/40 border border-zinc-850/60 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                    <div className="flex items-center gap-2">
+                                  <div key={prod.id} className="bg-[#12151C] border border-white/[0.06] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div className="flex items-center gap-2.5">
                                       {prod.link_imagem && (
                                         <img
                                           src={prod.link_imagem}
                                           alt=""
-                                          className="w-8 h-8 object-cover rounded cursor-pointer hover:scale-110 active:scale-95 transition-all duration-150 border border-zinc-800 hover:border-amber-500"
+                                          className="w-9 h-9 object-cover rounded-lg cursor-pointer hover:scale-105 transition-all border border-white/[0.1] hover:border-indigo-500"
                                           referrerPolicy="no-referrer"
                                           title="Clique para inserir esta imagem"
                                           onClick={() => {
@@ -964,8 +973,8 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         />
                                       )}
                                       <div>
-                                        <span className="text-xs font-bold text-zinc-300 block">{prod.descricao}</span>
-                                        <span className="text-[10px] text-amber-500 font-mono">{prod.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / unitário</span>
+                                        <span className="text-xs font-bold text-white block">{prod.descricao}</span>
+                                        <span className="text-[10px] text-indigo-400 font-mono">{prod.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / unitário</span>
                                       </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 justify-end">
@@ -973,7 +982,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere o orçamento total calculado (Convidados x Valor)"
                                         onClick={() => insertTextAtCursor(`{orcamento_${prod.id}}`)}
-                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
                                       >
                                         Orçamento ({"{"}orcamento_{prod.id}{"}"})
                                       </button>
@@ -983,7 +992,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         onClick={() => {
                                           insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
                                         }}
-                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
                                       >
                                         Imagem ({"{"}imagem_{prod.id}{"}"})
                                       </button>
@@ -991,7 +1000,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere o preço unitário"
                                         onClick={() => insertTextAtCursor(`{preco_unitario_${prod.id}}`)}
-                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
                                       >
                                         Preço ({"{"}preco_unitario_{prod.id}{"}"})
                                       </button>
@@ -999,7 +1008,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere a descrição"
                                         onClick={() => insertTextAtCursor(`{descricao_${prod.id}}`)}
-                                        className="px-2 py-1 bg-zinc-900 hover:bg-amber-500 hover:text-zinc-950 text-zinc-400 rounded text-[10px] font-mono border border-zinc-800 transition"
+                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
                                       >
                                         Descrição ({"{"}descricao_{prod.id}{"}"})
                                       </button>
@@ -1016,23 +1025,23 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 )}
 
                 {!canal && (
-                  <div className="bg-zinc-950/40 border border-zinc-800/80 rounded-lg p-4 flex gap-2.5 text-zinc-500">
-                    <AlertCircle className="w-5 h-5 text-zinc-600 shrink-0 mt-0.5" />
-                    <p className="text-xs">
+                  <div className="bg-[#0B0D12] border border-white/[0.06] rounded-xl p-4 flex gap-3 text-zinc-400">
+                    <AlertCircle className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
+                    <p className="text-xs leading-relaxed">
                       Esta etapa não possui ações de envio configuradas. Trata-se de um estágio de encerramento do funil, indicando o desfecho do lead sem envios adicionais automáticos.
                     </p>
                   </div>
                 )}
 
                 {/* Save Button */}
-                <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
+                <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
                   {selectedEtapa !== "SEM_CONTATO" && selectedEtapa !== "ENCERRADO" && (
                     <button
                       type="button"
                       onClick={() => handleDeleteStep(selectedEtapa)}
-                      className="flex items-center gap-2 px-4 py-2 bg-rose-950/25 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 border border-rose-900/30 font-semibold text-xs rounded-lg transition"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-mono uppercase font-bold text-xs rounded-xl transition cursor-pointer"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       Excluir Etapa
                     </button>
                   )}
@@ -1040,7 +1049,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                   <button
                     type="submit"
                     disabled={isSavingStage}
-                    className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-sm rounded-lg transition shadow-md"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-mono uppercase font-medium text-xs rounded-xl transition shadow-sm cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     {isSavingStage ? "Salvando..." : "Salvar Alterações"}
@@ -1060,18 +1069,20 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
       {/* ADD STEP MODAL */}
       {isAddingStep && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
             {/* Modal Header */}
-            <div className="p-5 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ListOrdered className="w-5 h-5 text-amber-500" />
-                <h3 className="font-bold text-white text-base">Adicionar Novo Passo de Follow-up</h3>
+            <div className="p-6 border-b border-white/[0.06] bg-[#0B0D12]/60 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <ListOrdered className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-white text-sm font-mono uppercase tracking-wide">Adicionar Novo Passo de Follow-up</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddingStep(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition"
+                className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.06] transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1082,27 +1093,27 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               <div className="grid grid-cols-2 gap-4">
                 {/* Descrição / Nome Amigável */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Nome do Passo (Nome Amigável / Descrição)</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Nome do Passo (Nome Amigável / Descrição)</label>
                   <input
                     type="text"
                     required
                     value={newDescricao}
                     onChange={(e) => setNewDescricao(e.target.value)}
                     placeholder="Ex: Terceiro WhatsApp de follow-up"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
                   />
                 </div>
 
                 {/* ID da Etapa (Nome Técnico) */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Identificador do Passo (Gerado Automaticamente)</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Identificador do Passo (Gerado Automaticamente)</label>
                   <input
                     type="text"
                     readOnly
                     disabled
                     value={newEtapaKey}
                     placeholder="Gerado automaticamente com base no nome do passo..."
-                    className="w-full bg-zinc-950/50 border border-zinc-850 rounded-lg px-3 py-2 text-xs text-zinc-500 font-mono uppercase cursor-not-allowed"
+                    className="w-full bg-[#0B0D12]/50 border border-white/[0.06] rounded-xl px-3.5 py-2 text-xs text-zinc-500 font-mono uppercase cursor-not-allowed"
                   />
                   <span className="text-[10px] text-zinc-500 block">
                     ID único do sistema gerado automaticamente a partir do nome amigável.
@@ -1111,7 +1122,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Posição na Sequência (Ordem) */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Posição na Sequência (Ordem)</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Posição na Sequência (Ordem)</label>
                   <input
                     type="number"
                     min="1"
@@ -1119,7 +1130,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                     value={newOrdem}
                     onChange={(e) => setNewOrdem(Number(e.target.value))}
                     placeholder="Ex: 5"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                   />
                   <span className="text-[10px] text-zinc-500 block">
                     Define a ordem de execução. Se escolher uma ordem existente, ela será deslocada por concomitância.
@@ -1128,11 +1139,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Canal */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Canal de Envio</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Canal de Envio</label>
                   <select
                     value={newCanal || ""}
                     onChange={(e) => setNewCanal((e.target.value === "" ? null : e.target.value) as "WHATSAPP" | "EMAIL" | null)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="WHATSAPP">WhatsApp</option>
                     <option value="EMAIL">E-mail</option>
@@ -1142,7 +1153,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Esperar Dias */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Tempo de Espera (Dias)</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Tempo de Espera (Dias)</label>
                   <input
                     type="number"
                     min="0"
@@ -1150,17 +1161,17 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                     required
                     value={newEsperarDias}
                     onChange={(e) => setNewEsperarDias(Number(e.target.value))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                   />
                 </div>
 
                 {/* Próximo Status */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Status do Funil</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Status do Funil</label>
                   <select
                     value={newProximoStatus}
                     onChange={(e) => setNewProximoStatus(e.target.value as LeadStatus)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
                   >
                     <option value="FOLLOWUP1">Follow-up 1</option>
                     <option value="FOLLOWUP2">Follow-up 2</option>
@@ -1173,11 +1184,11 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Temperatura */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-400">Temperatura</label>
+                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Temperatura</label>
                   <select
                     value={newTemperatura}
                     onChange={(e) => setNewTemperatura(e.target.value as LeadTemperatura)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
                   >
                     <option value="FRIA">Fria</option>
                     <option value="MORNA">Morna</option>
@@ -1187,61 +1198,61 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               </div>
 
               {newCanal && (
-                <div className="space-y-3 pt-3 border-t border-zinc-800">
+                <div className="space-y-3 pt-3 border-t border-white/[0.06]">
                   {newCanal === "EMAIL" && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-zinc-400">Assunto do E-mail</label>
+                      <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Assunto do E-mail</label>
                       <input
                         type="text"
                         required
                         value={newAssuntoTemplate}
                         onChange={(e) => setNewAssuntoTemplate(e.target.value)}
                         placeholder="Ex: Último contato sobre as lembrancinhas"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 placeholder-zinc-600"
+                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
                       />
                     </div>
                   )}
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-zinc-400">Mensagem Template</label>
-                      <span className="text-[10px] text-amber-500 font-bold">
+                      <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Mensagem Template</label>
+                      <span className="text-[10px] font-mono text-indigo-400">
                         Variáveis: {"{{nome}}"}
                       </span>
                     </div>
 
                     {/* Toolbar */}
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-t-lg p-2 flex items-center justify-between border-b-0">
+                    <div className="bg-[#0B0D12] border border-white/[0.08] rounded-t-xl p-2 flex items-center justify-between border-b-0">
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleFormatText("bold", "new-mensagem-template")}
-                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center w-6 h-6"
+                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] flex items-center justify-center cursor-pointer"
                         >
                           <Bold className="w-3 h-3" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleFormatText("italic", "new-mensagem-template")}
-                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 flex items-center justify-center w-6 h-6"
+                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] flex items-center justify-center cursor-pointer"
                         >
                           <Italic className="w-3 h-3" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleFormatText("link", "new-mensagem-template")}
-                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-1.5 text-[9px] font-bold flex items-center gap-0.5 h-6"
+                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] px-2 text-[9px] font-mono uppercase flex items-center gap-1 cursor-pointer"
                         >
                           <Link className="w-2.5 h-2.5" /> Link
                         </button>
                       </div>
-                      <div className="flex items-center gap-0.5">
+                      <div className="flex items-center gap-1">
                         {["💍", "✨", "💌", "❤️", "🌸", "🥂"].map(emoji => (
                           <button
                             key={emoji}
                             type="button"
                             onClick={() => insertTextAtCursor(emoji, "new-mensagem-template")}
-                            className="w-5 h-5 flex items-center justify-center hover:scale-125 transition text-xs"
+                            className="w-5 h-5 flex items-center justify-center hover:scale-125 transition text-xs cursor-pointer"
                           >
                             {emoji}
                           </button>
@@ -1255,24 +1266,24 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       value={newMensagemTemplate}
                       onChange={(e) => setNewMensagemTemplate(e.target.value)}
                       placeholder="Escreva a mensagem..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-b-lg p-2.5 font-mono text-xs text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-b-xl p-3 font-mono text-xs text-white focus:outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
               )}
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setIsAddingStep(false)}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition"
+                  className="px-4 py-2.5 bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-xs font-mono uppercase tracking-wider rounded-xl transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold rounded-lg transition flex items-center gap-1.5 shadow-md animate-pulse"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase font-medium rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   Criar Passo

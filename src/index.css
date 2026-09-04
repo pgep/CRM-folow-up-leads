@@ -1,25 +1,105 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+:root {
+  /* LIGHT THEME (Default) */
+  --crm-bg: #F6F7FB;
+  --crm-surface: #FFFFFF;
+  --crm-surface-subtle: #F0F2F7;
+  --crm-surface-hover: #E9EDF5;
+  --crm-surface-active: #DFE4F0;
+  --crm-border: #E2E6F0;
+  --crm-border-subtle: #EDF0F7;
+  --crm-border-strong: #CBD2E2;
+
+  --crm-text: #181C28;
+  --crm-text-secondary: #535E73;
+  --crm-text-muted: #8893A7;
+
+  --crm-primary: #4F46E5;
+  --crm-primary-hover: #4338CA;
+  --crm-primary-subtle: #EEF2FF;
+  --crm-primary-text: #4338CA;
+  --crm-primary-border: #C7D2FE;
+
+  --crm-shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.04);
+  --crm-shadow-card: 0 1px 3px 0 rgba(16, 24, 40, 0.06), 0 1px 2px -1px rgba(16, 24, 40, 0.04);
+  --crm-shadow-lg: 0 10px 25px -3px rgba(16, 24, 40, 0.08), 0 4px 10px -4px rgba(16, 24, 40, 0.04);
+}
+
+.dark {
+  /* DARK THEME (Slate / bluish graphite) */
+  --crm-bg: #0F131C;
+  --crm-surface: #151B27;
+  --crm-surface-subtle: #1C2333;
+  --crm-surface-hover: #222C40;
+  --crm-surface-active: #29354D;
+  --crm-border: #232D3F;
+  --crm-border-subtle: #1A2230;
+  --crm-border-strong: #334158;
+
+  --crm-text: #F1F4F9;
+  --crm-text-secondary: #9AA5B8;
+  --crm-text-muted: #64748B;
+
+  --crm-primary: #6366F1;
+  --crm-primary-hover: #4F46E5;
+  --crm-primary-subtle: rgba(99, 102, 241, 0.15);
+  --crm-primary-text: #818CF8;
+  --crm-primary-border: rgba(99, 102, 241, 0.35);
+
+  --crm-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  --crm-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.35), 0 1px 2px -1px rgba(0, 0, 0, 0.25);
+  --crm-shadow-lg: 0 10px 30px -3px rgba(0, 0, 0, 0.5), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+}
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Legacy tokens kept for untouched pages */
+  --color-crm-bg: #0B0D12;
+  --color-crm-surface: #12151C;
+  --color-crm-elevated: #181C26;
+  --color-crm-hover: #202534;
+  --color-crm-border: #252A35;
+  --color-crm-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-crm-brand: #6366F1;
+  --color-crm-brand-hover: #4F46E5;
+  --color-crm-brand-dim: rgba(99, 102, 241, 0.12);
+  --color-crm-brand-light: #818CF8;
+}
+
+/* Base Body Styles */
+body {
+  background-color: var(--crm-bg);
+  color: var(--crm-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom styles and animations */
+body {
+  background-color: var(--crm-bg);
+  color: var(--crm-text);
+  font-family: var(--font-sans);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -27,12 +107,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--crm-border);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--crm-border-strong);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -68,8 +148,8 @@
     box-shadow: none !important;
     border: none !important;
   }
-  /* Hide print buttons and close buttons inside the printed area if any */
   .print-hidden {
     display: none !important;
   }
 }
+
