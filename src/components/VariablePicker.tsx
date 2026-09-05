@@ -56,14 +56,26 @@ export default function VariablePicker({ onInsert, compact = false, className = 
   ];
 
   return (
-    <div className={`bg-[#12151C] border border-white/[0.06] rounded-xl p-3 text-xs space-y-2.5 ${className}`}>
+    <div
+      className={`rounded-xl p-3 text-xs space-y-2.5 transition-colors border ${className}`}
+      style={{
+        backgroundColor: "var(--crm-surface)",
+        borderColor: "var(--crm-border)",
+      }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="font-semibold text-white text-xs tracking-tight">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span
+            className="font-semibold text-xs tracking-tight"
+            style={{ color: "var(--crm-text)" }}
+          >
             Variáveis Dinâmicas
           </span>
-          <span className="text-[11px] text-zinc-400 hidden sm:inline">
+          <span
+            className="text-[11px] hidden sm:inline"
+            style={{ color: "var(--crm-text-secondary)" }}
+          >
             (Clique para inserir no texto)
           </span>
         </div>
@@ -71,7 +83,11 @@ export default function VariablePicker({ onInsert, compact = false, className = 
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] px-2.5 py-1 rounded-lg transition cursor-pointer"
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:opacity-80 flex items-center gap-1 px-2.5 py-1 rounded-lg transition cursor-pointer border"
+          style={{
+            backgroundColor: "var(--crm-surface-subtle)",
+            borderColor: "var(--crm-border)",
+          }}
         >
           {isOpen ? (
             <>
@@ -87,16 +103,21 @@ export default function VariablePicker({ onInsert, compact = false, className = 
 
       {/* Quick Access Pills for Most Used Variables */}
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-        <span className="text-xs text-zinc-400 font-medium mr-1">Rápidas:</span>
+        <span
+          className="text-xs font-medium mr-1"
+          style={{ color: "var(--crm-text-secondary)" }}
+        >
+          Rápidas:
+        </span>
         {["{nome}", "{local}", "{dias_casamento}", "{mes_casamento}", "{convidados}"].map((tag) => (
           <button
             key={tag}
             type="button"
             onClick={() => handleSelect(tag)}
-            className="px-2.5 py-1 bg-[#181C26] hover:bg-indigo-500/15 text-indigo-300 hover:text-indigo-200 border border-indigo-500/25 rounded-lg text-xs font-mono transition flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg text-xs font-mono transition flex items-center gap-1 cursor-pointer border font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border-indigo-200 dark:border-indigo-500/30"
             title={`Inserir ${tag}`}
           >
-            {copiedTag === tag ? <Check className="w-3 h-3 text-indigo-400" /> : null}
+            {copiedTag === tag ? <Check className="w-3 h-3 text-indigo-600 dark:text-indigo-400" /> : null}
             {tag}
           </button>
         ))}
@@ -106,10 +127,10 @@ export default function VariablePicker({ onInsert, compact = false, className = 
             key={`quick-${p.id}`}
             type="button"
             onClick={() => handleSelect(`{orcamento_${p.id}}`)}
-            className="px-2.5 py-1 bg-[#181C26] hover:bg-amber-500/15 text-amber-300 hover:text-amber-200 border border-amber-500/25 rounded-lg text-xs font-mono transition flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg text-xs font-mono transition flex items-center gap-1 cursor-pointer border font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border-amber-200 dark:border-amber-500/30"
             title={`Inserir orçamento de ${p.nome}`}
           >
-            {copiedTag === `{orcamento_${p.id}}` ? <Check className="w-3 h-3 text-amber-400" /> : null}
+            {copiedTag === `{orcamento_${p.id}}` ? <Check className="w-3 h-3 text-amber-600 dark:text-amber-400" /> : null}
             {`{orcamento_${p.id}}`}
           </button>
         ))}
@@ -117,17 +138,32 @@ export default function VariablePicker({ onInsert, compact = false, className = 
 
       {/* Expanded Accordion with Categorized Variables */}
       {isOpen && (
-        <div className="pt-3 border-t border-white/[0.06] space-y-3">
+        <div
+          className="pt-3 border-t space-y-3"
+          style={{ borderColor: "var(--crm-border)" }}
+        >
           {/* Category Tabs */}
-          <div className="flex items-center gap-2 border-b border-white/[0.06] pb-2">
+          <div
+            className="flex items-center gap-2 border-b pb-2 flex-wrap"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
             <button
               type="button"
               onClick={() => setActiveCategory("lead")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer ${
                 activeCategory === "lead"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "hover:opacity-80 border"
               }`}
+              style={
+                activeCategory !== "lead"
+                  ? {
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      color: "var(--crm-text-secondary)",
+                      borderColor: "var(--crm-border)",
+                    }
+                  : undefined
+              }
             >
               <User className="w-3.5 h-3.5" />
               Dados do Lead ({leadVariables.length})
@@ -138,9 +174,18 @@ export default function VariablePicker({ onInsert, compact = false, className = 
               onClick={() => setActiveCategory("produtos")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer ${
                 activeCategory === "produtos"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "hover:opacity-80 border"
               }`}
+              style={
+                activeCategory !== "produtos"
+                  ? {
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      color: "var(--crm-text-secondary)",
+                      borderColor: "var(--crm-border)",
+                    }
+                  : undefined
+              }
             >
               <Box className="w-3.5 h-3.5" />
               Orçamentos Produtos ({products.length})
@@ -151,9 +196,18 @@ export default function VariablePicker({ onInsert, compact = false, className = 
               onClick={() => setActiveCategory("somas")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer ${
                 activeCategory === "somas"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-white/[0.04] text-zinc-400 hover:text-white border border-white/[0.06]"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "hover:opacity-80 border"
               }`}
+              style={
+                activeCategory !== "somas"
+                  ? {
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      color: "var(--crm-text-secondary)",
+                      borderColor: "var(--crm-border)",
+                    }
+                  : undefined
+              }
             >
               <Calculator className="w-3.5 h-3.5" />
               Legados / Somas ({legacySums.length})
@@ -162,74 +216,136 @@ export default function VariablePicker({ onInsert, compact = false, className = 
 
           {/* Category Content */}
           {activeCategory === "lead" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
               {leadVariables.map((v) => (
                 <button
                   key={v.tag}
                   type="button"
                   onClick={() => handleSelect(v.tag)}
-                  className="text-left p-2.5 rounded-xl bg-[#181C26] hover:bg-[#1E2330] border border-white/[0.06] hover:border-indigo-500/40 group transition flex items-start justify-between cursor-pointer"
+                  className="text-left p-2.5 rounded-xl border transition flex items-start justify-between cursor-pointer group hover:border-indigo-500/50"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                  }}
                 >
                   <div>
-                    <div className="font-mono text-xs text-indigo-300 group-hover:text-indigo-200 font-semibold">
+                    <div className="font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
                       {v.tag}
                     </div>
-                    <div className="text-xs text-zinc-300 mt-0.5">{v.label}</div>
-                    <div className="text-[11px] text-zinc-400 mt-0.5">{v.desc}</div>
+                    <div
+                      className="text-xs font-medium mt-0.5"
+                      style={{ color: "var(--crm-text)" }}
+                    >
+                      {v.label}
+                    </div>
+                    <div
+                      className="text-[11px] mt-0.5"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      {v.desc}
+                    </div>
                   </div>
-                  {copiedTag === v.tag && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />}
+                  {copiedTag === v.tag && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
                 </button>
               ))}
             </div>
           )}
 
           {activeCategory === "produtos" && (
-            <div className="space-y-3 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
               {products.length === 0 ? (
-                <p className="text-xs text-zinc-400 p-2">Nenhum produto cadastrado no catálogo.</p>
+                <p
+                  className="text-xs p-2"
+                  style={{ color: "var(--crm-text-secondary)" }}
+                >
+                  Nenhum produto cadastrado no catálogo.
+                </p>
               ) : (
                 products.map((prod) => (
-                  <div key={prod.id} className="bg-[#181C26] border border-white/[0.06] rounded-xl p-3 space-y-2.5">
-                    <div className="flex items-center justify-between text-xs font-semibold text-white">
-                      <span>📦 {prod.nome}</span>
-                      <span className="font-mono text-xs text-amber-400">R$ {Number(prod.valor_unitario).toFixed(2)}/un</span>
+                  <div
+                    key={prod.id}
+                    className="border rounded-xl p-3 space-y-2.5"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span style={{ color: "var(--crm-text)" }}>📦 {prod.nome}</span>
+                      <span className="font-mono text-xs text-amber-600 dark:text-amber-400">R$ {Number(prod.valor_unitario).toFixed(2)}/un</span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <button
                         type="button"
                         onClick={() => handleSelect(`{orcamento_${prod.id}}`)}
-                        className="p-2 rounded-lg bg-[#12151C] hover:bg-amber-500/10 border border-white/[0.06] hover:border-amber-500/30 text-left transition cursor-pointer"
+                        className="p-2 rounded-lg border text-left transition cursor-pointer hover:border-amber-500/50"
+                        style={{
+                          backgroundColor: "var(--crm-surface)",
+                          borderColor: "var(--crm-border)",
+                        }}
                       >
-                        <div className="font-mono text-xs text-amber-300 font-semibold">{`{orcamento_${prod.id}}`}</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">Valor Total</div>
+                        <div className="font-mono text-xs text-amber-700 dark:text-amber-400 font-semibold">{`{orcamento_${prod.id}}`}</div>
+                        <div
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          Valor Total
+                        </div>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleSelect(`{preco_unitario_${prod.id}}`)}
-                        className="p-2 rounded-lg bg-[#12151C] hover:bg-amber-500/10 border border-white/[0.06] hover:border-amber-500/30 text-left transition cursor-pointer"
+                        className="p-2 rounded-lg border text-left transition cursor-pointer hover:border-amber-500/50"
+                        style={{
+                          backgroundColor: "var(--crm-surface)",
+                          borderColor: "var(--crm-border)",
+                        }}
                       >
-                        <div className="font-mono text-xs text-amber-300 font-semibold">{`{preco_unitario_${prod.id}}`}</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">Preço Unitário</div>
+                        <div className="font-mono text-xs text-amber-700 dark:text-amber-400 font-semibold">{`{preco_unitario_${prod.id}}`}</div>
+                        <div
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          Preço Unitário
+                        </div>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleSelect(`{descricao_${prod.id}}`)}
-                        className="p-2 rounded-lg bg-[#12151C] hover:bg-amber-500/10 border border-white/[0.06] hover:border-amber-500/30 text-left transition cursor-pointer"
+                        className="p-2 rounded-lg border text-left transition cursor-pointer hover:border-amber-500/50"
+                        style={{
+                          backgroundColor: "var(--crm-surface)",
+                          borderColor: "var(--crm-border)",
+                        }}
                       >
-                        <div className="font-mono text-xs text-amber-300 font-semibold">{`{descricao_${prod.id}}`}</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">Descrição</div>
+                        <div className="font-mono text-xs text-amber-700 dark:text-amber-400 font-semibold">{`{descricao_${prod.id}}`}</div>
+                        <div
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          Descrição
+                        </div>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleSelect(`{imagem_${prod.id}}`)}
-                        className="p-2 rounded-lg bg-[#12151C] hover:bg-amber-500/10 border border-white/[0.06] hover:border-amber-500/30 text-left transition cursor-pointer"
+                        className="p-2 rounded-lg border text-left transition cursor-pointer hover:border-amber-500/50"
+                        style={{
+                          backgroundColor: "var(--crm-surface)",
+                          borderColor: "var(--crm-border)",
+                        }}
                       >
-                        <div className="font-mono text-xs text-amber-300 font-semibold">{`{imagem_${prod.id}}`}</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">URL da Imagem</div>
+                        <div className="font-mono text-xs text-amber-700 dark:text-amber-400 font-semibold">{`{imagem_${prod.id}}`}</div>
+                        <div
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          URL da Imagem
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -239,22 +355,36 @@ export default function VariablePicker({ onInsert, compact = false, className = 
           )}
 
           {activeCategory === "somas" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
               {legacySums.map((s) => (
                 <button
                   key={s.tag}
                   type="button"
                   onClick={() => handleSelect(s.tag)}
-                  className="text-left p-2.5 rounded-xl bg-[#181C26] hover:bg-[#1E2330] border border-white/[0.06] hover:border-sky-500/40 group transition flex items-start justify-between cursor-pointer"
+                  className="text-left p-2.5 rounded-xl border transition flex items-start justify-between cursor-pointer group hover:border-sky-500/50"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                  }}
                 >
                   <div>
-                    <div className="font-mono text-xs text-sky-400 group-hover:text-sky-300 font-semibold">
+                    <div className="font-mono text-xs text-sky-600 dark:text-sky-400 font-semibold">
                       {s.tag}
                     </div>
-                    <div className="text-xs text-zinc-300 mt-0.5">{s.label}</div>
-                    <div className="text-[11px] text-zinc-400 mt-0.5">{s.desc}</div>
+                    <div
+                      className="text-xs font-medium mt-0.5"
+                      style={{ color: "var(--crm-text)" }}
+                    >
+                      {s.label}
+                    </div>
+                    <div
+                      className="text-[11px] mt-0.5"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      {s.desc}
+                    </div>
                   </div>
-                  {copiedTag === s.tag && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />}
+                  {copiedTag === s.tag && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />}
                 </button>
               ))}
             </div>

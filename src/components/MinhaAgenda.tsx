@@ -959,23 +959,6 @@ export default function MinhaAgenda({
             </div>
           </div>
 
-          {/* Dica operacional sutil e contextual */}
-          <div
-            className="p-4 rounded-2xl border text-xs leading-relaxed space-y-1 transition-colors"
-            style={{
-              backgroundColor: "var(--crm-surface)",
-              borderColor: "var(--crm-border)",
-              color: "var(--crm-text-secondary)"
-            }}
-          >
-            <p className="font-semibold" style={{ color: "var(--crm-text)" }}>
-              Diretriz do Ateliê:
-            </p>
-            <p>
-              Ao encerrar uma conversa pelo WhatsApp ou ligação, utilize o botão <strong>Concluir</strong> e cadastre a data do retorno acordado para manter a oportunidade aquecida.
-            </p>
-          </div>
-
         </aside>
 
       </div>

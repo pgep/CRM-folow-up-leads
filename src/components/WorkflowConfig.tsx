@@ -481,56 +481,143 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
   };
 
   return (
-    <div className="space-y-6 text-white">
-      {/* SubTab Selector Pills */}
-      <div className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap gap-1.5 p-1 bg-[#0B0D12] border border-white/[0.08] rounded-xl w-fit">
+    <div id="workflow-config-screen" className="w-full space-y-6 animate-fade-in">
+      {/* 1. CABEÇALHO EDITORIAL UNIFICADO (PADRÃO CRM / DASHBOARD) */}
+      <div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b transition-colors"
+        style={{ borderColor: "var(--crm-border)" }}
+      >
+        <div>
+          <h1
+            className="text-lg sm:text-xl font-bold tracking-tight"
+            style={{ color: "var(--crm-text)" }}
+          >
+            Configurações Gerais
+          </h1>
+          <p
+            className="text-xs sm:text-sm mt-0.5"
+            style={{ color: "var(--crm-text-secondary)" }}
+          >
+            Central de configuração da esteira de automação, agendamento de disparos, canais e tabelas auxiliares.
+          </p>
+        </div>
+
+        {activeSubTab === "followup" && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={isResetting}
+              className="px-3 py-2 rounded-xl text-xs font-medium border transition flex items-center gap-1.5 cursor-pointer shadow-xs hover:opacity-85"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text-secondary)",
+              }}
+              title="Restaurar esteira para os padrões originais da Casa Colombo"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isResetting ? "animate-spin text-indigo-500" : ""}`} />
+              <span>Restaurar Padrões</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAddingStep(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Passo</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 2. BARRA DE SUB-ABAS SEGMENTADAS */}
+      <div
+        className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap gap-1.5 p-1.5 rounded-xl border transition-colors w-full sm:w-fit"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)",
+        }}
+      >
         <button
           type="button"
           onClick={() => setActiveSubTab("followup")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "followup"
-              ? "bg-indigo-600 text-white font-medium shadow-sm"
-              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "hover:opacity-85"
           }`}
+          style={
+            activeSubTab !== "followup"
+              ? { color: "var(--crm-text-secondary)" }
+              : undefined
+          }
         >
           <Sliders className="w-3.5 h-3.5" />
-          Esteira de Automação (Follow-up)
+          <span>Esteira de Automação</span>
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+              activeSubTab === "followup"
+                ? "bg-white/20 text-white"
+                : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+            }`}
+          >
+            {stages.length}
+          </span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveSubTab("scheduler")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "scheduler"
-              ? "bg-indigo-600 text-white font-medium shadow-sm"
-              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "hover:opacity-85"
           }`}
+          style={
+            activeSubTab !== "scheduler"
+              ? { color: "var(--crm-text-secondary)" }
+              : undefined
+          }
         >
           <Clock className="w-3.5 h-3.5" />
-          Disparo Automático
+          <span>Disparo Automático</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveSubTab("general")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "general"
-              ? "bg-indigo-600 text-white font-medium shadow-sm"
-              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "hover:opacity-85"
           }`}
+          style={
+            activeSubTab !== "general"
+              ? { color: "var(--crm-text-secondary)" }
+              : undefined
+          }
         >
           <Settings className="w-3.5 h-3.5" />
-          Parâmetros Zoho & WAHA
+          <span>Parâmetros Zoho & WAHA</span>
         </button>
+
         <button
           type="button"
           onClick={() => setActiveSubTab("lists")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono uppercase rounded-lg transition shrink-0 cursor-pointer ${
+          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition shrink-0 cursor-pointer ${
             activeSubTab === "lists"
-              ? "bg-indigo-600 text-white font-medium shadow-sm"
-              : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+              ? "bg-indigo-600 text-white shadow-xs"
+              : "hover:opacity-85"
           }`}
+          style={
+            activeSubTab !== "lists"
+              ? { color: "var(--crm-text-secondary)" }
+              : undefined
+          }
         >
           <ListOrdered className="w-3.5 h-3.5" />
-          Listas de Opções (Etapas, Status, Temp)
+          <span>Tabelas Auxiliares (Menus)</span>
         </button>
       </div>
 
@@ -538,49 +625,79 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
         // --- VIEW 1: FOLLOWUP CONFIGURATION ---
         <div className="space-y-6">
           {/* Banner explanation */}
-          <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between shadow-xs">
+          <div
+            className="rounded-2xl p-4 sm:p-5 border transition-colors flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-xs"
+            style={{
+              backgroundColor: "var(--crm-surface)",
+              borderColor: "var(--crm-border)",
+            }}
+          >
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                 <Sliders className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white font-mono uppercase tracking-wide">
-                  Configurador de Mensagens & Prazos
+                <h3
+                  className="text-sm font-bold tracking-tight"
+                  style={{ color: "var(--crm-text)" }}
+                >
+                  Régua de Relacionamento e Follow-up Automatizado
                 </h3>
-                <p className="text-xs text-zinc-400 mt-1 max-w-3xl leading-relaxed">
-                  Personalize a esteira automatizada de Follow-up (V2). Para cada etapa do contato, você pode alterar a mensagem enviada (WhatsApp ou E-mail), o prazo de carência em dias para a próxima ação e os gatilhos automáticos do CRM.
+                <p
+                  className="text-xs mt-0.5 max-w-3xl leading-relaxed"
+                  style={{ color: "var(--crm-text-secondary)" }}
+                >
+                  Configure a sequência de mensagens da régua comercial. Para cada etapa, ajuste o canal de envio (WhatsApp ou E-mail), os dias de carência entre disparos, os modelos de texto e os gatilhos automáticos de status e temperatura.
                 </p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={isResetting}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white border border-white/[0.08] rounded-xl text-xs font-mono uppercase tracking-wider transition shrink-0 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isResetting ? "animate-spin" : ""}`} />
-              Restaurar Padrões
-            </button>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <span
+                className="text-[11px] font-medium px-2.5 py-1 rounded-lg border font-mono"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text-secondary)",
+                }}
+              >
+                Sequência: {stages.length} etapas ativas
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Stages Sidebar list (Visual Contact Queue) */}
-            <div className="lg:col-span-4 bg-[#12151C] border border-white/[0.08] rounded-2xl p-5 flex flex-col h-fit shadow-xs">
-              <div className="flex items-center justify-between mb-4 px-1">
-                <span className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-1.5">
-                  <ListOrdered className="w-3.5 h-3.5 text-indigo-400" />
-                  Sequência do Fluxo
+            <div
+              className="lg:col-span-4 rounded-2xl p-4 sm:p-5 border flex flex-col h-fit shadow-xs transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)",
+              }}
+            >
+              <div
+                className="flex items-center justify-between pb-3 mb-3 border-b"
+                style={{ borderColor: "var(--crm-border)" }}
+              >
+                <span
+                  className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                  style={{ color: "var(--crm-text)" }}
+                >
+                  <ListOrdered className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  Ordem do Fluxo
                 </span>
-                <span className="text-[10px] font-mono text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">
+                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 px-2 py-0.5 rounded-full font-mono">
                   {stages.length} Passos
                 </span>
               </div>
 
               {/* Step Sequence Timeline container */}
-              <div className="relative pl-3 space-y-3">
+              <div className="relative pl-2 space-y-2.5">
                 {/* Dotted connector line running down */}
-                <div className="absolute left-[21px] top-4 bottom-4 w-[2px] bg-gradient-to-b from-indigo-500/30 via-white/[0.1] to-white/[0.03] border-l border-dashed border-white/[0.15] pointer-events-none" />
+                <div
+                  className="absolute left-[18px] top-3 bottom-3 w-[2px] border-l border-dashed pointer-events-none opacity-50"
+                  style={{ borderColor: "var(--crm-border)" }}
+                />
 
                 {getOrderedStages(stages).map((stage, idx) => {
                   const isSelected = selectedEtapa === stage.etapa;
@@ -598,39 +715,70 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       onDragOver={(e) => handleDragOver(e, idx)}
                       onDrop={(e) => handleDrop(e, idx)}
                       onDragEnd={handleDragEnd}
-                      className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
+                      className={`relative group cursor-grab active:cursor-grabbing w-full text-left p-3 rounded-xl border transition-all flex items-start gap-2.5 select-none ${
                         isSelected
-                          ? "bg-indigo-500/10 border-indigo-500/40 shadow-xs"
-                          : "bg-[#0B0D12] border-white/[0.06] hover:border-white/[0.15]"
+                          ? "ring-2 ring-indigo-500/40 border-indigo-500 shadow-xs"
+                          : "hover:border-slate-300 dark:hover:border-zinc-700"
                       } ${
-                        isDragOver ? "border-indigo-500 bg-indigo-500/15 scale-[1.01]" : ""
+                        isDragOver ? "ring-2 ring-indigo-500 scale-[1.01]" : ""
                       } ${
                         isDragged ? "opacity-40 border-dashed" : ""
                       }`}
+                      style={{
+                        backgroundColor: isSelected
+                          ? "var(--crm-primary-subtle)"
+                          : "var(--crm-surface-subtle)",
+                        borderColor: isSelected
+                          ? "var(--crm-primary)"
+                          : "var(--crm-border)",
+                      }}
                     >
                       {/* Drag Handle Icon */}
-                      <div className="flex items-center self-stretch justify-center px-0.5 text-zinc-600 group-hover:text-indigo-400 transition-colors">
-                        <GripVertical className="w-3.5 h-3.5" />
+                      <div
+                        className="flex items-center self-stretch justify-center px-0.5 transition-colors"
+                        style={{ color: "var(--crm-text-muted)" }}
+                      >
+                        <GripVertical className="w-3.5 h-3.5 group-hover:text-indigo-500" />
                       </div>
 
                       {/* Step Number Circle */}
-                      <div className={`relative z-10 shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono transition-all border ${
-                        isSelected
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-[#12151C] text-zinc-400 border-white/[0.08] group-hover:border-white/[0.2]"
-                      }`}>
+                      <div
+                        className={`relative z-10 shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono transition-all border ${
+                          isSelected
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "border-slate-200 dark:border-zinc-800"
+                        }`}
+                        style={
+                          !isSelected
+                            ? {
+                                backgroundColor: "var(--crm-surface)",
+                                color: "var(--crm-text-secondary)",
+                              }
+                            : undefined
+                        }
+                      >
                         {orderNum}
                       </div>
 
                       {/* Info & Description */}
                       <div className="flex-1 min-w-0 pr-1">
                         <div className="flex items-center justify-between gap-1.5">
-                          <span className={`text-[10px] font-bold font-mono tracking-wide truncate flex items-center gap-1 ${
-                            isSelected ? "text-indigo-400" : "text-zinc-400"
-                          }`}>
+                          <span
+                            className={`text-[10px] font-bold font-mono tracking-wide truncate flex items-center gap-1 ${
+                              isSelected ? "text-indigo-600 dark:text-indigo-400 font-bold" : ""
+                            }`}
+                            style={!isSelected ? { color: "var(--crm-text-secondary)" } : undefined}
+                          >
                             {stage.etapa}
                             {stage.ordem ? (
-                              <span className="text-[9px] bg-[#12151C] px-1 py-0.2 rounded border border-white/[0.08] text-zinc-400">
+                              <span
+                                className="text-[9px] px-1 py-0.2 rounded border font-mono"
+                                style={{
+                                  backgroundColor: "var(--crm-surface)",
+                                  borderColor: "var(--crm-border)",
+                                  color: "var(--crm-text-muted)",
+                                }}
+                              >
                                 #{stage.ordem}
                               </span>
                             ) : null}
@@ -639,39 +787,54 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                           {/* Channel icon */}
                           <div className="shrink-0">
                             {stage.canal === "WHATSAPP" && (
-                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 flex items-center gap-1 font-semibold">
+                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25 flex items-center gap-1 font-semibold">
                                 <MessageSquare className="w-2.5 h-2.5" /> WA
                               </span>
                             )}
                             {stage.canal === "EMAIL" && (
-                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/25 flex items-center gap-1 font-semibold">
+                              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/25 flex items-center gap-1 font-semibold">
                                 <Mail className="w-2.5 h-2.5" /> E-mail
                               </span>
                             )}
                             {!stage.canal && (
-                              <span className="text-[9px] px-2 py-0.5 rounded bg-white/[0.05] text-zinc-400 border border-white/[0.08] flex items-center gap-0.5 font-mono font-bold">
+                              <span
+                                className="text-[9px] px-2 py-0.5 rounded border flex items-center gap-0.5 font-mono font-bold"
+                                style={{
+                                  backgroundColor: "var(--crm-surface)",
+                                  borderColor: "var(--crm-border)",
+                                  color: "var(--crm-text-muted)",
+                                }}
+                              >
                                 FIM
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className={`text-xs font-semibold mt-1 truncate ${
-                          isSelected ? "text-white" : "text-zinc-300"
-                        }`}>
+                        <div
+                          className="text-xs font-semibold mt-1 truncate"
+                          style={{ color: "var(--crm-text)" }}
+                        >
                           {stage.descricao}
                         </div>
 
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono bg-[#12151C] px-2 py-0.5 rounded border border-white/[0.06]">
+                          <span
+                            className="text-[10px] flex items-center gap-1 font-mono px-2 py-0.5 rounded border"
+                            style={{
+                              backgroundColor: "var(--crm-surface)",
+                              borderColor: "var(--crm-border)",
+                              color: "var(--crm-text-secondary)",
+                            }}
+                          >
                             ⏰ {stage.esperar_dias} {stage.esperar_dias === 1 ? "dia" : "dias"}
                           </span>
                           {stage.temperatura && (
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${
-                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" :
-                              String(stage.temperatura).toUpperCase() === "MORNA" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                              String(stage.temperatura).toUpperCase() === "CLIENTE" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                              "bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase border ${
+                              String(stage.temperatura).toUpperCase() === "QUENTE" ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20" :
+                              String(stage.temperatura).toUpperCase() === "MORNA" ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20" :
+                              String(stage.temperatura).toUpperCase() === "CLIENTE" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" :
+                              "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20"
                             }`}>
                               {String(stage.temperatura).toUpperCase()}
                             </span>
@@ -681,7 +844,13 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                       {/* Delete Actions hover-revealed */}
                       {!isSystemStage && (
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-[#12151C] border border-white/[0.1] p-1 rounded-xl shadow-lg">
+                        <div
+                          className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1 border p-1 rounded-xl shadow-md"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                          }}
+                        >
                           <button
                             type="button"
                             onClick={(e) => {
@@ -689,7 +858,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                               handleDeleteStep(stage.etapa);
                             }}
                             title="Excluir este passo"
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -704,36 +873,72 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               <button
                 type="button"
                 onClick={() => setIsAddingStep(true)}
-                className="mt-5 w-full py-3 border border-dashed border-white/[0.12] hover:border-indigo-500/50 hover:bg-indigo-500/5 text-zinc-400 hover:text-indigo-400 text-xs font-mono uppercase tracking-wider font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+                className="mt-4 w-full py-2.5 border border-dashed rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-xs font-semibold hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                style={{
+                  borderColor: "var(--crm-border-strong)",
+                  color: "var(--crm-text-secondary)",
+                }}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 Adicionar Passo de Follow-up
               </button>
             </div>
 
             {/* Form Editor Panel */}
-            <div className="lg:col-span-8 bg-[#12151C] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xs">
-              <div className="p-6 border-b border-white/[0.06] bg-[#0B0D12]/40 flex items-center justify-between">
+            <div
+              className="lg:col-span-8 rounded-2xl overflow-hidden border shadow-xs transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)",
+              }}
+            >
+              <div
+                className="p-4 sm:p-6 border-b flex items-center justify-between transition-colors"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                }}
+              >
                 <div>
-                  <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase font-mono">
-                    Editor de Etapa: <span className="text-indigo-400">{selectedEtapa}</span>
-                  </h4>
-                  <p className="text-sm text-white font-medium mt-1">{descricao}</p>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-bold tracking-wider uppercase font-mono"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Configuração da Etapa:
+                    </span>
+                    <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/30">
+                      {selectedEtapa}
+                    </span>
+                  </div>
+                  <p
+                    className="text-sm font-semibold mt-1"
+                    style={{ color: "var(--crm-text)" }}
+                  >
+                    {descricao}
+                  </p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-white/[0.05] border border-white/[0.08] text-zinc-300">
+                <span
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase border"
+                  style={{
+                    backgroundColor: "var(--crm-surface)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text-secondary)",
+                  }}
+                >
                   ID: {selectedEtapa}
                 </span>
               </div>
 
-              <form onSubmit={handleSaveStage} className="p-6 space-y-6">
+              <form onSubmit={handleSaveStage} className="p-4 sm:p-6 space-y-6">
                 {concurrencyNotice && (
-                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-start gap-2.5 text-xs text-amber-400 font-mono">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/30 rounded-xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                     <div className="flex-1">
-                      <p className="font-bold uppercase tracking-wider">Concomitância de Sequência Ajustada</p>
-                      <p className="mt-0.5 text-zinc-300 font-sans">{concurrencyNotice}</p>
+                      <p className="font-bold uppercase tracking-wider text-[11px]">Concomitância de Sequência Ajustada</p>
+                      <p className="mt-0.5 text-xs">{concurrencyNotice}</p>
                     </div>
-                    <button type="button" onClick={() => setConcurrencyNotice(null)} className="text-zinc-500 hover:text-zinc-300 cursor-pointer">
+                    <button type="button" onClick={() => setConcurrencyNotice(null)} className="text-amber-500 hover:text-amber-700 cursor-pointer">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -742,34 +947,64 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Descricao */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Nome Amigável / Descrição</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Nome Amigável / Descrição
+                    </label>
                     <input
                       type="text"
                       value={descricao}
                       onChange={(e) => setDescricao(e.target.value)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     />
                   </div>
 
                   {/* Número de Sequência (Ordem) */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Posição na Sequência (Ordem)</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Posição na Sequência (Ordem)
+                    </label>
                     <input
                       type="number"
                       min="1"
                       value={ordem}
                       onChange={(e) => setOrdem(Number(e.target.value))}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs font-mono border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     />
                   </div>
 
                   {/* Canal Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Canal de Envio</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Canal de Envio
+                    </label>
                     <select
                       value={canal || ""}
                       onChange={(e) => setCanal((e.target.value === "" ? null : e.target.value) as "WHATSAPP" | "EMAIL" | null)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     >
                       <option value="">Nenhum (Estado Fim de Funil)</option>
                       <option value="WHATSAPP">WhatsApp</option>
@@ -779,27 +1014,50 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                   {/* Esperar Dias */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Prazo de Carência (Dias de espera)</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Prazo de Carência (Dias de espera)
+                    </label>
                     <input
                       type="number"
                       min="0"
                       max="60"
                       value={esperarDias}
                       onChange={(e) => setEsperarDias(Number(e.target.value))}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs font-mono border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     />
-                    <span className="text-[10px] text-zinc-500 block">
+                    <span
+                      className="text-[10px] block"
+                      style={{ color: "var(--crm-text-muted)" }}
+                    >
                       Após este envio, aguardará este número de dias antes de rodar o próximo passo.
                     </span>
                   </div>
 
                   {/* Temperatura */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Gatilho de Temperatura</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Gatilho de Temperatura
+                    </label>
                     <select
                       value={temperatura}
                       onChange={(e) => setTemperatura(e.target.value as LeadTemperatura)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer font-mono"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     >
                       <option value="FRIA">FRIA</option>
                       <option value="MORNA">MORNA</option>
@@ -810,11 +1068,21 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                   {/* Proximo Status */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Gatilho de Status do Funil</label>
+                    <label
+                      className="text-[11px] font-semibold uppercase tracking-wider block"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
+                      Gatilho de Status do Funil
+                    </label>
                     <select
                       value={proximoStatus}
                       onChange={(e) => setProximoStatus(e.target.value as LeadStatus)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                      className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer font-mono"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     >
                       <option value="">Manter anterior</option>
                       <option value="NOVO">Novo</option>
@@ -833,24 +1101,42 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Template content - conditionally visible */}
                 {canal && (
-                  <div className="space-y-4 pt-4 border-t border-white/[0.06]">
+                  <div
+                    className="space-y-4 pt-4 border-t"
+                    style={{ borderColor: "var(--crm-border)" }}
+                  >
                     {canal === "EMAIL" && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Assunto do E-mail</label>
+                        <label
+                          className="text-[11px] font-semibold uppercase tracking-wider block"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          Assunto do E-mail
+                        </label>
                         <input
                           type="text"
                           value={assuntoTemplate}
                           onChange={(e) => setAssuntoTemplate(e.target.value)}
                           placeholder="Ex: Separei novas opções para você, {{nome}}"
-                          className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
+                          className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                          style={{
+                            backgroundColor: "var(--crm-surface-subtle)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)",
+                          }}
                         />
                       </div>
                     )}
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between pb-1">
-                        <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Mensagem Template</label>
-                        <span className="text-[10px] font-mono text-indigo-400 flex items-center gap-1">
+                        <label
+                          className="text-[11px] font-semibold uppercase tracking-wider block"
+                          style={{ color: "var(--crm-text-secondary)" }}
+                        >
+                          Mensagem Template
+                        </label>
+                        <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
                           <HelpCircle className="w-3.5 h-3.5" />
                           Suporta variáveis dinâmicas
                         </span>
@@ -859,14 +1145,25 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       <VariablePicker onInsert={(tag) => insertTextAtCursor(tag)} className="mb-2" />
 
                       {/* Enhanced Formatting Toolbar & Emoji Selector */}
-                      <div className="bg-[#0B0D12] border border-white/[0.08] rounded-t-xl p-2.5 flex flex-wrap gap-2 items-center justify-between border-b-0">
+                      <div
+                        className="border rounded-t-xl p-2.5 flex flex-wrap gap-2 items-center justify-between border-b-0 transition-colors"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                        }}
+                      >
                         {/* Rich Styling Tools */}
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => handleFormatText("bold")}
                             title="Negrito"
-                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center cursor-pointer"
+                            className="p-1.5 rounded-lg border transition flex items-center justify-center cursor-pointer shadow-xs hover:opacity-85"
+                            style={{
+                              backgroundColor: "var(--crm-surface)",
+                              borderColor: "var(--crm-border)",
+                              color: "var(--crm-text)",
+                            }}
                           >
                             <Bold className="w-3.5 h-3.5" />
                           </button>
@@ -874,7 +1171,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             type="button"
                             onClick={() => handleFormatText("italic")}
                             title="Itálico"
-                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center cursor-pointer"
+                            className="p-1.5 rounded-lg border transition flex items-center justify-center cursor-pointer shadow-xs hover:opacity-85"
+                            style={{
+                              backgroundColor: "var(--crm-surface)",
+                              borderColor: "var(--crm-border)",
+                              color: "var(--crm-text)",
+                            }}
                           >
                             <Italic className="w-3.5 h-3.5" />
                           </button>
@@ -882,22 +1184,35 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             type="button"
                             onClick={() => handleFormatText("link")}
                             title="Inserir Hiperlink"
-                            className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-white border border-white/[0.06] transition flex items-center justify-center gap-1 px-2.5 text-[10px] font-mono uppercase cursor-pointer"
+                            className="p-1.5 rounded-lg border transition flex items-center justify-center gap-1 px-2.5 text-[10px] font-mono uppercase cursor-pointer shadow-xs hover:opacity-85"
+                            style={{
+                              backgroundColor: "var(--crm-surface)",
+                              borderColor: "var(--crm-border)",
+                              color: "var(--crm-text)",
+                            }}
                           >
                             <Link className="w-3 h-3" /> Link
                           </button>
                         </div>
 
                         {/* Quick Emoji Tray */}
-                        <div className="flex items-center gap-1 border-l border-white/[0.06] pl-2.5">
-                          <span className="text-[9px] font-mono text-zinc-500 font-bold uppercase select-none mr-1">Rápido:</span>
+                        <div
+                          className="flex items-center gap-1 border-l pl-2.5"
+                          style={{ borderColor: "var(--crm-border)" }}
+                        >
+                          <span
+                            className="text-[10px] font-mono font-bold uppercase select-none mr-1"
+                            style={{ color: "var(--crm-text-muted)" }}
+                          >
+                            Rápido:
+                          </span>
                           <div className="flex items-center gap-1">
                             {["💍", "✨", "💌", "❤️", "📅", "🚨", "⚠️", "💬", "🌸", "🥂", "👰", "🎁"].map((emoji) => (
                               <button
                                 key={emoji}
                                 type="button"
                                 onClick={() => insertTextAtCursor(emoji)}
-                                className="w-6 h-6 flex items-center justify-center hover:scale-125 transition text-xs hover:bg-white/[0.06] rounded cursor-pointer"
+                                className="w-6 h-6 flex items-center justify-center hover:scale-125 transition text-xs rounded cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-800"
                               >
                                 {emoji}
                               </button>
@@ -916,12 +1231,23 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             ? "Escreva o corpo do e-mail em formato HTML..."
                             : "Escreva a mensagem do WhatsApp..."
                         }
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-b-none p-3.5 font-mono text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600 resize-y"
+                        className="w-full border rounded-b-none p-3.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-y transition-colors"
+                        style={{
+                          backgroundColor: "var(--crm-surface)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)",
+                        }}
                       />
 
                       {/* Dynamic Variable Quick Insert Panel */}
-                      <div className="bg-[#0B0D12] border border-t-0 border-white/[0.08] rounded-b-xl p-4 space-y-4">
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-mono uppercase font-bold">
+                      <div
+                        className="border border-t-0 rounded-b-xl p-4 space-y-4 transition-colors"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-bold uppercase">
                           <Sparkles className="w-3.5 h-3.5" />
                           <span>Clique para Inserir Campo Variável no Texto:</span>
                         </div>
@@ -929,7 +1255,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                         <div className="space-y-3">
                           {/* 1. Basic Fields */}
                           <div>
-                            <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider block mb-2">Dados Principais do Lead:</span>
+                            <span
+                              className="text-[10px] font-mono font-bold uppercase tracking-wider block mb-2"
+                              style={{ color: "var(--crm-text-secondary)" }}
+                            >
+                              Dados Principais do Lead:
+                            </span>
                             <div className="flex flex-wrap gap-2">
                               {[
                                 { label: "Nome do Noivo(a)", value: "{nome}" },
@@ -943,10 +1274,15 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                   key={item.value}
                                   type="button"
                                   onClick={() => insertTextAtCursor(item.value)}
-                                  className="px-2.5 py-1.5 bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 hover:text-indigo-400 rounded-lg border border-white/[0.06] hover:border-indigo-500/30 text-[10px] font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                                  className="px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs hover:border-indigo-500"
+                                  style={{
+                                    backgroundColor: "var(--crm-surface)",
+                                    borderColor: "var(--crm-border)",
+                                    color: "var(--crm-text)",
+                                  }}
                                 >
                                   <span>{item.label}</span>
-                                  <code className="text-indigo-400 font-mono font-normal bg-[#0B0D12] px-1 py-0.5 rounded text-[9px]">{item.value}</code>
+                                  <code className="text-indigo-600 dark:text-indigo-400 font-mono font-normal bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px]">{item.value}</code>
                                 </button>
                               ))}
                             </div>
@@ -954,17 +1290,33 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                           {/* 2. Product Fields */}
                           {products.length > 0 && (
-                            <div className="pt-3 border-t border-white/[0.06]">
-                              <span className="text-[10px] font-mono text-zinc-500 font-bold uppercase tracking-wider block mb-2">Produtos Cadastrados (Valores Calculados):</span>
+                            <div
+                              className="pt-3 border-t"
+                              style={{ borderColor: "var(--crm-border)" }}
+                            >
+                              <span
+                                className="text-[10px] font-mono font-bold uppercase tracking-wider block mb-2"
+                                style={{ color: "var(--crm-text-secondary)" }}
+                              >
+                                Produtos Cadastrados (Valores Calculados):
+                              </span>
                               <div className="grid grid-cols-1 gap-2.5">
                                 {products.map((prod) => (
-                                  <div key={prod.id} className="bg-[#12151C] border border-white/[0.06] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                  <div
+                                    key={prod.id}
+                                    className="border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs transition-colors"
+                                    style={{
+                                      backgroundColor: "var(--crm-surface)",
+                                      borderColor: "var(--crm-border)",
+                                    }}
+                                  >
                                     <div className="flex items-center gap-2.5">
                                       {prod.link_imagem && (
                                         <img
                                           src={prod.link_imagem}
                                           alt=""
-                                          className="w-9 h-9 object-cover rounded-lg cursor-pointer hover:scale-105 transition-all border border-white/[0.1] hover:border-indigo-500"
+                                          className="w-9 h-9 object-cover rounded-lg cursor-pointer hover:scale-105 transition-all border hover:border-indigo-500"
+                                          style={{ borderColor: "var(--crm-border)" }}
                                           referrerPolicy="no-referrer"
                                           title="Clique para inserir esta imagem"
                                           onClick={() => {
@@ -973,8 +1325,15 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         />
                                       )}
                                       <div>
-                                        <span className="text-xs font-bold text-white block">{prod.descricao}</span>
-                                        <span className="text-[10px] text-indigo-400 font-mono">{prod.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / unitário</span>
+                                        <span
+                                          className="text-xs font-bold block"
+                                          style={{ color: "var(--crm-text)" }}
+                                        >
+                                          {prod.descricao}
+                                        </span>
+                                        <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono font-medium">
+                                          {prod.valor_unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / unitário
+                                        </span>
                                       </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 justify-end">
@@ -982,7 +1341,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere o orçamento total calculado (Convidados x Valor)"
                                         onClick={() => insertTextAtCursor(`{orcamento_${prod.id}}`)}
-                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
+                                        className="px-2.5 py-1 hover:bg-indigo-600 hover:text-white rounded-lg text-[10px] font-mono border transition cursor-pointer"
+                                        style={{
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text-secondary)",
+                                        }}
                                       >
                                         Orçamento ({"{"}orcamento_{prod.id}{"}"})
                                       </button>
@@ -992,7 +1356,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         onClick={() => {
                                           insertTextAtCursor(`{imagem_${prod.id}}`, "mensagem-template-textarea");
                                         }}
-                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
+                                        className="px-2.5 py-1 hover:bg-indigo-600 hover:text-white rounded-lg text-[10px] font-mono border transition cursor-pointer"
+                                        style={{
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text-secondary)",
+                                        }}
                                       >
                                         Imagem ({"{"}imagem_{prod.id}{"}"})
                                       </button>
@@ -1000,7 +1369,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere o preço unitário"
                                         onClick={() => insertTextAtCursor(`{preco_unitario_${prod.id}}`)}
-                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
+                                        className="px-2.5 py-1 hover:bg-indigo-600 hover:text-white rounded-lg text-[10px] font-mono border transition cursor-pointer"
+                                        style={{
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text-secondary)",
+                                        }}
                                       >
                                         Preço ({"{"}preco_unitario_{prod.id}{"}"})
                                       </button>
@@ -1008,7 +1382,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                                         type="button"
                                         title="Insere a descrição"
                                         onClick={() => insertTextAtCursor(`{descricao_${prod.id}}`)}
-                                        className="px-2.5 py-1 bg-[#0B0D12] hover:bg-indigo-600 hover:text-white text-zinc-400 rounded-lg text-[10px] font-mono border border-white/[0.08] transition cursor-pointer"
+                                        className="px-2.5 py-1 hover:bg-indigo-600 hover:text-white rounded-lg text-[10px] font-mono border transition cursor-pointer"
+                                        style={{
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text-secondary)",
+                                        }}
                                       >
                                         Descrição ({"{"}descricao_{prod.id}{"}"})
                                       </button>
@@ -1025,21 +1404,33 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                 )}
 
                 {!canal && (
-                  <div className="bg-[#0B0D12] border border-white/[0.06] rounded-xl p-4 flex gap-3 text-zinc-400">
-                    <AlertCircle className="w-5 h-5 text-zinc-500 shrink-0 mt-0.5" />
-                    <p className="text-xs leading-relaxed">
+                  <div
+                    className="border rounded-xl p-4 flex gap-3 transition-colors"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                    }}
+                  >
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-slate-400" />
+                    <p
+                      className="text-xs leading-relaxed"
+                      style={{ color: "var(--crm-text-secondary)" }}
+                    >
                       Esta etapa não possui ações de envio configuradas. Trata-se de um estágio de encerramento do funil, indicando o desfecho do lead sem envios adicionais automáticos.
                     </p>
                   </div>
                 )}
 
                 {/* Save Button */}
-                <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
+                <div
+                  className="flex items-center justify-between pt-4 border-t"
+                  style={{ borderColor: "var(--crm-border)" }}
+                >
                   {selectedEtapa !== "SEM_CONTATO" && selectedEtapa !== "ENCERRADO" && (
                     <button
                       type="button"
                       onClick={() => handleDeleteStep(selectedEtapa)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 font-mono uppercase font-bold text-xs rounded-xl transition cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/25 font-bold text-xs rounded-xl transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       Excluir Etapa
@@ -1049,7 +1440,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                   <button
                     type="submit"
                     disabled={isSavingStage}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-mono uppercase font-medium text-xs rounded-xl transition shadow-sm cursor-pointer"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-xs sm:text-sm rounded-xl transition shadow-xs cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     {isSavingStage ? "Salvando..." : "Salvar Alterações"}
@@ -1069,60 +1460,106 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
       {/* ADD STEP MODAL */}
       {isAddingStep && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div
+            className="border rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] md:max-h-[90vh] animate-fade-in my-auto transition-colors"
+            style={{
+              backgroundColor: "var(--crm-surface)",
+              borderColor: "var(--crm-border)",
+            }}
+          >
             {/* Modal Header */}
-            <div className="p-6 border-b border-white/[0.06] bg-[#0B0D12]/60 flex items-center justify-between">
+            <div
+              className="p-4 sm:p-5 border-b flex items-center justify-between transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+              }}
+            >
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                   <ListOrdered className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-white text-sm font-mono uppercase tracking-wide">Adicionar Novo Passo de Follow-up</h3>
+                <h3
+                  className="font-bold text-sm tracking-tight"
+                  style={{ color: "var(--crm-text)" }}
+                >
+                  Adicionar Novo Passo de Follow-up
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddingStep(false)}
-                className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.06] transition cursor-pointer"
+                className="p-1.5 rounded-lg transition cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-800"
+                style={{ color: "var(--crm-text-secondary)" }}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateStep} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleCreateStep} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {/* Descrição / Nome Amigável */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Nome do Passo (Nome Amigável / Descrição)</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Nome do Passo (Nome Amigável / Descrição)
+                  </label>
                   <input
                     type="text"
                     required
                     value={newDescricao}
                     onChange={(e) => setNewDescricao(e.target.value)}
                     placeholder="Ex: Terceiro WhatsApp de follow-up"
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   />
                 </div>
 
                 {/* ID da Etapa (Nome Técnico) */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Identificador do Passo (Gerado Automaticamente)</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Identificador do Passo (Gerado Automaticamente)
+                  </label>
                   <input
                     type="text"
                     readOnly
                     disabled
                     value={newEtapaKey}
                     placeholder="Gerado automaticamente com base no nome do passo..."
-                    className="w-full bg-[#0B0D12]/50 border border-white/[0.06] rounded-xl px-3.5 py-2 text-xs text-zinc-500 font-mono uppercase cursor-not-allowed"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs font-mono uppercase cursor-not-allowed opacity-75 border"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text-muted)",
+                    }}
                   />
-                  <span className="text-[10px] text-zinc-500 block">
+                  <span
+                    className="text-[10px] block"
+                    style={{ color: "var(--crm-text-muted)" }}
+                  >
                     ID único do sistema gerado automaticamente a partir do nome amigável.
                   </span>
                 </div>
 
                 {/* Posição na Sequência (Ordem) */}
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Posição na Sequência (Ordem)</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Posição na Sequência (Ordem)
+                  </label>
                   <input
                     type="number"
                     min="1"
@@ -1130,20 +1567,38 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                     value={newOrdem}
                     onChange={(e) => setNewOrdem(Number(e.target.value))}
                     placeholder="Ex: 5"
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs font-mono border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   />
-                  <span className="text-[10px] text-zinc-500 block">
+                  <span
+                    className="text-[10px] block"
+                    style={{ color: "var(--crm-text-muted)" }}
+                  >
                     Define a ordem de execução. Se escolher uma ordem existente, ela será deslocada por concomitância.
                   </span>
                 </div>
 
                 {/* Canal */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Canal de Envio</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Canal de Envio
+                  </label>
                   <select
                     value={newCanal || ""}
                     onChange={(e) => setNewCanal((e.target.value === "" ? null : e.target.value) as "WHATSAPP" | "EMAIL" | null)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   >
                     <option value="WHATSAPP">WhatsApp</option>
                     <option value="EMAIL">E-mail</option>
@@ -1153,7 +1608,12 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Esperar Dias */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Tempo de Espera (Dias)</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Tempo de Espera (Dias)
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -1161,17 +1621,32 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                     required
                     value={newEsperarDias}
                     onChange={(e) => setNewEsperarDias(Number(e.target.value))}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs font-mono border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   />
                 </div>
 
                 {/* Próximo Status */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Status do Funil</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Status do Funil
+                  </label>
                   <select
                     value={newProximoStatus}
                     onChange={(e) => setNewProximoStatus(e.target.value as LeadStatus)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer font-mono"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   >
                     <option value="FOLLOWUP1">Follow-up 1</option>
                     <option value="FOLLOWUP2">Follow-up 2</option>
@@ -1184,11 +1659,21 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
 
                 {/* Temperatura */}
                 <div className="col-span-1 space-y-1.5">
-                  <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Temperatura</label>
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-wider block"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
+                    Temperatura
+                  </label>
                   <select
                     value={newTemperatura}
                     onChange={(e) => setNewTemperatura(e.target.value as LeadTemperatura)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                    className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer font-mono"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)",
+                    }}
                   >
                     <option value="FRIA">Fria</option>
                     <option value="MORNA">Morna</option>
@@ -1198,50 +1683,89 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
               </div>
 
               {newCanal && (
-                <div className="space-y-3 pt-3 border-t border-white/[0.06]">
+                <div
+                  className="space-y-3 pt-3 border-t"
+                  style={{ borderColor: "var(--crm-border)" }}
+                >
                   {newCanal === "EMAIL" && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Assunto do E-mail</label>
+                      <label
+                        className="text-[11px] font-semibold uppercase tracking-wider block"
+                        style={{ color: "var(--crm-text-secondary)" }}
+                      >
+                        Assunto do E-mail
+                      </label>
                       <input
                         type="text"
                         required
                         value={newAssuntoTemplate}
                         onChange={(e) => setNewAssuntoTemplate(e.target.value)}
                         placeholder="Ex: Último contato sobre as lembrancinhas"
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-zinc-600"
+                        className="w-full rounded-xl px-3.5 py-2.5 text-xs border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)",
+                        }}
                       />
                     </div>
                   )}
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Mensagem Template</label>
-                      <span className="text-[10px] font-mono text-indigo-400">
+                      <label
+                        className="text-[11px] font-semibold uppercase tracking-wider block"
+                        style={{ color: "var(--crm-text-secondary)" }}
+                      >
+                        Mensagem Template
+                      </label>
+                      <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
                         Variáveis: {"{{nome}}"}
                       </span>
                     </div>
 
                     {/* Toolbar */}
-                    <div className="bg-[#0B0D12] border border-white/[0.08] rounded-t-xl p-2 flex items-center justify-between border-b-0">
+                    <div
+                      className="border rounded-t-xl p-2 flex items-center justify-between border-b-0 transition-colors"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                      }}
+                    >
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleFormatText("bold", "new-mensagem-template")}
-                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] flex items-center justify-center cursor-pointer"
+                          className="p-1.5 rounded-lg border flex items-center justify-center cursor-pointer shadow-xs hover:opacity-85"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)",
+                          }}
                         >
                           <Bold className="w-3 h-3" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleFormatText("italic", "new-mensagem-template")}
-                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] flex items-center justify-center cursor-pointer"
+                          className="p-1.5 rounded-lg border flex items-center justify-center cursor-pointer shadow-xs hover:opacity-85"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)",
+                          }}
                         >
                           <Italic className="w-3 h-3" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleFormatText("link", "new-mensagem-template")}
-                          className="p-1.5 rounded-lg bg-[#12151C] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.06] px-2 text-[9px] font-mono uppercase flex items-center gap-1 cursor-pointer"
+                          className="p-1.5 rounded-lg border px-2 text-[10px] font-mono uppercase flex items-center gap-1 cursor-pointer shadow-xs hover:opacity-85"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)",
+                          }}
                         >
                           <Link className="w-2.5 h-2.5" /> Link
                         </button>
@@ -1252,7 +1776,7 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                             key={emoji}
                             type="button"
                             onClick={() => insertTextAtCursor(emoji, "new-mensagem-template")}
-                            className="w-5 h-5 flex items-center justify-center hover:scale-125 transition text-xs cursor-pointer"
+                            className="w-5 h-5 flex items-center justify-center hover:scale-125 transition text-xs cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-800 rounded"
                           >
                             {emoji}
                           </button>
@@ -1266,24 +1790,37 @@ export default function WorkflowConfig({ stages, onUpdateStage, onReset }: Workf
                       value={newMensagemTemplate}
                       onChange={(e) => setNewMensagemTemplate(e.target.value)}
                       placeholder="Escreva a mensagem..."
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-b-xl p-3 font-mono text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full border rounded-b-xl p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                      style={{
+                        backgroundColor: "var(--crm-surface)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)",
+                      }}
                     />
                   </div>
                 </div>
               )}
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
+              <div
+                className="flex items-center justify-end gap-3 pt-4 border-t"
+                style={{ borderColor: "var(--crm-border)" }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsAddingStep(false)}
-                  className="px-4 py-2.5 bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 hover:text-white text-xs font-mono uppercase tracking-wider rounded-xl transition cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer hover:opacity-85"
+                  style={{
+                    backgroundColor: "var(--crm-surface)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text-secondary)",
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase font-medium rounded-xl transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   Criar Passo

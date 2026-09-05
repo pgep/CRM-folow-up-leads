@@ -81,19 +81,19 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`relative w-full ${sizeClass} bg-[#121620] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/60 overflow-hidden flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto z-10 ${className}`}
+            className={`relative w-full ${sizeClass} bg-[var(--crm-surface)] border border-[var(--crm-border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] my-auto z-10 ${className}`}
           >
             {/* Header */}
             {(title || showCloseButton) && (
-              <div className="px-6 py-4.5 border-b border-white/[0.06] flex items-center justify-between bg-[#151a26]/70 shrink-0">
+              <div className="px-6 py-4.5 border-b border-[var(--crm-border)] flex items-center justify-between bg-[var(--crm-surface-subtle)] shrink-0">
                 <div className="min-w-0 pr-3">
                   {title && (
-                    <h3 className="text-base font-bold text-zinc-100 truncate">
+                    <h3 className="text-base font-bold text-[var(--crm-text)] truncate">
                       {title}
                     </h3>
                   )}
                   {description && (
-                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                    <p className="text-xs text-[var(--crm-text-secondary)] mt-1 leading-relaxed">
                       {description}
                     </p>
                   )}
@@ -104,7 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
                     type="button"
                     onClick={onClose}
                     aria-label="Fechar"
-                    className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.08] rounded-xl transition-colors shrink-0 cursor-pointer"
+                    className="p-1.5 text-[var(--crm-text-muted)] hover:text-[var(--crm-text)] hover:bg-[var(--crm-surface-hover)] rounded-xl transition-colors shrink-0 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -113,13 +113,13 @@ export const Modal: React.FC<ModalProps> = ({
             )}
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 text-sm text-zinc-300 leading-relaxed">
+            <div className="flex-1 overflow-y-auto p-6 text-sm text-[var(--crm-text)] leading-relaxed">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="px-6 py-4 border-t border-white/[0.06] bg-[#151a26]/70 flex items-center justify-end gap-3 shrink-0">
+              <div className="px-6 py-4 border-t border-[var(--crm-border)] bg-[var(--crm-surface-subtle)] flex items-center justify-end gap-3 shrink-0">
                 {footer}
               </div>
             )}

@@ -498,66 +498,123 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
   return (
     <div className="space-y-6">
       {/* Upper header banner */}
-      <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 md:p-8 shadow-xs">
+      <div 
+        className="rounded-2xl p-5 sm:p-6 border transition-colors shadow-xs"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)",
+        }}
+      >
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
             <Megaphone className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white font-mono uppercase tracking-wide">
+            <h3 
+              className="text-base font-bold tracking-tight"
+              style={{ color: "var(--crm-text)" }}
+            >
               Ações Especiais, Campanhas & Disparo em Massa
             </h3>
-            <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed max-w-3xl">
-              Gerencie ações de engajamento segmentadas. Configure <strong className="text-zinc-200">Follow-ups Especiais (Regras Emergenciais)</strong> para abordar leads com datas próximas ou características específicas, ou utilize o <strong className="text-zinc-200">Disparo em Massa (Broadcast)</strong> para transmitir comunicados rápidos para contatos filtrados por contexto comercial.
+            <p 
+              className="text-xs mt-1.5 leading-relaxed max-w-3xl"
+              style={{ color: "var(--crm-text-secondary)" }}
+            >
+              Gerencie ações de engajamento segmentadas. Configure <strong style={{ color: "var(--crm-text)" }}>Follow-ups Especiais (Regras Emergenciais)</strong> para abordar leads com datas próximas ou características específicas, ou utilize o <strong style={{ color: "var(--crm-text)" }}>Disparo em Massa (Broadcast)</strong> para transmitir comunicados rápidos para contatos filtrados por contexto comercial.
             </p>
           </div>
         </div>
 
         {/* Tab switch buttons */}
-        <div className="flex flex-wrap gap-2.5 mt-6 border-t border-white/[0.06] pt-5">
-          <button
-            onClick={() => setSubTab('special')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
-              subTab === 'special'
-                ? 'bg-indigo-600 text-white font-medium shadow-xs'
-                : 'bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] border border-white/[0.06]'
-            }`}
+        <div 
+          className="flex flex-wrap gap-2 mt-5 pt-4 border-t"
+          style={{ borderColor: "var(--crm-border)" }}
+        >
+          <div
+            className="flex overflow-x-auto max-w-full no-scrollbar whitespace-nowrap gap-1.5 p-1 rounded-xl border transition-colors w-full sm:w-fit"
+            style={{
+              backgroundColor: "var(--crm-surface-subtle)",
+              borderColor: "var(--crm-border)",
+            }}
           >
-            <AlertTriangle className="w-4 h-4" />
-            Follow-ups Especiais & Emergenciais
-          </button>
+            <button
+              type="button"
+              onClick={() => setSubTab('special')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
+                subTab === 'special'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'hover:opacity-85'
+              }`}
+              style={subTab !== 'special' ? { color: "var(--crm-text-secondary)" } : undefined}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Follow-ups Especiais & Emergenciais</span>
+              <span 
+                className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                  subTab === 'special' ? 'bg-white/20 text-white' : 'border'
+                }`}
+                style={subTab !== 'special' ? { 
+                  backgroundColor: "var(--crm-surface)", 
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text-muted)" 
+                } : undefined}
+              >
+                {rules.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => setSubTab('bulk')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
-              subTab === 'bulk'
-                ? 'bg-indigo-600 text-white font-medium shadow-xs'
-                : 'bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.07] border border-white/[0.06]'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Disparo em Massa / Broadcast
-          </button>
+            <button
+              type="button"
+              onClick={() => setSubTab('bulk')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wide transition flex items-center gap-2 cursor-pointer ${
+                subTab === 'bulk'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'hover:opacity-85'
+              }`}
+              style={subTab !== 'bulk' ? { color: "var(--crm-text-secondary)" } : undefined}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Disparo em Massa / Broadcast</span>
+              <span 
+                className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
+                  subTab === 'bulk' ? 'bg-white/20 text-white' : 'border'
+                }`}
+                style={subTab !== 'bulk' ? { 
+                  backgroundColor: "var(--crm-surface)", 
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text-muted)" 
+                } : undefined}
+              >
+                {selectedLeads.length > 0 ? `${selectedLeads.length} selecionados` : `${filteredLeadsForBulk.length} elegíveis`}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* SUB TAB 1: SPECIAL AND EMERGENCY FOLLOW-UPS */}
       {subTab === 'special' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wide">
+              <h4 
+                className="text-sm font-bold tracking-tight"
+                style={{ color: "var(--crm-text)" }}
+              >
                 Regras de Follow-up Emergencial / Especial
               </h4>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Segmentação dinâmica para identificar leads prioritários e disparar ações individuais.
+              <p 
+                className="text-xs mt-0.5"
+                style={{ color: "var(--crm-text-secondary)" }}
+              >
+                Segmentação dinâmica para identificar leads prioritários e disparar ações individuais com mensagens personalizadas.
               </p>
             </div>
             
             <button
+              type="button"
               onClick={() => {
                 if (isAddingRule) {
-                  // Cancel adding/editing
                   setEditingRuleId(null);
                   setRuleName("");
                   setRuleField("dias_casamento");
@@ -571,36 +628,65 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   setIsAddingRule(true);
                 }
               }}
-              className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-white border border-white/[0.08] text-xs font-semibold flex items-center gap-2 transition cursor-pointer ml-auto"
+              className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition cursor-pointer border shadow-2xs sm:ml-auto"
+              style={{
+                backgroundColor: isAddingRule ? "var(--crm-surface-subtle)" : "var(--crm-surface)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)"
+              }}
             >
-              <Plus className="w-4 h-4 text-indigo-400" />
-              {isAddingRule ? (editingRuleId ? "Cancelar Edição" : "Cancelar Cadastro") : "Cadastrar Nova Regra"}
+              <Plus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{isAddingRule ? (editingRuleId ? "Cancelar Edição" : "Cancelar Cadastro") : "Cadastrar Nova Regra"}</span>
             </button>
           </div>
 
-          {/* ADD RULE FORM PANEL */}
+          {/* ADD/EDIT RULE FORM PANEL */}
           {isAddingRule && (
-            <form onSubmit={handleAddRule} className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-4 animate-fade-in shadow-xs">
-              <h5 className="text-xs font-bold text-indigo-400 font-mono uppercase tracking-wider flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                {editingRuleId ? "Editar Gatilho Especial" : "Definição do Gatilho Especial"}
-              </h5>
+            <form 
+              onSubmit={handleAddRule} 
+              className="rounded-2xl p-5 sm:p-6 space-y-4 border shadow-xs transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)"
+              }}
+            >
+              <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: "var(--crm-border)" }}>
+                <h5 
+                  className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                  style={{ color: "var(--crm-text)" }}
+                >
+                  <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>{editingRuleId ? "Editar Gatilho Especial" : "Definição do Gatilho Especial"}</span>
+                </h5>
+                <span className="text-[11px] font-medium" style={{ color: "var(--crm-text-muted)" }}>
+                  Campos obrigatórios com *
+                </span>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Nome da Regra</label>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                    Nome da Regra *
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Casamento em menos de 45 dias"
                     value={ruleName}
                     onChange={e => setRuleName(e.target.value)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
+                    className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-colors border"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)"
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Selecione o Campo para Filtro</label>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                    Campo para Filtro *
+                  </label>
                   <select
                     value={ruleField}
                     onChange={e => {
@@ -620,7 +706,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         if (!ruleValue || isNaN(Number(ruleValue))) setRuleValue(newField === "dias_casamento" ? "45" : "100");
                       }
                     }}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)"
+                    }}
                   >
                     <option value="dias_casamento">📅 Dias Restantes para o Casamento</option>
                     <option value="convidados">👥 Quantidade de Convidados</option>
@@ -632,11 +723,18 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Operador</label>
+                    <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                      Operador *
+                    </label>
                     <select
                       value={ruleOperator}
                       onChange={e => setRuleOperator(e.target.value as any)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)"
+                      }}
                     >
                       {ruleField === "dias_casamento" || ruleField === "convidados" ? (
                         <>
@@ -658,14 +756,19 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">
-                      {ruleField === "status_funil" ? "Status Selecionado" : ruleField === "temperatura" ? "Temperatura" : ruleField === "origem_portal" ? "Portal" : "Valor Limite"}
+                    <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5 truncate" style={{ color: "var(--crm-text-secondary)" }}>
+                      {ruleField === "status_funil" ? "Status Selecionado" : ruleField === "temperatura" ? "Temperatura" : ruleField === "origem_portal" ? "Portal" : "Valor Limite *"}
                     </label>
                     {ruleField === "status_funil" ? (
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold cursor-pointer"
+                        className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold cursor-pointer border"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)"
+                        }}
                       >
                         <option value="NOVO">NOVO (Novo Lead)</option>
                         <option value="PRIMEIRO_CONTATO">PRIMEIRO CONTATO</option>
@@ -681,7 +784,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                        className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)"
+                        }}
                       >
                         <option value="QUENTE">🔥 QUENTE</option>
                         <option value="MORNA">⚡ MORNA</option>
@@ -691,7 +799,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       <select
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                        className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)"
+                        }}
                       >
                         <option value="casamentos">Casamentos.com.br</option>
                         <option value="portal_noivas">Portal de Noivas</option>
@@ -708,27 +821,42 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         placeholder={ruleField === "dias_casamento" ? "Ex: 45" : "Ex: 100"}
                         value={ruleValue}
                         onChange={e => setRuleValue(e.target.value)}
-                        className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                        className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono border"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)",
+                          color: "var(--crm-text)"
+                        }}
                       />
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-white/[0.06] my-2 pt-3">
-                <h5 className="text-xs font-bold text-zinc-300 font-mono uppercase tracking-wider flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-indigo-400" />
-                  Mensagem e Canal de Envio
+              <div className="border-t my-2 pt-3" style={{ borderColor: "var(--crm-border)" }}>
+                <h5 
+                  className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                  style={{ color: "var(--crm-text)" }}
+                >
+                  <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Mensagem e Canal de Envio</span>
                 </h5>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Canal de Contato</label>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                    Canal de Contato *
+                  </label>
                   <select
                     value={ruleCanal}
                     onChange={e => setRuleCanal(e.target.value as any)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)"
+                    }}
                   >
                     <option value="WHATSAPP">🟢 WhatsApp API (Waha)</option>
                     <option value="EMAIL">📧 E-mail SMTP (Zoho)</option>
@@ -737,14 +865,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
                 {ruleCanal === "EMAIL" && (
                   <div className="md:col-span-3">
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Assunto do E-mail</label>
+                    <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                      Assunto do E-mail *
+                    </label>
                     <input
                       type="text"
                       required
                       placeholder="Assunto que o lead receberá"
                       value={ruleSubject}
                       onChange={e => setRuleSubject(e.target.value)}
-                      className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 border"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)",
+                        color: "var(--crm-text)"
+                      }}
                     />
                   </div>
                 )}
@@ -752,8 +887,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400">Template da Mensagem</label>
-                  <span className="text-[10px] text-zinc-500 font-mono">Use a barra abaixo para escolher variáveis</span>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--crm-text-secondary)" }}>
+                    Template da Mensagem *
+                  </label>
+                  <span className="text-[11px]" style={{ color: "var(--crm-text-muted)" }}>
+                    Use a barra abaixo para escolher variáveis
+                  </span>
                 </div>
 
                 <VariablePicker 
@@ -767,7 +906,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Olá {nome}, vimos que falta pouco ({dias_casamento} dias) para o seu grande dia no {local}. Quer fechar as lembrancinhas aromáticas? O valor total para {convidados} convidados fica {orcamento_vela_vidro}."
                   value={ruleMessage}
                   onChange={e => setRuleMessage(e.target.value)}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-3 text-xs text-white font-sans focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
+                  className="w-full rounded-xl p-3 text-xs leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 />
               </div>
 
@@ -785,13 +929,18 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                     setRuleMessage("");
                     setIsAddingRule(false);
                   }}
-                  className="px-4 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold transition cursor-pointer border border-white/[0.06]"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer border hover:opacity-85"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition cursor-pointer shadow-sm"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition cursor-pointer shadow-xs"
                 >
                   {editingRuleId ? "Salvar Alterações" : "Salvar Regra Especial"}
                 </button>
@@ -801,11 +950,26 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
 
           {/* LIST OF REGISTERED SPECIAL RULES */}
           {loadingSettings ? (
-            <div className="flex justify-center p-12 bg-[#121620] border border-white/[0.07] rounded-2xl">
-              <span className="text-xs text-zinc-500 font-mono">Buscando regras e parâmetros no banco...</span>
+            <div 
+              className="flex justify-center p-12 rounded-2xl border transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)"
+              }}
+            >
+              <span className="text-xs font-mono" style={{ color: "var(--crm-text-muted)" }}>
+                Buscando regras e parâmetros no banco...
+              </span>
             </div>
           ) : rules.length === 0 ? (
-            <div className="bg-[#121620] border border-white/[0.07] rounded-2xl p-10 text-center text-zinc-400 text-xs shadow-xs">
+            <div 
+              className="rounded-2xl p-10 text-center text-xs shadow-xs border transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text-secondary)"
+              }}
+            >
               Nenhum follow-up especial configurado ainda. Clique em "Cadastrar Nova Regra" acima para criar as regras emergenciais de atendimento (ex: casamento muito próximo).
             </div>
           ) : (
@@ -815,77 +979,149 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 const isExpanded = expandedRuleId === rule.id;
 
                 return (
-                  <div key={rule.id} className="bg-[#12151C] border border-white/[0.08] hover:border-white/[0.12] rounded-2xl overflow-hidden transition-all duration-200 shadow-xs">
+                  <div 
+                    key={rule.id} 
+                    className="rounded-2xl overflow-hidden transition-all duration-200 border shadow-xs"
+                    style={{
+                      backgroundColor: "var(--crm-surface)",
+                      borderColor: "var(--crm-border)"
+                    }}
+                  >
                     {/* Header info bar */}
-                    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-[#171d2b]/40 border-b border-white/[0.06]">
+                    <div 
+                      className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b"
+                      style={{
+                        backgroundColor: "var(--crm-surface-subtle)",
+                        borderColor: "var(--crm-border)"
+                      }}
+                    >
                       <div className="flex items-start gap-3.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                           rule.canal === "WHATSAPP" 
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                            : "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
+                            : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
                         }`}>
                           {rule.canal === "WHATSAPP" ? <MessageSquare className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
                         </div>
                         <div>
-                          <h5 className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
-                            {rule.nome}
-                            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-mono uppercase tracking-wide">
+                          <h5 
+                            className="text-sm font-bold flex flex-wrap items-center gap-2"
+                            style={{ color: "var(--crm-text)" }}
+                          >
+                            <span>{rule.nome}</span>
+                            <span 
+                              className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-mono uppercase tracking-wide"
+                            >
                               {rule.campo_gatilho} {rule.operador} {rule.valor_gatilho}
                             </span>
                           </h5>
-                          <p className="text-xs text-zinc-400 mt-1 max-w-xl line-clamp-1">{rule.mensagem_template}</p>
+                          <p 
+                            className="text-xs mt-1 max-w-xl line-clamp-1"
+                            style={{ color: "var(--crm-text-secondary)" }}
+                          >
+                            {rule.mensagem_template}
+                          </p>
                         </div>
                       </div>
 
                       {/* Right action tools */}
                       <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                        <span className="text-xs font-mono text-zinc-300 bg-[#0B0D12] px-2.5 py-1.5 rounded-lg border border-white/[0.07]">
+                        <span 
+                          className="text-xs font-mono px-2.5 py-1.5 rounded-lg border font-medium"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)"
+                          }}
+                        >
                           🎯 {eligibleLeads.length} {eligibleLeads.length === 1 ? "lead elegível" : "leads elegíveis"}
                         </span>
 
                         <button
+                          type="button"
                           onClick={() => loadSpecialRuleAsTemplate(rule)}
-                          className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-[11px] font-semibold text-zinc-300 hover:text-white transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg border text-[11px] font-semibold transition cursor-pointer hover:opacity-85 shadow-2xs"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text)"
+                          }}
                           title="Carregar esta regra no Disparo em Massa"
                         >
                           Usar em Lote
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => setExpandedRuleId(isExpanded ? null : rule.id)}
-                          className="p-1.5 hover:bg-white/[0.06] text-zinc-400 hover:text-white rounded-lg transition cursor-pointer border border-white/[0.06]"
+                          className="p-1.5 rounded-lg transition cursor-pointer border hover:opacity-85"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text-secondary)"
+                          }}
+                          title={isExpanded ? "Recolher lista de leads" : "Expandir lista de leads"}
                         >
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => startEditingRule(rule)}
-                          className="p-1.5 hover:bg-white/[0.06] text-zinc-400 hover:text-indigo-400 rounded-lg transition border border-white/[0.06] cursor-pointer"
+                          className="p-1.5 rounded-lg transition border hover:opacity-85 cursor-pointer"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text-secondary)"
+                          }}
                           title="Editar e visualizar esta regra"
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Edit3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1.5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 rounded-lg transition border border-white/[0.06] hover:border-rose-500/20 cursor-pointer"
+                          className="p-1.5 rounded-lg transition border hover:bg-rose-500/10 cursor-pointer"
+                          style={{
+                            backgroundColor: "var(--crm-surface)",
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text-secondary)"
+                          }}
                           title="Excluir regra"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-rose-500" />
                         </button>
                       </div>
                     </div>
 
                     {/* Expandable list of eligible leads */}
                     {isExpanded && (
-                      <div className="p-4 sm:p-5 bg-[#0B0D12]/60 animate-fade-in space-y-3 border-t border-white/[0.06]">
-                        <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-zinc-400 pb-2 border-b border-white/[0.06]">
+                      <div 
+                        className="p-4 sm:p-5 animate-fade-in space-y-3 border-t"
+                        style={{
+                          backgroundColor: "var(--crm-surface-subtle)",
+                          borderColor: "var(--crm-border)"
+                        }}
+                      >
+                        <div 
+                          className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider pb-2 border-b"
+                          style={{
+                            borderColor: "var(--crm-border)",
+                            color: "var(--crm-text-secondary)"
+                          }}
+                        >
                           <span>Leads que cumprem a condição ({eligibleLeads.length})</span>
                           <span>Ação Manual</span>
                         </div>
 
                         {eligibleLeads.length === 0 ? (
-                          <p className="text-xs text-zinc-500 text-center py-6">Nenhum lead elegível com as condições atuais.</p>
+                          <p 
+                            className="text-xs text-center py-6"
+                            style={{ color: "var(--crm-text-muted)" }}
+                          >
+                            Nenhum lead elegível com as condições atuais.
+                          </p>
                         ) : (
                           <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {eligibleLeads.map((lead) => {
@@ -894,36 +1130,67 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                               const isSendingThis = sendingLeadId === keyStr;
 
                               return (
-                                <div key={lead.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#12151C] p-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] text-xs transition-colors">
+                                <div 
+                                  key={lead.id} 
+                                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border text-xs transition-colors"
+                                  style={{
+                                    backgroundColor: "var(--crm-surface)",
+                                    borderColor: "var(--crm-border)"
+                                  }}
+                                >
                                   <div className="space-y-1">
-                                    <div className="font-semibold text-white flex items-center gap-2">
-                                      {lead.nome}
+                                    <div 
+                                      className="font-semibold flex items-center gap-2"
+                                      style={{ color: "var(--crm-text)" }}
+                                    >
+                                      <span>{lead.nome}</span>
                                       {daysLeft !== null && (
-                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
-                                          daysLeft <= 30 ? "bg-rose-500/15 text-rose-300 font-bold border border-rose-500/25" : "bg-white/[0.06] text-zinc-300 border border-white/[0.08]"
-                                        }`}>
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-semibold ${
+                                          daysLeft <= 30 
+                                            ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" 
+                                            : "border"
+                                        }`}
+                                        style={daysLeft > 30 ? {
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text-secondary)"
+                                        } : undefined}
+                                        >
                                           Faltam {daysLeft} dias
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-3">
+                                    <div 
+                                      className="text-[11px] flex flex-wrap items-center gap-3"
+                                      style={{ color: "var(--crm-text-secondary)" }}
+                                    >
                                       <span>💍 {lead.local || "Local não informado"}</span>
                                       <span>👥 {lead.convidados} convidados</span>
-                                      <span className="font-mono text-[10px] uppercase bg-[#0B0D12] px-1.5 py-0.5 rounded border border-white/[0.06]">{lead.status_funil}</span>
+                                      <span 
+                                        className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded border"
+                                        style={{
+                                          backgroundColor: "var(--crm-surface-subtle)",
+                                          borderColor: "var(--crm-border)",
+                                          color: "var(--crm-text)"
+                                        }}
+                                      >
+                                        {lead.status_funil}
+                                      </span>
                                     </div>
                                   </div>
 
                                   <button
+                                    type="button"
                                     onClick={() => handleSendSpecial(lead, rule)}
                                     disabled={isSendingThis}
-                                    className={`px-3.5 py-2 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 ${
+                                    className={`px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs shrink-0 ${
                                       rule.canal === "WHATSAPP" 
-                                        ? "bg-indigo-600 hover:bg-indigo-500 text-white" 
-                                        : "bg-sky-500 hover:bg-sky-400 text-white"
+                                        ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                        : "bg-sky-600 hover:bg-sky-700 text-white"
                                     }`}
                                   >
                                     <Send className={`w-3.5 h-3.5 ${isSendingThis ? "animate-spin" : ""}`} />
-                                    {isSendingThis ? "Disparando..." : `Mandar ${rule.canal === "WHATSAPP" ? "WhatsApp" : "E-mail"}`}
+                                    <span>{isSendingThis ? "Disparando..." : `Mandar ${rule.canal === "WHATSAPP" ? "WhatsApp" : "E-mail"}`}</span>
                                   </button>
                                 </div>
                               );
@@ -945,26 +1212,47 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* LEFT COLUMN: CRITERIA, CONFIGURATION & MESSAGE EDITOR */}
-          <div className="lg:col-span-5 bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-5 shadow-xs">
+          <div 
+            className="lg:col-span-5 rounded-2xl p-5 sm:p-6 space-y-5 border shadow-xs transition-colors"
+            style={{
+              backgroundColor: "var(--crm-surface)",
+              borderColor: "var(--crm-border)"
+            }}
+          >
             <div>
-              <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <Filter className="w-4 h-4 text-indigo-400" />
-                1. Filtrar Contexto de Disparo
+              <h4 
+                className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                style={{ color: "var(--crm-text)" }}
+              >
+                <Filter className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>1. Filtrar Contexto de Disparo</span>
               </h4>
-              <p className="text-xs text-zinc-400 mt-1">Selecione os parâmetros para segmentar a lista de envio.</p>
+              <p 
+                className="text-xs mt-1"
+                style={{ color: "var(--crm-text-secondary)" }}
+              >
+                Selecione os parâmetros para segmentar a lista de envio.
+              </p>
             </div>
 
             {/* Quick Context Filter Dropdowns */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Status Funil</label>
+                <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                  Status Funil
+                </label>
                 <select
                   value={bulkFilterStatus}
                   onChange={e => {
                     setBulkFilterStatus(e.target.value);
-                    setSelectedLeads([]); // Reset selection
+                    setSelectedLeads([]);
                   }}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 >
                   <option value="ALL">Todos os Status</option>
                   <option value="NOVO">NOVO</option>
@@ -977,14 +1265,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Temperatura</label>
+                <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                  Temperatura
+                </label>
                 <select
                   value={bulkFilterTemp}
                   onChange={e => {
                     setBulkFilterTemp(e.target.value);
-                    setSelectedLeads([]); // Reset selection
+                    setSelectedLeads([]);
                   }}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 >
                   <option value="ALL">Todas as Temps</option>
                   <option value="QUENTE">🔥 QUENTE</option>
@@ -994,14 +1289,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Mês do Evento</label>
+                <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                  Mês do Evento
+                </label>
                 <select
                   value={bulkFilterMonth}
                   onChange={e => {
                     setBulkFilterMonth(e.target.value);
-                    setSelectedLeads([]); // Reset selection
+                    setSelectedLeads([]);
                   }}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 >
                   <option value="ALL">Todos os Meses</option>
                   <option value="Janeiro">Janeiro</option>
@@ -1020,14 +1322,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Canal Origem</label>
+                <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                  Canal Origem
+                </label>
                 <select
                   value={bulkFilterPortal}
                   onChange={e => {
                     setBulkFilterPortal(e.target.value);
-                    setSelectedLeads([]); // Reset selection
+                    setSelectedLeads([]);
                   }}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 >
                   <option value="ALL">Todas as Origens</option>
                   {portals.map(p => (
@@ -1037,18 +1346,34 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
             </div>
 
-            <div className="border-t border-white/[0.06] pt-4">
-              <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-indigo-400" />
-                2. Configurar Mensagem
+            <div className="border-t pt-4" style={{ borderColor: "var(--crm-border)" }}>
+              <h4 
+                className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                style={{ color: "var(--crm-text)" }}
+              >
+                <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>2. Configurar Mensagem</span>
               </h4>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-2">Canal de Envio</label>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer bg-[#0B0D12] px-3 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/30 transition-colors">
+                <label className="block text-[11px] font-medium uppercase tracking-wider mb-2" style={{ color: "var(--crm-text-secondary)" }}>
+                  Canal de Envio *
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <label 
+                    className={`flex items-center gap-2.5 text-xs cursor-pointer px-3.5 py-2.5 rounded-xl border transition-all ${
+                      bulkCanal === 'WHATSAPP' 
+                        ? 'border-indigo-500/40 shadow-xs' 
+                        : 'border-transparent hover:opacity-90'
+                    }`}
+                    style={{
+                      backgroundColor: bulkCanal === 'WHATSAPP' ? "var(--crm-surface-subtle)" : "var(--crm-surface-subtle)",
+                      color: "var(--crm-text)",
+                      borderColor: bulkCanal === 'WHATSAPP' ? "var(--crm-primary)" : "var(--crm-border)"
+                    }}
+                  >
                     <input
                       type="radio"
                       name="bulkCanal"
@@ -1056,9 +1381,20 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       onChange={() => setBulkCanal('WHATSAPP')}
                       className="accent-indigo-600"
                     />
-                    <span className="font-medium">WhatsApp API (Waha)</span>
+                    <span className="font-semibold">WhatsApp API (Waha)</span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs text-white cursor-pointer bg-[#0B0D12] px-3 py-2 rounded-xl border border-white/[0.08] hover:border-indigo-500/30 transition-colors">
+                  <label 
+                    className={`flex items-center gap-2.5 text-xs cursor-pointer px-3.5 py-2.5 rounded-xl border transition-all ${
+                      bulkCanal === 'EMAIL' 
+                        ? 'border-indigo-500/40 shadow-xs' 
+                        : 'border-transparent hover:opacity-90'
+                    }`}
+                    style={{
+                      backgroundColor: bulkCanal === 'EMAIL' ? "var(--crm-surface-subtle)" : "var(--crm-surface-subtle)",
+                      color: "var(--crm-text)",
+                      borderColor: bulkCanal === 'EMAIL' ? "var(--crm-primary)" : "var(--crm-border)"
+                    }}
+                  >
                     <input
                       type="radio"
                       name="bulkCanal"
@@ -1066,27 +1402,38 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                       onChange={() => setBulkCanal('EMAIL')}
                       className="accent-indigo-600"
                     />
-                    <span className="font-medium">E-mail (SMTP Zoho)</span>
+                    <span className="font-semibold">E-mail (SMTP Zoho)</span>
                   </label>
                 </div>
               </div>
 
               {bulkCanal === "EMAIL" && (
                 <div>
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400 mb-1.5">Assunto do E-mail</label>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "var(--crm-text-secondary)" }}>
+                    Assunto do E-mail *
+                  </label>
                   <input
                     type="text"
                     value={bulkSubject}
                     onChange={e => setBulkSubject(e.target.value)}
-                    className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full rounded-xl p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 border"
+                    style={{
+                      backgroundColor: "var(--crm-surface-subtle)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text)"
+                    }}
                   />
                 </div>
               )}
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-400">Texto / Mensagem</label>
-                  <span className="text-[10px] text-zinc-500 font-mono">Suporta variáveis dinâmicas</span>
+                  <label className="block text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--crm-text-secondary)" }}>
+                    Texto / Mensagem *
+                  </label>
+                  <span className="text-[11px]" style={{ color: "var(--crm-text-muted)" }}>
+                    Suporta variáveis dinâmicas
+                  </span>
                 </div>
 
                 <VariablePicker 
@@ -1098,7 +1445,12 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   rows={6}
                   value={bulkMessage}
                   onChange={e => setBulkMessage(e.target.value)}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl p-3 text-xs text-white font-sans leading-relaxed focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full rounded-xl p-3 text-xs leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                   placeholder="Olá {nome}, preparamos um orçamento especial para o seu evento em {local} ({mes_casamento}). O total fica {orcamento_vela_vidro}..."
                 />
               </div>
@@ -1108,10 +1460,10 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 type="button"
                 onClick={handleStartBulkBroadcast}
                 disabled={isDispatching || selectedLeads.length === 0}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/[0.05] text-white disabled:text-zinc-500 font-medium text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shadow-sm"
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed shadow-xs"
               >
                 <Play className="w-4 h-4 fill-current" />
-                {isDispatching ? "Disparando Lote..." : `Disparar para ${selectedLeads.length} Selecionados`}
+                <span>{isDispatching ? "Disparando Lote..." : `Disparar para ${selectedLeads.length} Selecionados`}</span>
               </button>
             </div>
           </div>
@@ -1121,25 +1473,44 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
             
             {/* PROGRESS BAR & LIVE RUNS LOGS IF DISPATCHING */}
             {isDispatching && (
-              <div className="bg-[#12151C] border border-indigo-500/30 rounded-2xl p-5 space-y-3 shadow-xs animate-fade-in">
+              <div 
+                className="rounded-2xl p-5 space-y-3 shadow-xs animate-fade-in border"
+                style={{
+                  backgroundColor: "var(--crm-surface)",
+                  borderColor: "var(--crm-primary-border)"
+                }}
+              >
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono flex items-center gap-2">
-                    <Clock className="w-4 h-4 animate-spin text-indigo-400" />
-                    Progresso do Disparo em Massa
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-2">
+                    <Clock className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                    <span>Progresso do Disparo em Massa</span>
                   </h4>
-                  <span className="text-xs text-zinc-300 font-mono">
+                  <span className="text-xs font-mono font-semibold" style={{ color: "var(--crm-text)" }}>
                     {dispatchProgress.current} de {dispatchProgress.total} ({Math.round((dispatchProgress.current / dispatchProgress.total) * 100)}%)
                   </span>
                 </div>
 
-                <div className="w-full h-2.5 bg-[#0B0D12] rounded-full overflow-hidden border border-white/[0.08]">
+                <div 
+                  className="w-full h-2.5 rounded-full overflow-hidden border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)"
+                  }}
+                >
                   <div 
                     className="h-full bg-indigo-600 transition-all duration-300 rounded-full" 
                     style={{ width: `${(dispatchProgress.current / dispatchProgress.total) * 100}%` }}
                   />
                 </div>
 
-                <div className="bg-[#0B0D12] border border-white/[0.06] rounded-xl p-3 h-32 overflow-y-auto font-mono text-[11px] text-zinc-400 space-y-1 custom-scrollbar">
+                <div 
+                  className="rounded-xl p-3 h-32 overflow-y-auto font-mono text-[11px] space-y-1 custom-scrollbar border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text-secondary)"
+                  }}
+                >
                   {dispatchLogs.map((log, index) => (
                     <div key={index} className="truncate">{log}</div>
                   ))}
@@ -1147,14 +1518,26 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
             )}
 
-            <div className="bg-[#12151C] border border-white/[0.08] rounded-2xl p-6 space-y-4 shadow-xs">
+            <div 
+              className="rounded-2xl p-5 sm:p-6 space-y-4 border shadow-xs transition-colors"
+              style={{
+                backgroundColor: "var(--crm-surface)",
+                borderColor: "var(--crm-border)"
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                    <Users className="w-4 h-4 text-indigo-400" />
-                    3. Selecionar Destinatários ({filteredLeadsForBulk.length} Filtrados)
+                  <h4 
+                    className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                    style={{ color: "var(--crm-text)" }}
+                  >
+                    <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>3. Selecionar Destinatários ({filteredLeadsForBulk.length} Filtrados)</span>
                   </h4>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p 
+                    className="text-xs mt-0.5"
+                    style={{ color: "var(--crm-text-secondary)" }}
+                  >
                     {selectedLeads.length} de {filteredLeadsForBulk.length} contatos selecionados
                   </p>
                 </div>
@@ -1162,7 +1545,7 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                 <button
                   type="button"
                   onClick={handleToggleSelectAll}
-                  className="text-xs font-medium font-mono text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
+                  className="text-xs font-semibold font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer"
                 >
                   {selectedLeads.length === filteredLeadsForBulk.length ? "Desmarcar Todos" : "Marcar Todos"}
                 </button>
@@ -1175,14 +1558,24 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                   placeholder="Filtrar destinatários por nome..."
                   value={bulkNameSearch}
                   onChange={(e) => setBulkNameSearch(e.target.value)}
-                  className="w-full bg-[#0B0D12] border border-white/[0.08] rounded-xl pl-9 pr-14 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder:text-zinc-600"
+                  className="w-full rounded-xl pl-9 pr-16 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 border transition-colors"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text)"
+                  }}
                 />
-                <Filter className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
+                <Filter className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                 {bulkNameSearch && (
                   <button
                     type="button"
                     onClick={() => setBulkNameSearch("")}
-                    className="text-[11px] font-mono text-zinc-400 hover:text-white absolute right-3 top-2.5 px-2 py-0.5 rounded bg-white/[0.05] cursor-pointer"
+                    className="text-[11px] font-mono absolute right-3 top-2.5 px-2 py-0.5 rounded border transition hover:opacity-85 cursor-pointer"
+                    style={{
+                      backgroundColor: "var(--crm-surface)",
+                      borderColor: "var(--crm-border)",
+                      color: "var(--crm-text-secondary)"
+                    }}
                   >
                     Limpar
                   </button>
@@ -1190,11 +1583,18 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
               </div>
 
               {filteredLeadsForBulk.length === 0 ? (
-                <div className="text-center p-12 text-zinc-400 text-xs bg-[#0B0D12] rounded-xl border border-white/[0.06]">
+                <div 
+                  className="text-center p-12 text-xs rounded-xl border"
+                  style={{
+                    backgroundColor: "var(--crm-surface-subtle)",
+                    borderColor: "var(--crm-border)",
+                    color: "var(--crm-text-muted)"
+                  }}
+                >
                   Nenhum lead cumpre as condições de filtros especificadas.
                 </div>
               ) : (
-                <div className="max-h-[420px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                <div className="max-h-[440px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                   {filteredLeadsForBulk.map((lead) => {
                     const isSelected = selectedLeads.includes(lead.id);
 
@@ -1204,21 +1604,37 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         onClick={() => handleToggleLeadSelect(lead.id)}
                         className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-150 ${
                           isSelected 
-                            ? "bg-indigo-500/10 border-indigo-500/35 text-white shadow-xs" 
-                            : "bg-[#0B0D12] border-white/[0.06] hover:border-white/[0.12] text-zinc-400"
+                            ? "border-indigo-500/40 shadow-xs" 
+                            : "hover:opacity-95"
                         }`}
+                        style={{
+                          backgroundColor: isSelected 
+                            ? "var(--crm-surface-subtle)" 
+                            : "var(--crm-surface)",
+                          borderColor: isSelected 
+                            ? "var(--crm-primary-border)" 
+                            : "var(--crm-border)"
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            className={`p-0.5 rounded transition ${isSelected ? "text-indigo-400" : "text-zinc-600"}`}
+                            className={`p-0.5 rounded transition ${isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400"}`}
                           >
                             {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                           </button>
                           
                           <div className="space-y-0.5">
-                            <span className="text-xs font-semibold block text-white">{lead.nome}</span>
-                            <span className="text-[10px] text-zinc-400 flex flex-wrap items-center gap-2">
+                            <span 
+                              className="text-xs font-semibold block"
+                              style={{ color: "var(--crm-text)" }}
+                            >
+                              {lead.nome}
+                            </span>
+                            <span 
+                              className="text-[10px] flex flex-wrap items-center gap-2"
+                              style={{ color: "var(--crm-text-secondary)" }}
+                            >
                               <span>💍 {lead.local || "Não inf."}</span>
                               <span>📅 {lead.data_casamento || "Sem data"}</span>
                               <span>👥 {lead.convidados} conv.</span>
@@ -1227,14 +1643,21 @@ export default function BroadcastManager({ leads, portals, onRefresh }: Broadcas
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[9px] bg-[#12151C] border border-white/[0.08] text-zinc-300 px-2 py-0.5 rounded font-mono uppercase">
+                          <span 
+                            className="text-[9px] border px-2 py-0.5 rounded font-mono uppercase font-medium"
+                            style={{
+                              backgroundColor: "var(--crm-surface-subtle)",
+                              borderColor: "var(--crm-border)",
+                              color: "var(--crm-text-secondary)"
+                            }}
+                          >
                             {lead.status_funil}
                           </span>
-                          <span className={`text-[9px] px-2 py-0.5 rounded font-mono uppercase font-bold ${
-                            String(lead.temperatura || "").toUpperCase() === "QUENTE" ? "bg-rose-500/15 text-rose-300 border border-rose-500/25" :
-                            String(lead.temperatura || "").toUpperCase() === "MORNA" ? "bg-amber-500/15 text-amber-300 border border-amber-500/25" :
-                            String(lead.temperatura || "").toUpperCase() === "CLIENTE" ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25" :
-                            "bg-sky-500/15 text-sky-300 border border-sky-500/25"
+                          <span className={`text-[9px] px-2 py-0.5 rounded font-mono uppercase font-bold border ${
+                            String(lead.temperatura || "").toUpperCase() === "QUENTE" ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/25" :
+                            String(lead.temperatura || "").toUpperCase() === "MORNA" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25" :
+                            String(lead.temperatura || "").toUpperCase() === "CLIENTE" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25" :
+                            "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/25"
                           }`}>
                             {String(lead.temperatura || "FRIA").toUpperCase()}
                           </span>

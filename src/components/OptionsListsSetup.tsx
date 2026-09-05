@@ -212,30 +212,63 @@ export default function OptionsListsSetup() {
 
   if (loading) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
-        <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mb-3" />
-        <p className="text-zinc-400 text-sm">Carregando listas do banco de dados...</p>
+      <div
+        className="border rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px] shadow-xs transition-colors"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)",
+        }}
+      >
+        <RefreshCw className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mb-3" />
+        <p
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "var(--crm-text-secondary)" }}
+        >
+          Carregando listas do banco de dados...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="options-lists-setup-container">
       {/* Banner / Header */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col md:flex-row gap-6 items-start justify-between">
-        <div className="space-y-1">
-          <h3 className="text-lg font-medium text-white flex items-center gap-2">
-            <Info className="w-5 h-5 text-amber-500" />
-            Configurador de Tabelas Auxiliares (CRUD)
-          </h3>
-          <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
-            Personalize as opções que aparecem nos menus suspensos (select boxes) de todo o sistema. 
-            Você pode adicionar, editar e excluir opções de Etapa Contato, Status Funil e Temperatura diretamente no banco de dados.
-          </p>
+      <div
+        className="border rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row gap-5 items-start md:items-center justify-between shadow-xs transition-colors"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)",
+        }}
+        id="options-lists-header-card"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <Info className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <h3
+              className="text-base font-bold tracking-tight"
+              style={{ color: "var(--crm-text)" }}
+            >
+              Configurador de Tabelas Auxiliares (CRUD)
+            </h3>
+            <p
+              className="text-xs leading-relaxed max-w-3xl"
+              style={{ color: "var(--crm-text-secondary)" }}
+            >
+              Personalize as opções que aparecem nos menus suspensos (select boxes) de todo o sistema. Você pode adicionar, editar e excluir opções de Etapa Contato, Status Funil e Temperatura diretamente no banco de dados.
+            </p>
+          </div>
         </div>
         <button
           onClick={fetchSettings}
-          className="flex items-center gap-2 px-3.5 py-1.5 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 rounded-lg text-xs font-semibold transition shrink-0"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition shadow-xs shrink-0 cursor-pointer hover:opacity-80"
+          style={{
+            backgroundColor: "var(--crm-surface-subtle)",
+            borderColor: "var(--crm-border)",
+            color: "var(--crm-text)",
+          }}
+          id="reload-options-lists-button"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Recarregar
@@ -244,27 +277,46 @@ export default function OptionsListsSetup() {
 
       {/* Notifications */}
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3 text-xs">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-300 p-4 rounded-xl flex items-center gap-3 text-xs">
+          <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3 text-xs">
-          <Check className="w-5 h-5 shrink-0" />
+        <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 p-4 rounded-xl flex items-center gap-3 text-xs">
+          <Check className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{success}</span>
         </div>
       )}
 
       {/* Grid of 3 CRUD Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
         {/* Card 1: Etapa Contato */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 flex flex-col h-full">
-          <div className="border-b border-zinc-800 pb-3 mb-4">
-            <h4 className="font-bold text-white text-sm">Etapa Contato</h4>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Define a etapa atual da régua de relacionamento</p>
+        <div
+          className="border rounded-2xl p-5 flex flex-col h-full shadow-xs transition-colors"
+          style={{
+            backgroundColor: "var(--crm-surface)",
+            borderColor: "var(--crm-border)",
+          }}
+          id="etapa-contato-card"
+        >
+          <div
+            className="border-b pb-3 mb-4"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
+            <h4
+              className="font-bold text-sm"
+              style={{ color: "var(--crm-text)" }}
+            >
+              Etapa Contato
+            </h4>
+            <p
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--crm-text-secondary)" }}
+            >
+              Define a etapa atual da régua de relacionamento
+            </p>
           </div>
 
           {/* Add input */}
@@ -274,13 +326,19 @@ export default function OptionsListsSetup() {
               value={newEtapa}
               onChange={(e) => setNewEtapa(e.target.value)}
               placeholder="Ex: WhatsApp Follow-up 3"
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-amber-500"
+              className="flex-1 border rounded-xl px-3 py-2 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)",
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleAddEtapa()}
             />
             <button
               onClick={handleAddEtapa}
               disabled={saving || !newEtapa.trim()}
-              className="px-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-zinc-950 rounded-lg text-xs font-bold transition flex items-center justify-center"
+              className="px-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
+              title="Adicionar etapa"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -289,9 +347,14 @@ export default function OptionsListsSetup() {
           {/* List */}
           <div className="flex-1 overflow-y-auto space-y-1.5 max-h-[350px] pr-1">
             {settings?.etapas_contato?.map((item: string, idx: number) => (
-              <div 
-                key={idx} 
-                className="flex items-center justify-between bg-zinc-950/40 border border-zinc-850 hover:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 transition"
+              <div
+                key={idx}
+                className="flex items-center justify-between border rounded-xl px-3.5 py-2.5 text-xs transition-colors"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)",
+                }}
               >
                 {editingEtapaIdx === idx ? (
                   <div className="flex items-center gap-1.5 w-full">
@@ -299,18 +362,22 @@ export default function OptionsListsSetup() {
                       type="text"
                       value={editingEtapaVal}
                       onChange={(e) => setEditingEtapaVal(e.target.value)}
-                      className="flex-1 bg-zinc-900 border border-amber-500/40 rounded-md px-2 py-0.5 text-xs text-white focus:outline-none"
+                      className="flex-1 border border-amber-500/50 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                      style={{
+                        backgroundColor: "var(--crm-surface)",
+                        color: "var(--crm-text)",
+                      }}
                       autoFocus
                     />
                     <button
                       onClick={() => handleSaveEditEtapa(idx)}
-                      className="p-1 text-emerald-400 hover:text-emerald-300 transition"
+                      className="p-1 text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <Check className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setEditingEtapaIdx(null)}
-                      className="p-1 text-rose-400 hover:text-rose-300 transition"
+                      className="p-1 text-rose-600 dark:text-rose-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -321,14 +388,14 @@ export default function OptionsListsSetup() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleStartEditEtapa(idx)}
-                        className="p-1 text-zinc-500 hover:text-amber-400 transition"
+                        className="p-1 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition cursor-pointer rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40"
                         title="Editar"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteEtapa(idx)}
-                        className="p-1 text-zinc-500 hover:text-rose-400 transition"
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40"
                         title="Excluir"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -339,16 +406,41 @@ export default function OptionsListsSetup() {
               </div>
             ))}
             {(!settings?.etapas_contato || settings.etapas_contato.length === 0) && (
-              <div className="text-zinc-600 text-center py-6 text-xs italic">Nenhuma etapa cadastrada.</div>
+              <div
+                className="text-center py-6 text-xs italic"
+                style={{ color: "var(--crm-text-muted)" }}
+              >
+                Nenhuma etapa cadastrada.
+              </div>
             )}
           </div>
         </div>
 
         {/* Card 2: Status Funil */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 flex flex-col h-full">
-          <div className="border-b border-zinc-800 pb-3 mb-4">
-            <h4 className="font-bold text-white text-sm">Status Funil</h4>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Define a situação do lead no funil de vendas</p>
+        <div
+          className="border rounded-2xl p-5 flex flex-col h-full shadow-xs transition-colors"
+          style={{
+            backgroundColor: "var(--crm-surface)",
+            borderColor: "var(--crm-border)",
+          }}
+          id="status-funil-card"
+        >
+          <div
+            className="border-b pb-3 mb-4"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
+            <h4
+              className="font-bold text-sm"
+              style={{ color: "var(--crm-text)" }}
+            >
+              Status Funil
+            </h4>
+            <p
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--crm-text-secondary)" }}
+            >
+              Define a situação do lead no funil de vendas
+            </p>
           </div>
 
           {/* Add input */}
@@ -358,13 +450,19 @@ export default function OptionsListsSetup() {
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}
               placeholder="Ex: Aguardando Resposta"
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-amber-500"
+              className="flex-1 border rounded-xl px-3 py-2 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)",
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleAddStatus()}
             />
             <button
               onClick={handleAddStatus}
               disabled={saving || !newStatus.trim()}
-              className="px-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-zinc-950 rounded-lg text-xs font-bold transition flex items-center justify-center"
+              className="px-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
+              title="Adicionar status"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -373,9 +471,14 @@ export default function OptionsListsSetup() {
           {/* List */}
           <div className="flex-1 overflow-y-auto space-y-1.5 max-h-[350px] pr-1">
             {settings?.status_funil?.map((item: string, idx: number) => (
-              <div 
-                key={idx} 
-                className="flex items-center justify-between bg-zinc-950/40 border border-zinc-850 hover:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 transition"
+              <div
+                key={idx}
+                className="flex items-center justify-between border rounded-xl px-3.5 py-2.5 text-xs transition-colors"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)",
+                }}
               >
                 {editingStatusIdx === idx ? (
                   <div className="flex items-center gap-1.5 w-full">
@@ -383,18 +486,22 @@ export default function OptionsListsSetup() {
                       type="text"
                       value={editingStatusVal}
                       onChange={(e) => setEditingStatusVal(e.target.value)}
-                      className="flex-1 bg-zinc-900 border border-amber-500/40 rounded-md px-2 py-0.5 text-xs text-white focus:outline-none"
+                      className="flex-1 border border-amber-500/50 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                      style={{
+                        backgroundColor: "var(--crm-surface)",
+                        color: "var(--crm-text)",
+                      }}
                       autoFocus
                     />
                     <button
                       onClick={() => handleSaveEditStatus(idx)}
-                      className="p-1 text-emerald-400 hover:text-emerald-300 transition"
+                      className="p-1 text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <Check className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setEditingStatusIdx(null)}
-                      className="p-1 text-rose-400 hover:text-rose-300 transition"
+                      className="p-1 text-rose-600 dark:text-rose-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -405,14 +512,14 @@ export default function OptionsListsSetup() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleStartEditStatus(idx)}
-                        className="p-1 text-zinc-500 hover:text-amber-400 transition"
+                        className="p-1 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition cursor-pointer rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40"
                         title="Editar"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteStatus(idx)}
-                        className="p-1 text-zinc-500 hover:text-rose-400 transition"
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40"
                         title="Excluir"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -423,16 +530,41 @@ export default function OptionsListsSetup() {
               </div>
             ))}
             {(!settings?.status_funil || settings.status_funil.length === 0) && (
-              <div className="text-zinc-600 text-center py-6 text-xs italic">Nenhum status cadastrado.</div>
+              <div
+                className="text-center py-6 text-xs italic"
+                style={{ color: "var(--crm-text-muted)" }}
+              >
+                Nenhum status cadastrado.
+              </div>
             )}
           </div>
         </div>
 
         {/* Card 3: Temperatura */}
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 flex flex-col h-full">
-          <div className="border-b border-zinc-800 pb-3 mb-4">
-            <h4 className="font-bold text-white text-sm">Temperatura</h4>
-            <p className="text-[10px] text-zinc-500 mt-0.5">Define o nível de interesse do lead</p>
+        <div
+          className="border rounded-2xl p-5 flex flex-col h-full shadow-xs transition-colors"
+          style={{
+            backgroundColor: "var(--crm-surface)",
+            borderColor: "var(--crm-border)",
+          }}
+          id="temperatura-card"
+        >
+          <div
+            className="border-b pb-3 mb-4"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
+            <h4
+              className="font-bold text-sm"
+              style={{ color: "var(--crm-text)" }}
+            >
+              Temperatura
+            </h4>
+            <p
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--crm-text-secondary)" }}
+            >
+              Define o nível de interesse do lead
+            </p>
           </div>
 
           {/* Add input */}
@@ -442,13 +574,19 @@ export default function OptionsListsSetup() {
               value={newTemp}
               onChange={(e) => setNewTemp(e.target.value)}
               placeholder="Ex: Muito Quente"
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-amber-500"
+              className="flex-1 border rounded-xl px-3 py-2 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)",
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleAddTemp()}
             />
             <button
               onClick={handleAddTemp}
               disabled={saving || !newTemp.trim()}
-              className="px-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-zinc-950 rounded-lg text-xs font-bold transition flex items-center justify-center"
+              className="px-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
+              title="Adicionar temperatura"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -457,9 +595,14 @@ export default function OptionsListsSetup() {
           {/* List */}
           <div className="flex-1 overflow-y-auto space-y-1.5 max-h-[350px] pr-1">
             {settings?.temperaturas?.map((item: string, idx: number) => (
-              <div 
-                key={idx} 
-                className="flex items-center justify-between bg-zinc-950/40 border border-zinc-850 hover:border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 transition"
+              <div
+                key={idx}
+                className="flex items-center justify-between border rounded-xl px-3.5 py-2.5 text-xs transition-colors"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)",
+                }}
               >
                 {editingTempIdx === idx ? (
                   <div className="flex items-center gap-1.5 w-full">
@@ -467,18 +610,22 @@ export default function OptionsListsSetup() {
                       type="text"
                       value={editingTempVal}
                       onChange={(e) => setEditingTempVal(e.target.value)}
-                      className="flex-1 bg-zinc-900 border border-amber-500/40 rounded-md px-2 py-0.5 text-xs text-white focus:outline-none"
+                      className="flex-1 border border-amber-500/50 rounded-lg px-2 py-1 text-xs focus:outline-none"
+                      style={{
+                        backgroundColor: "var(--crm-surface)",
+                        color: "var(--crm-text)",
+                      }}
                       autoFocus
                     />
                     <button
                       onClick={() => handleSaveEditTemp(idx)}
-                      className="p-1 text-emerald-400 hover:text-emerald-300 transition"
+                      className="p-1 text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <Check className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setEditingTempIdx(null)}
-                      className="p-1 text-rose-400 hover:text-rose-300 transition"
+                      className="p-1 text-rose-600 dark:text-rose-400 hover:opacity-80 transition cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -489,14 +636,14 @@ export default function OptionsListsSetup() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleStartEditTemp(idx)}
-                        className="p-1 text-zinc-500 hover:text-amber-400 transition"
+                        className="p-1 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition cursor-pointer rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40"
                         title="Editar"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteTemp(idx)}
-                        className="p-1 text-zinc-500 hover:text-rose-400 transition"
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40"
                         title="Excluir"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -507,11 +654,15 @@ export default function OptionsListsSetup() {
               </div>
             ))}
             {(!settings?.temperaturas || settings.temperaturas.length === 0) && (
-              <div className="text-zinc-600 text-center py-6 text-xs italic">Nenhuma temperatura cadastrada.</div>
+              <div
+                className="text-center py-6 text-xs italic"
+                style={{ color: "var(--crm-text-muted)" }}
+              >
+                Nenhuma temperatura cadastrada.
+              </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

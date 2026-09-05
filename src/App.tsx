@@ -726,7 +726,7 @@ export default function App() {
         
         {/* Desktop Top Header Bar */}
         <header
-          className="hidden md:flex items-center justify-between px-6 py-2.5 border-b sticky top-0 z-30 shrink-0 transition-colors"
+          className="hidden md:flex items-center justify-between px-4 sm:px-5 md:px-6 xl:px-8 py-2.5 border-b sticky top-0 z-30 shrink-0 transition-colors"
           style={{
             backgroundColor: "var(--crm-surface)",
             borderColor: "var(--crm-border)"
@@ -808,7 +808,7 @@ export default function App() {
         </header>
 
         {/* Main Content Scroll container */}
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 overflow-y-auto flex flex-col justify-start">
+        <main className="flex-1 w-full px-4 sm:px-5 md:px-6 xl:px-8 py-4 sm:py-5 lg:py-6 overflow-y-auto flex flex-col justify-start">
           
           {stats && stats.systemStatus && stats.systemStatus.pgConnected === false && (
             <div id="pg-offline-alert" className="mb-6 p-4 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 flex items-start gap-3 text-xs leading-relaxed animate-fade-in">
@@ -921,14 +921,14 @@ export default function App() {
 
         {/* Footer credits bar */}
         <footer
-          className="border-t p-3.5 text-center text-[11px] shrink-0 w-full mt-auto transition-colors"
+          className="border-t px-4 sm:px-5 md:px-6 xl:px-8 py-3.5 text-[11px] shrink-0 w-full mt-auto transition-colors"
           style={{
             backgroundColor: "var(--crm-surface)",
             borderColor: "var(--crm-border)",
             color: "var(--crm-text-muted)"
           }}
         >
-          <div className="max-w-[95%] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <span>Casa Colombo CRM Comercial • Todos os direitos reservados.</span>
             <span>Sincronizado via Automação V2 • PostgreSQL</span>
           </div>

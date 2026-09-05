@@ -3,13 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
-import { createPortal } from "react-dom";
-import { Search, Filter, Plus, Calendar, User, Phone, Mail, ChevronRight, Calculator, RefreshCw, Star, ArrowUpDown, X, Flame, MessageCircle, MapPin, Clock, Zap, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { 
+  Search, Plus, RefreshCw, X, Flame, MessageCircle, MapPin, 
+  Clock, Calendar, Users, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown,
+  Mail, Phone, AlertCircle, CheckCircle2, Filter, Sparkles, User, ExternalLink
+} from "lucide-react";
 import { Lead, LeadStatus, LeadTemperatura, PortalSource } from "../types";
-import { Button, Badge, SearchInput, Select, Input, Textarea, FormField, Modal } from "./ui";
+import { Button, Badge, Modal, FormField, Input, Textarea, Select } from "./ui";
+import { useToast } from "./Toast";
 
-interface LeadsListProps {
+// =============================================================================
+// INTERFACES & PROPS
+// =============================================================================
+
+export interface LeadsListProps {
   leads: Lead[];
   portals: PortalSource[];
   onSelectLead: (id: string) => void;
@@ -26,6 +34,12 @@ export interface LastInteractionDetails {
   origem: string;
   canalIcon: "whatsapp" | "email" | "manual" | "system";
 }
+
+// =============================================================================
+// HELPER FUNCTIONS (Preservadas e aprimoradas para robustez total)
+// =============================================================================
+
+const PT_MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
   if (lead.ultima_interacao_acao) {
@@ -50,7 +64,7 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
     };
   }
 
-  // Legacy fallback calculations (no data loss for production records)
+  // Legacy fallback calculations (garantia de integridade para registros históricos)
   const createdTime = lead.created_at ? new Date(lead.created_at).getTime() : 0;
   const updatedTime = lead.updated_at ? new Date(lead.updated_at).getTime() : 0;
   const waTime = lead.ultimo_whatsapp_em ? new Date(lead.ultimo_whatsapp_em).getTime() : 0;
@@ -68,7 +82,7 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
       dateStr: lead.ultimo_whatsapp_em!,
       formattedDate,
       acao: `WhatsApp Enviado (${lead.etapa_contato || 'Disparo'})`,
-      origem: "Automação V2",
+      origem: "Automação",
       canalIcon: "whatsapp"
     };
   }
@@ -78,7 +92,7 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
       dateStr: lead.ultimo_email_em!,
       formattedDate,
       acao: `E-mail Enviado (${lead.etapa_contato || 'Envio'})`,
-      origem: "Automação V2",
+      origem: "Automação",
       canalIcon: "email"
     };
   }
@@ -96,15 +110,15 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
   const rawPortal = lead.origem_portal || "Portal / Manual";
   let origemDisplay = rawPortal;
   if (rawPortal.toLowerCase().includes("sheet") || rawPortal.toLowerCase().includes("planilha")) {
-    origemDisplay = "Importação Planilha";
+    origemDisplay = "Planilha";
   } else if (rawPortal.toLowerCase().includes("noivas")) {
     origemDisplay = "Portal Noivas";
   } else if (rawPortal.toLowerCase().includes("casamentos")) {
-    origemDisplay = "Casamentos.com.br";
+    origemDisplay = "Casamentos.com";
   } else if (rawPortal.toLowerCase().includes("zankyou")) {
     origemDisplay = "Zankyou";
   } else if (rawPortal.toLowerCase().includes("manual")) {
-    origemDisplay = "Cadastro Manual";
+    origemDisplay = "Manual";
   }
 
   return {
@@ -116,53 +130,200 @@ export function getLastInteractionInfo(lead: Lead): LastInteractionDetails {
   };
 }
 
-// Helper to calculate days until wedding/event
-export function getDaysUntilWedding(dateStr?: string): { days: number | null; label: string; badgeColor: string } {
-  if (!dateStr) return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
-
+/** Parse seguro de datas de casamento em DD/MM/AAAA ou YYYY-MM-DD */
+export function parseWeddingDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
   const cleanStr = dateStr.trim();
-  if (!cleanStr) return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+  if (!cleanStr) return null;
 
-  let d: Date | null = null;
-  const parts = cleanStr.split("/");
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
-    const year = parseInt(parts[2], 10);
-    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-      const fullYear = year < 100 ? 2000 + year : year;
-      d = new Date(fullYear, month - 1, day);
-    }
-  } else {
-    const parsed = Date.parse(cleanStr);
-    if (!isNaN(parsed)) {
-      d = new Date(parsed);
+  // Formato DD/MM/AAAA
+  if (cleanStr.includes("/")) {
+    const parts = cleanStr.split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const year = parseInt(parts[2], 10);
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        const fullYear = year < 100 ? 2000 + year : year;
+        const d = new Date(fullYear, month - 1, day, 12, 0, 0);
+        if (!isNaN(d.getTime())) return d;
+      }
     }
   }
 
-  if (!d || isNaN(d.getTime())) {
-    return { days: null, label: "N/I", badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+  // Formato YYYY-MM-DD
+  if (cleanStr.includes("-")) {
+    const parts = cleanStr.slice(0, 10).split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        const d = new Date(year, month - 1, day, 12, 0, 0);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+  }
+
+  const parsed = Date.parse(cleanStr);
+  if (!isNaN(parsed)) {
+    return new Date(parsed);
+  }
+
+  return null;
+}
+
+/** Helper para calcular dias e formato humanizado para casamento */
+export function getDaysUntilWedding(dateStr?: string): { 
+  days: number | null; 
+  label: string; 
+  formattedDisplay: string;
+  urgency: "hoje" | "urgente" | "proximo" | "futuro" | "passado" | "indefinido";
+  badgeColor: string;
+} {
+  const parsedDate = parseWeddingDate(dateStr);
+  if (!parsedDate) {
+    return { 
+      days: null, 
+      label: "N/I", 
+      formattedDisplay: "Data a definir",
+      urgency: "indefinido",
+      badgeColor: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800/80 dark:text-zinc-300 dark:border-zinc-700/60" 
+    };
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  d.setHours(0, 0, 0, 0);
-
-  const diffTime = d.getTime() - today.getTime();
+  const targetDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+  
+  const diffTime = targetDate.getTime() - today.getTime();
   const days = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  
+  const dayStr = targetDate.getDate();
+  const monthStr = PT_MONTHS_SHORT[targetDate.getMonth()];
+  const yearStr = targetDate.getFullYear();
+  const formattedDisplay = `${dayStr} ${monthStr} ${yearStr}`;
 
   if (days === 0) {
-    return { days: 0, label: "Hoje!", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold animate-pulse" };
+    return { 
+      days: 0, 
+      label: "Hoje!", 
+      formattedDisplay,
+      urgency: "hoje",
+      badgeColor: "bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50 font-bold" 
+    };
   } else if (days < 0) {
-    return { days, label: `${Math.abs(days)}d atrás`, badgeColor: "bg-zinc-800/80 text-zinc-500 border-zinc-700/60" };
+    const absDays = Math.abs(days);
+    return { 
+      days, 
+      label: absDays === 1 ? "Ontem" : `há ${absDays}d`, 
+      formattedDisplay,
+      urgency: "passado",
+      badgeColor: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-zinc-800/60 dark:text-zinc-300 dark:border-zinc-700/50 font-semibold" 
+    };
   } else if (days <= 30) {
-    return { days, label: `${days}d (Urgente)`, badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold" };
+    return { 
+      days, 
+      label: `em ${days}d (urgente)`, 
+      formattedDisplay,
+      urgency: "urgente",
+      badgeColor: "bg-amber-100 text-amber-950 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 font-bold" 
+    };
   } else if (days <= 90) {
-    return { days, label: `${days}d restantes`, badgeColor: "bg-sky-500/15 text-sky-300 border-sky-500/30 font-semibold" };
+    return { 
+      days, 
+      label: `em ${days}d`, 
+      formattedDisplay,
+      urgency: "proximo",
+      badgeColor: "bg-indigo-100 text-indigo-950 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/40 font-bold" 
+    };
   } else {
-    return { days, label: `${days}d restantes`, badgeColor: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30 font-medium" };
+    return { 
+      days, 
+      label: `em ${days}d`, 
+      formattedDisplay,
+      urgency: "futuro",
+      badgeColor: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/50 font-semibold" 
+    };
   }
 }
+
+/** Avalia a urgência e próxima ação da Agenda com estrutura de dados clara */
+function getNextActionSummary(lead: Lead) {
+  const nextDateStr = lead.proxima_atividade_em || lead.proxima_acao_em;
+  if (!nextDateStr || !String(nextDateStr).trim()) {
+    return {
+      status: "SEM_PASSO" as const,
+      dateDisplay: "Sem data",
+      actionType: "Sem próximo passo",
+      temporalLabel: "Definir na Agenda",
+      icon: Clock,
+      dateColorClass: "text-slate-700 dark:text-zinc-300 font-semibold",
+      badgeClass: "text-indigo-600 dark:text-indigo-400 font-bold"
+    };
+  }
+
+  const clean = String(nextDateStr).trim().slice(0, 10);
+  const parts = clean.includes("-") ? clean.split("-").map(Number) : null;
+  if (!parts || parts.length !== 3) {
+    return {
+      status: "FUTURA" as const,
+      dateDisplay: clean,
+      actionType: lead.tipo_proxima_atividade || "Agendado",
+      temporalLabel: "Data agendada",
+      icon: Calendar,
+      dateColorClass: "text-slate-900 dark:text-zinc-100 font-bold",
+      badgeClass: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700/60 font-semibold"
+    };
+  }
+
+  const targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const dayMonth = `${targetDate.getDate()} ${PT_MONTHS_SHORT[targetDate.getMonth()]}`;
+
+  if (diffDays < 0) {
+    const daysLate = Math.abs(diffDays);
+    return {
+      status: "ATRASADA" as const,
+      dateDisplay: dayMonth,
+      actionType: lead.tipo_proxima_atividade || "Acompanhar",
+      temporalLabel: daysLate === 1 ? "atrasada ontem" : `atrasada há ${daysLate}d`,
+      icon: AlertCircle,
+      dateColorClass: "text-rose-700 dark:text-rose-400 font-bold",
+      badgeClass: "bg-rose-100 text-rose-950 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40 font-bold"
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      status: "HOJE" as const,
+      dateDisplay: "Hoje",
+      actionType: lead.tipo_proxima_atividade || "Retorno acordado",
+      temporalLabel: "Foco do dia",
+      icon: CheckCircle2,
+      dateColorClass: "text-emerald-800 dark:text-emerald-300 font-bold",
+      badgeClass: "bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 font-bold"
+    };
+  }
+
+  return {
+    status: "FUTURA" as const,
+    dateDisplay: dayMonth,
+    actionType: lead.tipo_proxima_atividade || "Acompanhar",
+    temporalLabel: `em ${diffDays}d`,
+    icon: Calendar,
+    dateColorClass: "text-slate-900 dark:text-zinc-100 font-bold",
+    badgeClass: "bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/50 font-semibold"
+  };
+}
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
 
 export default function LeadsList({ 
   leads, 
@@ -173,27 +334,51 @@ export default function LeadsList({
   initialNegociacaoOnly,
   onClearNegociacaoOnly
 }: LeadsListProps) {
+  const { toast } = useToast();
+
+  // Estados de busca e filtros
   const [searchTerm, setSearchTerm] = useState("");
+  const [quickFilter, setQuickFilter] = useState<"TODOS_ATIVOS" | "NEGOCIACAO" | "NOVOS" | "CONVERTIDOS" | "TODOS">("TODOS_ATIVOS");
   const [selectedStatus, setSelectedStatus] = useState<string | "ALL">("ALL");
   const [selectedStatusConversa, setSelectedStatusConversa] = useState<string | "ALL">("ALL");
   const [selectedTemp, setSelectedTemp] = useState<string | "ALL">("ALL");
   const [selectedPortal, setSelectedPortal] = useState<string | "ALL">("ALL");
-  const [negociacaoFilterOnly, setNegociacaoFilterOnly] = useState(initialNegociacaoOnly || false);
-  const [isAddingLead, setIsAddingLead] = useState(false);
-  const [sortField, setSortField] = useState<"ultima_interacao" | "nome" | "convidados" | "data_casamento" | "dias_evento">("ultima_interacao");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Ordenação
+  const [sortField, setSortField] = useState<"nome" | "convidados" | "data_casamento" | "dias_evento" | "ultima_interacao">("ultima_interacao");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  React.useEffect(() => {
-    if (initialNegociacaoOnly !== undefined) {
-      setNegociacaoFilterOnly(initialNegociacaoOnly);
+  // Estado do Modal de Novo Lead
+  const [isAddingLead, setIsAddingLead] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Campos do formulário manual
+  const [formNome, setFormNome] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formGuests, setFormGuests] = useState(100);
+  const [formDate, setFormDate] = useState("");
+  const [formMonth, setFormMonth] = useState("");
+  const [formVenue, setFormVenue] = useState("");
+  const [formPortal, setFormPortal] = useState("Manual (CRM Interior)");
+  const [formNotes, setFormNotes] = useState("");
+  const [formServices, setFormServices] = useState("");
+  const [enviarPrimeiraMensagem, setEnviarPrimeiraMensagem] = useState<boolean>(true);
+
+  // Sincronização inicial com o filtro "Em Negociação" vindo de fora
+  useEffect(() => {
+    if (initialNegociacaoOnly) {
+      setQuickFilter("NEGOCIACAO");
     }
   }, [initialNegociacaoOnly]);
 
-  // Dynamic Options states
+  // Listas dinâmicas de status e temperaturas
   const [statusList, setStatusList] = useState<string[]>([]);
   const [tempsList, setTempsList] = useState<string[]>([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch("/api/settings")
       .then(res => {
         const contentType = res.headers.get("content-type");
@@ -209,6 +394,19 @@ export default function LeadsList({
       .catch(err => console.error("Erro ao carregar listas dinâmicas em LeadsList:", err));
   }, []);
 
+  const handleRefreshClick = async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefresh();
+      toast.info("Base de leads sincronizada.");
+    } catch {
+      toast.error("Erro ao atualizar leads.");
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 500);
+    }
+  };
+
+  // Funções de classificação de negócio
   const mapLegacyValue = (field: string, val: string): string => {
     if (!val) return val;
     const upperVal = val.toUpperCase().trim();
@@ -239,20 +437,57 @@ export default function LeadsList({
     return val;
   };
 
-  // Form states for adding a lead manually
-  const [formNome, setFormNome] = useState("");
-  const [formEmail, setFormEmail] = useState("");
-  const [formPhone, setFormPhone] = useState("");
-  const [formGuests, setFormGuests] = useState(100);
-  const [formDate, setFormDate] = useState("");
-  const [formMonth, setFormMonth] = useState("");
-  const [formVenue, setFormVenue] = useState("");
-  const [formPortal, setFormPortal] = useState("Manual (CRM Interior)");
-  const [formNotes, setFormNotes] = useState("");
-  const [formServices, setFormServices] = useState("");
-  const [enviarPrimeiraMensagem, setEnviarPrimeiraMensagem] = useState<boolean>(true);
+  const isNegociacaoLead = (lead: Lead) => {
+    const status = (lead.status_funil || mapLegacyValue("status_funil", lead.status_funil) || "").trim().toUpperCase();
+    const temp = (lead.temperatura || mapLegacyValue("temperatura", lead.temperatura) || "").trim().toUpperCase();
+    return status === "RESPONDIDO" && temp === "QUENTE";
+  };
 
-  // Auto-mask wedding date DD/MM/AAAA and set Mês / Ano do Casamento (Extenso)
+  const isPerdido = (status?: string, motivo?: string) => {
+    const s = String(status || "").toUpperCase().trim();
+    if (s === "PERDIDO" || s === "SEM_RETORNO" || s === "SEM RETORNO" || s === "SEM RETORNO / ENCERRADO") return true;
+    if (motivo) {
+      const m = motivo.toUpperCase().trim();
+      if (["PRECO_ALTO", "FECHOU_COM_CONCORRENTE", "CANCELOU", "FORA_DO_PERFIL", "DESISTIU", "PERDIDO"].includes(m)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isConvertido = (status?: string) => {
+    const s = String(status || "").toUpperCase().trim();
+    return s === "FECHOU" || s === "CONVERTIDO" || s === "FECHOU (CONVERTIDO)";
+  };
+
+  const isNovo = (status?: string) => {
+    const s = String(status || "").toUpperCase().trim();
+    return s === "NOVO" || s === "PRIMEIRO_CONTATO" || s === "PRIMEIRO CONTATO";
+  };
+
+  // Contagens para os Quick Filters
+  const activeLeadsCount = useMemo(() => leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda) && !isConvertido(l.status_funil)).length, [leads]);
+  const negociacaoCount = useMemo(() => leads.filter(isNegociacaoLead).length, [leads]);
+  const novosCount = useMemo(() => leads.filter(l => isNovo(l.status_funil)).length, [leads]);
+  const convertidosCount = useMemo(() => leads.filter(l => isConvertido(l.status_funil)).length, [leads]);
+
+  // Canais de portal dinâmicos para o filtro
+  const availablePortalsForFilter = useMemo(() => {
+    const set = new Set<string>();
+    if (portals && portals.length > 0) {
+      portals.forEach(p => {
+        if (p.nome && p.nome.trim()) set.add(p.nome.trim());
+      });
+    }
+    if (leads && leads.length > 0) {
+      leads.forEach(l => {
+        if (l.origem_portal && l.origem_portal.trim()) set.add(l.origem_portal.trim());
+      });
+    }
+    return Array.from(set).sort();
+  }, [portals, leads]);
+
+  // Auto-máscara da data do casamento DD/MM/AAAA e preenchimento automático do mês extenso
   const handleWeddingDateChange = (inputVal: string) => {
     const rawDigits = inputVal.replace(/\D/g, "").slice(0, 8);
     let masked = rawDigits;
@@ -279,32 +514,21 @@ export default function LeadsList({
     }
   };
 
-  // Dynamic portal channels for filter dropdown
-  const availablePortalsForFilter = React.useMemo(() => {
-    const set = new Set<string>();
-    if (portals && portals.length > 0) {
-      portals.forEach(p => {
-        if (p.nome && p.nome.trim()) set.add(p.nome.trim());
-      });
-    }
-    if (leads && leads.length > 0) {
-      leads.forEach(l => {
-        if (l.origem_portal && l.origem_portal.trim()) set.add(l.origem_portal.trim());
-      });
-    }
-    return Array.from(set).sort();
-  }, [portals, leads]);
-
+  // Submissão do novo lead
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formNome.trim() || !formEmail.trim()) return;
+    if (!formNome.trim() || !formEmail.trim()) {
+      toast.warning("Nome e E-mail são obrigatórios.");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       await onAddManualLead({
         nome: formNome.trim(),
         email: formEmail.trim(),
         link_celular: formPhone.trim(),
-        convidados: Number(formGuests),
+        convidados: Number(formGuests) || 100,
         data_casamento: formDate.trim(),
         mes_casamento: formMonth.trim(),
         local: formVenue.trim(),
@@ -314,7 +538,9 @@ export default function LeadsList({
         enviar_primeira_mensagem: enviarPrimeiraMensagem
       });
 
-      // Reset Form
+      toast.success(`Lead ${formNome.trim()} cadastrado com sucesso!`);
+
+      // Reset
       setFormNome("");
       setFormEmail("");
       setFormPhone("");
@@ -322,437 +548,673 @@ export default function LeadsList({
       setFormDate("");
       setFormMonth("");
       setFormVenue("");
-      setFormPortal("Manual");
+      setFormPortal("Manual (CRM Interior)");
       setFormNotes("");
       setFormServices("");
       setEnviarPrimeiraMensagem(true);
       setIsAddingLead(false);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Erro ao cadastrar lead:", err);
+      toast.error(err?.message || "Não foi possível cadastrar o lead. Verifique os dados.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const toggleSort = (field: "ultima_interacao" | "nome" | "convidados" | "data_casamento" | "dias_evento") => {
+  // Alternância de ordenação
+  const toggleSort = (field: "nome" | "convidados" | "data_casamento" | "dias_evento" | "ultima_interacao") => {
     if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
       setSortDirection(field === "dias_evento" ? "asc" : "desc");
     }
   };
 
-  const getStatusColor = (status: LeadStatus) => {
-    switch (status) {
-      case "NOVO":
-        return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-      case "PRIMEIRO_CONTATO":
-        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-      case "FOLLOWUP1":
-      case "FOLLOWUP2":
-      case "FOLLOWUP3":
-      case "FOLLOWUPFINAL":
-        return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
-      case "RESPONDIDO":
-        return "bg-purple-500/10 text-purple-400 border-purple-500/20";
-      case "FECHOU":
-        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "PERDIDO":
-      case "SEM_RETORNO":
-      case "SEM_WHATSAPP":
-      case "Sem WhatsApp":
-        return "bg-rose-500/10 text-rose-400 border-rose-500/20";
-      default:
-        return "bg-zinc-800 text-zinc-400 border-zinc-700";
-    }
+  // Normalizador de origem
+  const normalizePortal = (portal?: string): string => {
+    if (!portal) return "manual";
+    const p = portal.toLowerCase().trim();
+    if (p.includes("noivas")) return "portal_noivas";
+    if (p.includes("casamentos")) return "casamentos";
+    if (p.includes("zankyou")) return "zankyou";
+    if (p.includes("manual")) return "manual";
+    return p;
   };
 
-  const getTempColor = (temp?: string) => {
-    const norm = String(temp || "").trim().toUpperCase();
-    switch (norm) {
-      case "FRIA":
-        return "text-sky-400 bg-sky-500/10 border-sky-500/20";
-      case "MORNA":
-        return "text-amber-400 bg-amber-500/10 border-amber-500/20";
-      case "QUENTE":
-        return "text-red-400 bg-red-500/10 border-red-500/20";
-      case "CLIENTE":
-        return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-      default:
-        return "text-zinc-400 bg-zinc-800 border-zinc-700";
-    }
-  };
+  // Filtragem e busca dos leads
+  const filteredLeads = useMemo(() => {
+    return leads
+      .filter((lead) => {
+        // Exclusão segura de casamentos passados (preservando a regra já aprovada)
+        if (lead.data_casamento) {
+          const wDate = parseWeddingDate(lead.data_casamento);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (wDate && wDate < today) return false;
+        }
 
-  // Helper to parse wedding dates robustly
-  const parseWeddingDateLocal = (dateStr?: string): Date | null => {
-    if (!dateStr) return null;
-    const cleanStr = dateStr.trim();
-    if (!cleanStr) return null;
+        // Busca textual
+        if (searchTerm.trim()) {
+          const term = searchTerm.toLowerCase().trim();
+          const matchName = (lead.nome || "").toLowerCase().includes(term);
+          const matchEmail = (lead.email || "").toLowerCase().includes(term);
+          const matchPhone = (lead.link_celular || "").toLowerCase().includes(term);
+          const matchId = (lead.id || "").toLowerCase().includes(term);
+          const matchLocal = (lead.local || "").toLowerCase().includes(term);
 
-    let d: Date | null = null;
-    const parts = cleanStr.split("/");
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const year = parseInt(parts[2], 10);
-      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-        const fullYear = year < 100 ? 2000 + year : year;
-        d = new Date(fullYear, month - 1, day);
-      }
-    } else {
-      const parsed = Date.parse(cleanStr);
-      if (!isNaN(parsed)) {
-        d = new Date(parsed);
-      }
-    }
+          if (!matchName && !matchEmail && !matchPhone && !matchId && !matchLocal) {
+            return false;
+          }
+        }
 
-    if (d && !isNaN(d.getTime())) {
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
-    return null;
-  };
+        // Quick Filter principal
+        if (quickFilter === "TODOS_ATIVOS") {
+          if (isPerdido(lead.status_funil, lead.motivo_perda) || isConvertido(lead.status_funil)) {
+            return false;
+          }
+        } else if (quickFilter === "NEGOCIACAO") {
+          if (!isNegociacaoLead(lead)) return false;
+        } else if (quickFilter === "NOVOS") {
+          if (!isNovo(lead.status_funil)) return false;
+        } else if (quickFilter === "CONVERTIDOS") {
+          if (!isConvertido(lead.status_funil)) return false;
+        }
 
-  const isNegociacaoLead = (lead: Lead) => {
-    const status = (lead.status_funil || mapLegacyValue("status_funil", lead.status_funil) || "").trim().toUpperCase();
-    const temp = (lead.temperatura || mapLegacyValue("temperatura", lead.temperatura) || "").trim().toUpperCase();
-    return status === "RESPONDIDO" && temp === "QUENTE";
-  };
+        // Filtro de Etapa do Funil (Status)
+        if (selectedStatus !== "ALL") {
+          const actualStatus = lead.status_funil || "";
+          const mapped = mapLegacyValue("status_funil", actualStatus);
+          if (actualStatus !== selectedStatus && mapped !== selectedStatus) {
+            return false;
+          }
+        }
 
-  const isPerdido = (status?: string, motivo?: string) => {
-    const s = String(status || "").toUpperCase().trim();
-    if (s === "PERDIDO" || s === "SEM_RETORNO" || s === "SEM RETORNO" || s === "SEM RETORNO / ENCERRADO") return true;
-    if (motivo) {
-      const m = motivo.toUpperCase().trim();
-      if (["PRECO_ALTO", "FECHOU_COM_CONCORRENTE", "CANCELOU", "FORA_DO_PERFIL", "DESISTIU", "PERDIDO"].includes(m)) {
+        // Filtro de Status da Conversa
+        if (selectedStatusConversa !== "ALL") {
+          const sc = lead.status_conversa || "NUNCA_RESPONDEU";
+          if (sc !== selectedStatusConversa) return false;
+        }
+
+        // Filtro de Temperatura
+        if (selectedTemp !== "ALL") {
+          const leadTemp = String(lead.temperatura || "").trim().toUpperCase();
+          if (leadTemp !== String(selectedTemp).trim().toUpperCase()) return false;
+        }
+
+        // Filtro de Portal de Origem
+        if (selectedPortal !== "ALL") {
+          if (normalizePortal(lead.origem_portal) !== normalizePortal(selectedPortal)) {
+            return false;
+          }
+        }
+
         return true;
-      }
-    }
-    return false;
-  };
-
-  const isConvertido = (status?: string) => {
-    const s = String(status || "").toUpperCase().trim();
-    return s === "FECHOU" || s === "CONVERTIDO" || s === "FECHOU (CONVERTIDO)";
-  };
-
-  // Filter & Search Logic
-  const filteredLeads = leads
-    .filter((lead) => {
-      // Exclude past weddings
-      if (lead.data_casamento) {
-        const wDate = parseWeddingDateLocal(lead.data_casamento);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (wDate && wDate < today) return false;
-      }
-
-      const matchSearch =
-        lead.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.id && lead.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (lead.link_celular && lead.link_celular.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      const normalizePortal = (portal?: string): string => {
-        if (!portal) return "manual";
-        const p = portal.toLowerCase().trim();
-        if (p === "portal_noivas" || p === "portal noivas" || p === "portal de noivas") {
-          return "portal_noivas";
+      })
+      .sort((a, b) => {
+        let comparison = 0;
+        if (sortField === "ultima_interacao") {
+          const timeA = new Date(getLastInteractionInfo(a).dateStr).getTime();
+          const timeB = new Date(getLastInteractionInfo(b).dateStr).getTime();
+          comparison = timeA - timeB;
+        } else if (sortField === "nome") {
+          comparison = a.nome.localeCompare(b.nome);
+        } else if (sortField === "convidados") {
+          comparison = (a.convidados || 0) - (b.convidados || 0);
+        } else if (sortField === "data_casamento") {
+          const dateA = parseWeddingDate(a.data_casamento);
+          const dateB = parseWeddingDate(b.data_casamento);
+          const timeA = dateA ? dateA.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+          const timeB = dateB ? dateB.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+          comparison = timeA - timeB;
+        } else if (sortField === "dias_evento") {
+          const daysA = getDaysUntilWedding(a.data_casamento).days;
+          const daysB = getDaysUntilWedding(b.data_casamento).days;
+          const valA = daysA !== null ? daysA : (sortDirection === "asc" ? Infinity : -Infinity);
+          const valB = daysB !== null ? daysB : (sortDirection === "asc" ? Infinity : -Infinity);
+          comparison = valA - valB;
         }
-        if (p === "casamentos.com.br" || p === "casamentos") {
-          return "casamentos";
-        }
-        if (p === "zankyou") {
-          return "zankyou";
-        }
-        if (p === "manual" || p === "manual / cadastro crm" || p === "cadastro crm") {
-          return "manual";
-        }
-        return p;
-      };
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+  }, [leads, searchTerm, quickFilter, selectedStatus, selectedStatusConversa, selectedTemp, selectedPortal, sortField, sortDirection]);
 
-      const matchStatus = selectedStatus === "ALL" 
-        ? (!isPerdido(lead.status_funil, lead.motivo_perda) && !isConvertido(lead.status_funil))
-        : (lead.status_funil === selectedStatus || mapLegacyValue("status_funil", lead.status_funil) === selectedStatus);
-      const matchStatusConversa = selectedStatusConversa === "ALL" || (lead.status_conversa || "NUNCA_RESPONDEU") === selectedStatusConversa;
-      const matchTemp = selectedTemp === "ALL" || 
-        String(lead.temperatura || "").trim().toUpperCase() === String(selectedTemp).trim().toUpperCase();
-      const matchPortal = selectedPortal === "ALL" || normalizePortal(lead.origem_portal) === normalizePortal(selectedPortal);
-      const matchNegociacao = !negociacaoFilterOnly || isNegociacaoLead(lead);
-
-      return matchSearch && matchStatus && matchStatusConversa && matchTemp && matchPortal && matchNegociacao;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      if (sortField === "ultima_interacao") {
-        const timeA = new Date(getLastInteractionInfo(a).dateStr).getTime();
-        const timeB = new Date(getLastInteractionInfo(b).dateStr).getTime();
-        comparison = timeA - timeB;
-      } else if (sortField === "nome") {
-        comparison = a.nome.localeCompare(b.nome);
-      } else if (sortField === "convidados") {
-        comparison = (a.convidados || 0) - (b.convidados || 0);
-      } else if (sortField === "data_casamento") {
-        const dateA = parseWeddingDateLocal(a.data_casamento);
-        const dateB = parseWeddingDateLocal(b.data_casamento);
-        const timeA = dateA ? dateA.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
-        const timeB = dateB ? dateB.getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
-        comparison = timeA - timeB;
-      } else if (sortField === "dias_evento") {
-        const daysA = getDaysUntilWedding(a.data_casamento).days;
-        const daysB = getDaysUntilWedding(b.data_casamento).days;
-        const valA = daysA !== null ? daysA : (sortDirection === "asc" ? Infinity : -Infinity);
-        const valB = daysB !== null ? daysB : (sortDirection === "asc" ? Infinity : -Infinity);
-        comparison = valA - valB;
-      }
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-
-  const activeLeadsCount = leads.filter(l => !isPerdido(l.status_funil, l.motivo_perda) && !isConvertido(l.status_funil)).length;
-  const negociacaoCount = leads.filter(isNegociacaoLead).length;
-
+  // Checagem de filtros ativos
   const hasActiveFilters = 
     searchTerm !== "" || 
+    quickFilter !== "TODOS_ATIVOS" || 
     selectedStatus !== "ALL" || 
     selectedStatusConversa !== "ALL" || 
     selectedTemp !== "ALL" || 
-    selectedPortal !== "ALL" || 
-    negociacaoFilterOnly;
+    selectedPortal !== "ALL";
 
   const handleClearAllFilters = () => {
     setSearchTerm("");
+    setQuickFilter("TODOS_ATIVOS");
     setSelectedStatus("ALL");
     setSelectedStatusConversa("ALL");
     setSelectedTemp("ALL");
     setSelectedPortal("ALL");
-    setNegociacaoFilterOnly(false);
     if (onClearNegociacaoOnly) onClearNegociacaoOnly();
   };
 
+  // Cores semânticas com alto contraste no Light e legibilidade suave no Dark
+  const getStatusBadgeStyle = (status: LeadStatus) => {
+    switch (status) {
+      case "NOVO":
+      case "PRIMEIRO_CONTATO":
+        return "bg-sky-100 text-sky-950 border-sky-300 dark:bg-sky-950/50 dark:text-sky-200 dark:border-sky-800/50 font-bold";
+      case "FOLLOWUP1":
+      case "FOLLOWUP2":
+      case "FOLLOWUP3":
+      case "FOLLOWUPFINAL":
+        return "bg-indigo-100 text-indigo-950 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-200 dark:border-indigo-800/50 font-bold";
+      case "RESPONDIDO":
+        return "bg-purple-100 text-purple-950 border-purple-300 dark:bg-purple-950/50 dark:text-purple-200 dark:border-purple-800/50 font-bold";
+      case "FECHOU":
+        return "bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/50 font-bold";
+      case "PERDIDO":
+      case "SEM_RETORNO":
+      case "SEM_WHATSAPP":
+      case "Sem WhatsApp":
+        return "bg-rose-100 text-rose-950 border-rose-300 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800/50 font-bold";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-300 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 font-semibold";
+    }
+  };
+
+  // Cores semânticas de Temperatura: alto contraste, visualmente distintas e sem parecer desbotadas
+  const getTempBadgeStyle = (temp?: string) => {
+    const norm = String(temp || "").trim().toUpperCase();
+    switch (norm) {
+      case "QUENTE":
+        return "bg-amber-100 text-amber-950 border-amber-300 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800/50 font-bold";
+      case "MORNA":
+        return "bg-sky-100 text-sky-950 border-sky-300 dark:bg-sky-950/50 dark:text-sky-200 dark:border-sky-800/50 font-bold";
+      case "FRIA":
+        return "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/60 font-semibold";
+      case "CLIENTE":
+        return "bg-emerald-100 text-emerald-950 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800/50 font-bold";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-300 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 font-semibold";
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 animate-fade-in w-full pb-16">
       
-      {/* CABEÇALHO: Lista de Leads, descrição curta / quantidade, [+ Novo Lead] */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+      {/* =========================================================================
+          1. CABEÇALHO DA LISTA
+          ========================================================================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold text-white tracking-tight">Lista de Leads</h1>
-            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-white/[0.08] text-zinc-300">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: "var(--crm-text)" }}>
+              Lista de Leads
+            </h1>
+            <span 
+              className="text-xs font-bold px-2.5 py-1 rounded-full border"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)"
+              }}
+            >
               {filteredLeads.length} {filteredLeads.length === 1 ? "lead" : "leads"}
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Gerenciamento do funil comercial de noivas e histórico de atendimentos
+          <p className="text-xs sm:text-sm mt-1 font-normal leading-relaxed" style={{ color: "var(--crm-text-secondary)" }}>
+            Visão consolidada do funil de noivas, histórico de interações e contatos diretos
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onRefresh}
-            title="Sincronizar leads"
-            icon={<RefreshCw className="w-3.5 h-3.5 text-zinc-400" />}
-          />
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsAddingLead(true)}
-            icon={<Plus className="w-4 h-4" />}
+        {/* Ações primárias do cabeçalho */}
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleRefreshClick}
+            disabled={isRefreshing}
+            title="Sincronizar base de leads"
+            className="p-2.5 rounded-xl border transition cursor-pointer hover:opacity-85 disabled:opacity-50"
+            style={{
+              backgroundColor: "var(--crm-surface)",
+              borderColor: "var(--crm-border)",
+              color: "var(--crm-text)"
+            }}
           >
-            Novo Lead
-          </Button>
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-indigo-600 dark:text-indigo-400" : ""}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsAddingLead(true)}
+            className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition shadow-xs flex items-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Lead</span>
+          </button>
         </div>
       </div>
 
-      {/* SEGUNDA LINHA: [Buscar...] + [Filtros principais com labels inequívocos] */}
-      <div className="bg-[#12151C] border border-white/[0.06] rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Buscar */}
-          <div className="flex-1 min-w-[260px] max-w-lg">
-            <SearchInput
+      {/* =========================================================================
+          2. CONTROLES OPERACIONAIS: BUSCA + FILTROS RÁPIDOS + FILTROS AVANÇADOS
+          ========================================================================= */}
+      <div 
+        className="rounded-2xl border p-4 sm:p-5 space-y-4 shadow-xs transition-colors"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)"
+        }}
+      >
+        {/* Linha superior: Barra de busca de destaque + Botão Toggle Filtros */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          {/* Busca ampla */}
+          <div className="relative flex-1">
+            <Search 
+              className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" 
+              style={{ color: "var(--crm-text-muted)" }}
+            />
+            <input
+              type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onClear={() => setSearchTerm("")}
-              placeholder="Buscar por noiva, e-mail, telefone..."
-              className="w-full text-xs"
-            />
-          </div>
-
-          {/* Quick Segmented Controls */}
-          <div className="flex items-center gap-1.5 p-1 bg-[#181C26] border border-white/[0.06] rounded-xl self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setNegociacaoFilterOnly(false);
-                if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+              placeholder="Buscar por noiva, e-mail, telefone ou local..."
+              className="w-full rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm border transition focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              style={{
+                backgroundColor: "var(--crm-surface-subtle)",
+                borderColor: "var(--crm-border)",
+                color: "var(--crm-text)"
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer ${
-                !negociacaoFilterOnly
-                  ? "bg-[#202534] text-white border border-white/[0.08] shadow-xs"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              <span>Todos Ativos</span>
-              <span className="bg-black/30 px-1.5 py-0.5 rounded text-[10px] text-zinc-400 font-medium">
-                {activeLeadsCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setNegociacaoFilterOnly(true)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition cursor-pointer ${
-                negociacaoFilterOnly
-                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-xs"
-                  : "text-zinc-400 hover:text-amber-300"
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-              <span>Em Negociação</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                negociacaoFilterOnly ? "bg-amber-500/25 text-amber-300" : "bg-black/30 text-zinc-400"
-              }`}>
-                {negociacaoCount}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Structured Contextual Filter Selects with explicit labels */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-2.5 border-t border-white/[0.04]">
-          <div>
-            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
-              Etapa do Funil
-            </label>
-            <Select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              options={[
-                { value: "ALL", label: `Todas as Etapas (${activeLeadsCount})` },
-                ...(statusList.length > 0 
-                  ? statusList.map(st => ({ value: st, label: st }))
-                  : [
-                      { value: "NOVO", label: "Novos" },
-                      { value: "PRIMEIRO_CONTATO", label: "Primeiro Contato" },
-                      { value: "FOLLOWUP1", label: "Follow-up 1" },
-                      { value: "FOLLOWUP2", label: "Follow-up 2" },
-                      { value: "FOLLOWUP3", label: "Follow-up 3" },
-                      { value: "FOLLOWUPFINAL", label: "Follow-up Final" },
-                      { value: "RESPONDIDO", label: "Respondidos" },
-                      { value: "FECHOU", label: "Fechou (Convertido)" },
-                      { value: "PERDIDO", label: "Perdidos / Encerrados" }
-                    ])
-              ]}
             />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
-              Status da Conversa
-            </label>
-            <Select
-              value={selectedStatusConversa}
-              onChange={(e) => setSelectedStatusConversa(e.target.value)}
-              options={[
-                { value: "ALL", label: "Todas as Conversas" },
-                { value: "NUNCA_RESPONDEU", label: "Nunca respondeu" },
-                { value: "RESPONDEU", label: "Respondeu" },
-                { value: "EM_ATENDIMENTO", label: "Em atendimento" },
-                { value: "ESCOLHENDO_MODELO", label: "Escolhendo modelo" },
-                { value: "ORCAMENTO_ENVIADO", label: "Orçamento enviado" },
-                { value: "NEGOCIACAO", label: "Negociação" },
-                { value: "CLIENTE", label: "Cliente (Fechou)" },
-                { value: "PERDIDO", label: "Perdido" }
-              ]}
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
-              Temperatura
-            </label>
-            <Select
-              value={selectedTemp}
-              onChange={(e) => setSelectedTemp(e.target.value)}
-              options={[
-                { value: "ALL", label: "Todas Temperaturas" },
-                { value: "FRIA", label: "Fria" },
-                { value: "MORNA", label: "Morna" },
-                { value: "QUENTE", label: "Quente" },
-                { value: "CLIENTE", label: "Cliente" }
-              ]}
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] font-medium text-zinc-400 block mb-1">
-              Canal de Origem
-            </label>
-            <Select
-              value={selectedPortal}
-              onChange={(e) => setSelectedPortal(e.target.value)}
-              options={[
-                { value: "ALL", label: "Todos os Canais" },
-                ...availablePortalsForFilter.map(pName => ({ value: pName, label: pName }))
-              ]}
-            />
-          </div>
-        </div>
-
-        {/* Removable Active Filter Chips */}
-        {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.04] text-xs">
-            <span className="text-zinc-500 text-[11px] font-medium">Filtros ativos:</span>
-            
             {searchTerm && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs">
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition hover:opacity-80 cursor-pointer"
+                style={{ color: "var(--crm-text-muted)" }}
+                title="Limpar busca"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Botão de Filtros Adicionais */}
+          <button
+            type="button"
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="px-3.5 py-2.5 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+            style={{
+              backgroundColor: showAdvancedFilters ? "var(--crm-primary-subtle)" : "var(--crm-surface-subtle)",
+              borderColor: showAdvancedFilters ? "var(--crm-primary-border)" : "var(--crm-border)",
+              color: showAdvancedFilters ? "var(--crm-primary-text)" : "var(--crm-text)"
+            }}
+          >
+            <Filter className="w-3.5 h-3.5" style={{ color: showAdvancedFilters ? "var(--crm-primary-text)" : "var(--crm-text-secondary)" }} />
+            <span>Filtros do Funil</span>
+            {(selectedStatus !== "ALL" || selectedTemp !== "ALL" || selectedStatusConversa !== "ALL" || selectedPortal !== "ALL") && (
+              <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+            )}
+          </button>
+        </div>
+
+        {/* Linha dos Filtros Rápidos (Segmented Tabs discretos com alto contraste) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setQuickFilter("TODOS_ATIVOS");
+              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition cursor-pointer shrink-0 border ${
+              quickFilter === "TODOS_ATIVOS"
+                ? "bg-indigo-50 dark:bg-indigo-500/20 text-indigo-950 dark:text-indigo-200 border-indigo-300 dark:border-indigo-500/40 font-bold"
+                : "border-transparent text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/60 font-semibold"
+            }`}
+          >
+            <span>Todos Ativos</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              quickFilter === "TODOS_ATIVOS"
+                ? "bg-indigo-200/80 text-indigo-950 dark:bg-indigo-500/30 dark:text-indigo-100"
+                : "bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:text-zinc-200"
+            }`}>
+              {activeLeadsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuickFilter("NEGOCIACAO");
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition cursor-pointer shrink-0 border ${
+              quickFilter === "NEGOCIACAO"
+                ? "bg-amber-50 dark:bg-amber-500/20 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-500/40 font-bold"
+                : "border-transparent text-slate-700 hover:text-amber-950 dark:text-zinc-300 dark:hover:text-amber-200 hover:bg-slate-100 dark:hover:bg-zinc-800/60 font-semibold"
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500 shrink-0" />
+            <span>Em Negociação</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              quickFilter === "NEGOCIACAO"
+                ? "bg-amber-200/80 text-amber-950 dark:bg-amber-500/30 dark:text-amber-100"
+                : "bg-amber-100 text-amber-950 dark:bg-amber-950/60 dark:text-amber-300"
+            }`}>
+              {negociacaoCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuickFilter("NOVOS");
+              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition cursor-pointer shrink-0 border ${
+              quickFilter === "NOVOS"
+                ? "bg-sky-50 dark:bg-sky-500/20 text-sky-950 dark:text-sky-200 border-sky-300 dark:border-sky-500/40 font-bold"
+                : "border-transparent text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/60 font-semibold"
+            }`}
+          >
+            <span>Novos</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              quickFilter === "NOVOS"
+                ? "bg-sky-200/80 text-sky-950 dark:bg-sky-500/30 dark:text-sky-100"
+                : "bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:text-zinc-200"
+            }`}>
+              {novosCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuickFilter("CONVERTIDOS");
+              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition cursor-pointer shrink-0 border ${
+              quickFilter === "CONVERTIDOS"
+                ? "bg-emerald-50 dark:bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 border-emerald-300 dark:border-emerald-500/40 font-bold"
+                : "border-transparent text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/60 font-semibold"
+            }`}
+          >
+            <span>Convertidos</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              quickFilter === "CONVERTIDOS"
+                ? "bg-emerald-200/80 text-emerald-950 dark:bg-emerald-500/30 dark:text-emerald-100"
+                : "bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:text-zinc-200"
+            }`}>
+              {convertidosCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQuickFilter("TODOS");
+              if (onClearNegociacaoOnly) onClearNegociacaoOnly();
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition cursor-pointer shrink-0 border ${
+              quickFilter === "TODOS"
+                ? "bg-slate-200 dark:bg-zinc-700 text-slate-950 dark:text-zinc-100 border-slate-300 dark:border-zinc-600 font-bold"
+                : "border-transparent text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/60 font-semibold"
+            }`}
+          >
+            <span>Base Total</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              quickFilter === "TODOS"
+                ? "bg-slate-300 text-slate-950 dark:bg-zinc-600 dark:text-zinc-100"
+                : "bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:text-zinc-200"
+            }`}>
+              {leads.length}
+            </span>
+          </button>
+        </div>
+
+        {/* Área Expansível de Filtros do Funil */}
+        {showAdvancedFilters && (
+          <div 
+            className="pt-3 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-in"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
+            <div>
+              <label className="text-[11px] font-bold block mb-1 text-slate-800 dark:text-zinc-200">
+                Etapa do Funil
+              </label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full rounded-xl px-3 py-2 text-xs border transition focus:outline-none cursor-pointer"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <option value="ALL">Todas as Etapas</option>
+                {statusList.length > 0 ? (
+                  statusList.map(st => <option key={st} value={st}>{st}</option>)
+                ) : (
+                  <>
+                    <option value="NOVO">Novos</option>
+                    <option value="PRIMEIRO_CONTATO">Primeiro Contato</option>
+                    <option value="FOLLOWUP1">Follow-up 1</option>
+                    <option value="FOLLOWUP2">Follow-up 2</option>
+                    <option value="FOLLOWUP3">Follow-up 3</option>
+                    <option value="FOLLOWUPFINAL">Follow-up Final</option>
+                    <option value="RESPONDIDO">Respondidos</option>
+                    <option value="FECHOU">Fechou (Convertido)</option>
+                    <option value="PERDIDO">Perdidos / Encerrados</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold block mb-1 text-slate-800 dark:text-zinc-200">
+                Temperatura
+              </label>
+              <select
+                value={selectedTemp}
+                onChange={(e) => setSelectedTemp(e.target.value)}
+                className="w-full rounded-xl px-3 py-2 text-xs border transition focus:outline-none cursor-pointer"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <option value="ALL">Todas as Temperaturas</option>
+                <option value="QUENTE">Quente</option>
+                <option value="MORNA">Morna</option>
+                <option value="FRIA">Fria</option>
+                <option value="CLIENTE">Cliente</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold block mb-1 text-slate-800 dark:text-zinc-200">
+                Status da Conversa
+              </label>
+              <select
+                value={selectedStatusConversa}
+                onChange={(e) => setSelectedStatusConversa(e.target.value)}
+                className="w-full rounded-xl px-3 py-2 text-xs border transition focus:outline-none cursor-pointer"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <option value="ALL">Todos os Status</option>
+                <option value="NUNCA_RESPONDEU">Nunca respondeu</option>
+                <option value="RESPONDEU">Respondeu</option>
+                <option value="EM_ATENDIMENTO">Em atendimento</option>
+                <option value="ESCOLHENDO_MODELO">Escolhendo modelo</option>
+                <option value="ORCAMENTO_ENVIADO">Orçamento enviado</option>
+                <option value="NEGOCIACAO">Negociação</option>
+                <option value="CLIENTE">Cliente (Fechou)</option>
+                <option value="PERDIDO">Perdido</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold block mb-1 text-slate-800 dark:text-zinc-200">
+                Canal de Origem
+              </label>
+              <select
+                value={selectedPortal}
+                onChange={(e) => setSelectedPortal(e.target.value)}
+                className="w-full rounded-xl px-3 py-2 text-xs border transition focus:outline-none cursor-pointer"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <option value="ALL">Todos os Canais</option>
+                {availablePortalsForFilter.map(pName => (
+                  <option key={pName} value={pName}>{pName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Chips de Filtros Ativos com Alto Contraste */}
+        {hasActiveFilters && (
+          <div 
+            className="pt-2.5 border-t flex flex-wrap items-center gap-2 text-xs"
+            style={{ borderColor: "var(--crm-border)" }}
+          >
+            <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-300">
+              Filtros aplicados:
+            </span>
+
+            {searchTerm && (
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
                 <span>Busca: "{searchTerm}"</span>
-                <button type="button" onClick={() => setSearchTerm("")} className="hover:text-white">
+                <button 
+                  type="button" 
+                  onClick={() => setSearchTerm("")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
-            {negociacaoFilterOnly && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs">
-                <span>Em Negociação</span>
-                <button type="button" onClick={() => { setNegociacaoFilterOnly(false); if (onClearNegociacaoOnly) onClearNegociacaoOnly(); }} className="hover:text-white">
+            {quickFilter !== "TODOS_ATIVOS" && (
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <span>Filtro: {
+                  quickFilter === "NEGOCIACAO" ? "Em Negociação" :
+                  quickFilter === "NOVOS" ? "Novos" :
+                  quickFilter === "CONVERTIDOS" ? "Convertidos" : "Base Total"
+                }</span>
+                <button 
+                  type="button" 
+                  onClick={() => setQuickFilter("TODOS_ATIVOS")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {selectedStatus !== "ALL" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
-                <span>Status: {selectedStatus}</span>
-                <button type="button" onClick={() => setSelectedStatus("ALL")} className="hover:text-white">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-
-            {selectedStatusConversa !== "ALL" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
-                <span>Conversa: {selectedStatusConversa}</span>
-                <button type="button" onClick={() => setSelectedStatusConversa("ALL")} className="hover:text-white">
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <span>Etapa: {selectedStatus}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedStatus("ALL")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {selectedTemp !== "ALL" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
-                <span>Temp: {selectedTemp}</span>
-                <button type="button" onClick={() => setSelectedTemp("ALL")} className="hover:text-white">
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <span>Temperatura: {selectedTemp}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedTemp("ALL")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {selectedStatusConversa !== "ALL" && (
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
+                <span>Conversa: {selectedStatusConversa}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedStatusConversa("ALL")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
             )}
 
             {selectedPortal !== "ALL" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] text-zinc-200 border border-white/[0.08] text-xs">
+              <span 
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text)"
+                }}
+              >
                 <span>Canal: {selectedPortal}</span>
-                <button type="button" onClick={() => setSelectedPortal("ALL")} className="hover:text-white">
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedPortal("ALL")} 
+                  className="hover:opacity-75 cursor-pointer"
+                  style={{ color: "var(--crm-text-muted)" }}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -761,271 +1223,374 @@ export default function LeadsList({
             <button
               type="button"
               onClick={handleClearAllFilters}
-              className="text-xs text-zinc-400 hover:text-zinc-200 ml-auto underline cursor-pointer"
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer ml-auto"
             >
-              Limpar todos
+              Limpar filtros
             </button>
           </div>
         )}
       </div>
 
-      {/* Redesigned Tabular Leads Container */}
-      <div className="bg-[#0e1118] border border-white/[0.07] rounded-2xl overflow-hidden shadow-sm">
-        
-        {/* Table Column Headers */}
-        <div className="bg-[#181C26] border-b border-white/[0.06] px-4 py-3 text-xs font-medium text-zinc-400 hidden md:grid grid-cols-12 gap-4 items-center">
+      {/* =========================================================================
+          3. TABELA OPERACIONAL DE LEADS (Densidade Média, Leitura Rápida)
+          ========================================================================= */}
+      <div 
+        className="rounded-2xl border overflow-hidden shadow-xs transition-colors"
+        style={{
+          backgroundColor: "var(--crm-surface)",
+          borderColor: "var(--crm-border)"
+        }}
+      >
+        {/* Cabeçalho da Tabela Desktop (Contraste Nítido e Legibilidade Máxima) */}
+        <div 
+          className="hidden lg:grid grid-cols-12 gap-4 px-5 py-3 border-b text-xs font-bold select-none items-center"
+          style={{
+            backgroundColor: "var(--crm-surface-subtle)",
+            borderColor: "var(--crm-border)",
+            color: "var(--crm-text)"
+          }}
+        >
+          {/* Coluna 1: Lead & Noiva */}
           <button 
+            type="button"
             onClick={() => toggleSort("nome")} 
-            className="col-span-3 flex items-center gap-1.5 text-left hover:text-white cursor-pointer transition"
+            className="col-span-3 flex items-center gap-1.5 text-left cursor-pointer transition font-bold"
+            style={{ color: "var(--crm-text)" }}
           >
             <span>Lead & Noiva</span>
-            <ArrowUpDown className={`w-3 h-3 ${sortField === "nome" ? "text-indigo-400" : "text-zinc-500"}`} />
+            {sortField === "nome" ? (
+              sortDirection === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> : <ArrowDown className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
+            )}
           </button>
-          
-          <span className="col-span-2">Contato & Local</span>
-          
+
+          {/* Coluna 2: Contato & Local */}
+          <span className="col-span-2 font-bold" style={{ color: "var(--crm-text)" }}>Contato & Local</span>
+
+          {/* Coluna 3: Casamento & Prazos */}
           <button 
-            onClick={() => toggleSort("convidados")} 
-            className="col-span-1 flex items-center gap-1 hover:text-white cursor-pointer transition"
-          >
-            <span>Conv.</span>
-            <ArrowUpDown className={`w-3 h-3 ${sortField === "convidados" ? "text-indigo-400" : "text-zinc-500"}`} />
-          </button>
-          
-          <button 
+            type="button"
             onClick={() => toggleSort("data_casamento")} 
-            className="col-span-1 flex items-center gap-1 text-left hover:text-white cursor-pointer transition"
+            className="col-span-2 flex items-center gap-1.5 text-left cursor-pointer transition font-bold"
+            style={{ color: "var(--crm-text)" }}
           >
-            <span>Evento</span>
-            <ArrowUpDown className={`w-3 h-3 ${sortField === "data_casamento" ? "text-indigo-400" : "text-zinc-500"}`} />
+            <span>Casamento</span>
+            {sortField === "data_casamento" ? (
+              sortDirection === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> : <ArrowDown className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            ) : (
+              <ArrowUpDown className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
+            )}
           </button>
-          
-          <span className="col-span-2">Etapa & Status</span>
-          
-          <button 
-            onClick={() => toggleSort("ultima_interacao")} 
-            className="col-span-2 flex items-center gap-1 text-left hover:text-white justify-between cursor-pointer transition"
-          >
-            <span>Última Interação</span>
-            <ArrowUpDown className={`w-3 h-3 ${sortField === "ultima_interacao" ? "text-indigo-400" : "text-zinc-500"}`} />
-          </button>
-          
-          <button 
-            onClick={() => toggleSort("dias_evento")} 
-            className="col-span-1 flex items-center gap-1 text-left hover:text-white justify-end cursor-pointer transition"
-          >
-            <span>Dias</span>
-            <ArrowUpDown className={`w-3 h-3 ${sortField === "dias_evento" ? "text-indigo-400" : "text-zinc-500"}`} />
-          </button>
+
+          {/* Coluna 4: Situação Comercial */}
+          <span className="col-span-2 font-bold" style={{ color: "var(--crm-text)" }}>Situação Comercial</span>
+
+          {/* Coluna 5: Próxima Ação */}
+          <span className="col-span-2 font-bold" style={{ color: "var(--crm-text)" }}>Próxima Ação</span>
+
+          {/* Coluna 6: Ações de Contato / Detalhes */}
+          <span className="col-span-1 text-right font-bold" style={{ color: "var(--crm-text)" }}>Ações</span>
         </div>
 
-        {/* Rows Container */}
-        <div className="divide-y divide-white/[0.04] max-h-[620px] overflow-y-auto">
+        {/* Linhas da Lista de Leads */}
+        <div className="divide-y divide-slate-100 dark:divide-zinc-800">
           {filteredLeads.length > 0 ? (
             filteredLeads.map((lead) => {
               const interaction = getLastInteractionInfo(lead);
               const isEmNegociacao = isNegociacaoLead(lead);
               const weddingDays = getDaysUntilWedding(lead.data_casamento);
-              const hasProximoPasso = Boolean(
-                (lead.proxima_atividade_em && String(lead.proxima_atividade_em).trim() !== "") ||
-                (lead.proxima_acao_em && String(lead.proxima_acao_em).trim() !== "")
-              );
+              const nextAction = getNextActionSummary(lead);
+              const NextActionIcon = nextAction.icon;
 
-              const tempVariant = 
-                lead.temperatura === "QUENTE" ? "hot" :
-                lead.temperatura === "MORNA" ? "warm" :
-                lead.temperatura === "CLIENTE" ? "success" : "cold";
-              
               return (
                 <div
                   key={lead.id}
                   onClick={() => onSelectLead(lead.id)}
-                  className={`group w-full cursor-pointer px-4 py-3.5 md:grid md:grid-cols-12 md:gap-4 flex flex-col gap-3 items-start md:items-center text-xs text-zinc-300 text-left transition-colors duration-150 ${
+                  className={`group relative w-full cursor-pointer px-4 sm:px-5 py-3.5 lg:grid lg:grid-cols-12 lg:gap-4 flex flex-col gap-3 items-start lg:items-center text-xs text-left transition-colors duration-150 ${
                     isEmNegociacao
-                      ? "bg-amber-500/[0.03] hover:bg-amber-500/[0.07]"
-                      : "hover:bg-white/[0.02]"
+                      ? "bg-amber-50/40 hover:bg-amber-50/80 dark:bg-amber-500/[0.04] dark:hover:bg-amber-500/[0.08]"
+                      : "hover:bg-slate-50 dark:hover:bg-zinc-800/40"
                   }`}
                 >
-                  {/* Lead identity & avatar */}
-                  <div className="md:col-span-3 w-full flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-semibold text-xs shrink-0 transition-transform group-hover:scale-105 ${
-                      isEmNegociacao
-                        ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                        : hasProximoPasso
-                        ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
-                        : "bg-[#181C26] text-zinc-200 border border-white/[0.08]"
-                    }`}>
+                  {/* =========================================================
+                      COLUNA 1: LEAD & NOIVA (Nome, Origem, ID)
+                      ========================================================= */}
+                  <div className="lg:col-span-3 w-full flex items-center gap-3">
+                    {/* Avatar da inicial */}
+                    <div 
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 transition-transform group-hover:scale-105 border ${
+                        isEmNegociacao
+                          ? "bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-200 border-amber-300 dark:border-amber-500/40"
+                          : nextAction.status === "ATRASADA"
+                          ? "bg-rose-100 text-rose-950 dark:bg-rose-500/20 dark:text-rose-200 border-rose-300 dark:border-rose-500/40"
+                          : nextAction.status === "HOJE"
+                          ? "bg-emerald-100 text-emerald-950 dark:bg-emerald-500/20 dark:text-emerald-200 border-emerald-300 dark:border-emerald-500/40"
+                          : "bg-slate-100 text-slate-900 border-slate-300 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 font-bold"
+                      }`}
+                    >
                       {lead.nome.charAt(0).toUpperCase()}
                     </div>
+
                     <div className="truncate min-w-0 flex-1">
                       <div className="flex items-center gap-2 truncate">
-                        <span className={`font-semibold text-sm block truncate transition-colors ${
-                          hasProximoPasso 
-                            ? "text-indigo-300" 
-                            : isEmNegociacao
-                            ? "text-zinc-100 group-hover:text-amber-300"
-                            : "text-zinc-100 group-hover:text-white"
-                        }`}>
+                        <span 
+                          className="font-bold text-sm block truncate text-slate-950 dark:text-zinc-50 transition-colors group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                        >
                           {lead.nome}
                         </span>
+
                         {isEmNegociacao && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
-                            <Flame className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-200 border border-amber-300 dark:border-amber-500/40 shrink-0">
+                            <Flame className="w-2.5 h-2.5 text-amber-600 fill-amber-500" />
                             Negociação
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-zinc-400 block mt-0.5">#{lead.id}</span>
+
+                      {/* Metadados secundários do lead: Origem e ID discreto */}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 truncate">
+                          {lead.origem_portal || "Manual"}
+                        </span>
+                        <span className="text-slate-400 dark:text-zinc-600">·</span>
+                        <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400">
+                          #{lead.id.slice(0, 8)}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Contact info & Quick 1-Click Actions */}
-                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 space-y-1">
-                    <div className="flex items-center gap-1.5 text-zinc-300">
-                      <Mail className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="truncate text-xs">{lead.email}</span>
+                  {/* =========================================================
+                      COLUNA 2: CONTATO & LOCAL (Telefone, E-mail, Cidade)
+                      ========================================================= */}
+                  <div className="lg:col-span-2 w-full border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 pt-2 lg:pt-0 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 shrink-0 text-slate-600 dark:text-zinc-400" />
+                      <span className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                        {lead.link_celular || "Sem telefone"}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-zinc-400">
-                      <Phone className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="text-xs">{lead.link_celular || "Sem telefone"}</span>
+
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 shrink-0 text-slate-600 dark:text-zinc-400" />
+                      <span className="text-xs text-slate-700 dark:text-zinc-300 font-normal truncate">
+                        {lead.email}
+                      </span>
                     </div>
+
                     {lead.local && (
-                      <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] truncate" title={lead.local}>
-                        <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
-                        <span className="truncate">{lead.local}</span>
+                      <div className="flex items-center gap-1.5 text-[11px] truncate" title={lead.local}>
+                        <MapPin className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <span className="text-slate-800 dark:text-zinc-200 font-semibold truncate">
+                          {lead.local}
+                        </span>
                       </div>
                     )}
+                  </div>
 
-                    {/* 1-Click Direct Action Buttons */}
-                    <div className="flex items-center gap-1.5 pt-1">
-                      {lead.link_celular && (
+                  {/* =========================================================
+                      COLUNA 3: CASAMENTO & PRAZOS (Data Humana + Dias)
+                      ========================================================= */}
+                  <div className="lg:col-span-2 w-full border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 pt-2 lg:pt-0 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                      <span className="font-bold text-xs text-slate-950 dark:text-zinc-50 truncate">
+                        {weddingDays.formattedDisplay}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] border font-semibold ${weddingDays.badgeColor}`}>
+                        {weddingDays.label}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                        {lead.convidados} conv.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* =========================================================
+                      COLUNA 4: SITUAÇÃO COMERCIAL (Etapa + Temperatura)
+                      ========================================================= */}
+                  <div className="lg:col-span-2 w-full border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 pt-2 lg:pt-0 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${getStatusBadgeStyle(lead.status_funil)}`}>
+                        {lead.status_funil}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${getTempBadgeStyle(lead.temperatura)}`}>
+                        {String(lead.temperatura || "FRIA").trim().toUpperCase()}
+                      </span>
+                    </div>
+
+                    {lead.status_conversa && (
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-zinc-300 block truncate">
+                        {lead.status_conversa.replace(/_/g, " ").toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* =========================================================
+                      COLUNA 5: PRÓXIMA AÇÃO DA AGENDA (Urgência e Hierarquia)
+                      ========================================================= */}
+                  <div className="lg:col-span-2 w-full border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 pt-2 lg:pt-0 space-y-0.5">
+                    {nextAction.status === "SEM_PASSO" ? (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-800 dark:text-zinc-200 font-semibold">
+                          <Clock className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400 shrink-0" />
+                          <span>Sem próximo passo</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 block pl-5">
+                          Definir na Agenda
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {/* Linha 1: Data e Tipo de Ação com Alto Contraste */}
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <NextActionIcon className={`w-3.5 h-3.5 shrink-0 ${
+                            nextAction.status === "ATRASADA" 
+                              ? "text-rose-600 dark:text-rose-400" 
+                              : nextAction.status === "HOJE" 
+                              ? "text-emerald-600 dark:text-emerald-400" 
+                              : "text-indigo-600 dark:text-indigo-400"
+                          }`} />
+                          <span className={`text-xs ${nextAction.dateColorClass}`}>
+                            {nextAction.dateDisplay}
+                          </span>
+                          <span className="text-slate-400 dark:text-zinc-600 text-[10px]">·</span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                            {nextAction.actionType}
+                          </span>
+                        </div>
+
+                        {/* Linha 2: Status Temporal Perfeitamente Legível */}
+                        <div className="flex items-center gap-1.5 pl-5">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] border font-semibold ${nextAction.badgeClass}`}>
+                            {nextAction.temporalLabel}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* =========================================================
+                      COLUNA 6: AÇÕES DE CONTATO DIRETO & CHEVRON
+                      ========================================================= */}
+                  <div className="lg:col-span-1 w-full border-t lg:border-t-0 border-slate-100 dark:border-zinc-800 pt-2 lg:pt-0 flex items-center justify-between lg:justify-end gap-2">
+                    <div className="flex items-center gap-1">
+                      {/* Botão direto WhatsApp */}
+                      {lead.link_celular ? (
                         <a
                           href={`https://wa.me/${lead.link_celular.replace(/\D/g, "")}?text=${encodeURIComponent(`Olá ${lead.nome}! Tudo bem? Gostaria de conversar sobre o seu orçamento de casamento na Casa Colombo Artesanal.`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          title="Abrir WhatsApp direto"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 rounded-md text-[10px] font-medium transition cursor-pointer"
+                          title={`Enviar WhatsApp para ${lead.nome}`}
+                          aria-label={`Enviar WhatsApp para ${lead.nome}`}
+                          className="p-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 text-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500/40 transition cursor-pointer"
                         >
-                          <MessageCircle className="w-3 h-3 text-emerald-400" />
-                          WhatsApp
+                          <MessageCircle className="w-3.5 h-3.5" />
                         </a>
-                      )}
-                      {lead.email && (
+                      ) : null}
+
+                      {/* Botão direto E-mail */}
+                      {lead.email ? (
                         <a
                           href={`mailto:${lead.email}?subject=${encodeURIComponent(`Acompanhamento de Orçamento - ${lead.nome}`)}`}
                           onClick={(e) => e.stopPropagation()}
-                          title="Enviar E-mail direto"
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/25 rounded-md text-[10px] font-medium transition cursor-pointer"
+                          title={`Enviar E-mail para ${lead.nome}`}
+                          aria-label={`Enviar E-mail para ${lead.nome}`}
+                          className="p-1.5 rounded-lg bg-sky-100 hover:bg-sky-200 dark:bg-sky-500/20 dark:hover:bg-sky-500/30 text-sky-950 dark:text-sky-200 border border-sky-300 dark:border-sky-500/40 transition cursor-pointer"
                         >
-                          <Mail className="w-3 h-3 text-sky-400" />
-                          E-mail
+                          <Mail className="w-3.5 h-3.5" />
                         </a>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Guests */}
-                  <div className="md:col-span-1 w-full flex justify-between md:block text-zinc-300 border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 font-medium text-xs">
-                    <span className="md:hidden font-normal text-zinc-400">Convidados:</span>
-                    <span>{lead.convidados}</span>
-                  </div>
-
-                  {/* Wedding Date */}
-                  <div className="md:col-span-1 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex items-center pr-1">
-                    <div className="flex items-center gap-1.5 text-zinc-300">
-                      <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="font-medium text-xs truncate">{lead.data_casamento || "N/I"}</span>
-                    </div>
-                  </div>
-
-                  {/* Status & Temp */}
-                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex flex-col gap-1.5">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${getStatusColor(lead.status_funil)}`}>
-                        {lead.status_funil}
-                      </span>
-                      <Badge variant={tempVariant} size="sm">
-                        {String(lead.temperatura || "FRIA").trim().toUpperCase()}
-                      </Badge>
-                    </div>
-                    <span className="text-[11px] text-zinc-400 truncate block">Etapa: {lead.etapa_contato}</span>
-                  </div>
-
-                  {/* Last Interaction */}
-                  <div className="md:col-span-2 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex flex-col justify-center gap-1">
-                    <div className="flex items-center justify-between md:justify-start gap-1.5">
-                      <span className="md:hidden text-zinc-400 font-normal">Última Interação:</span>
-                      <div className="flex items-center gap-1 text-zinc-300 text-[11px] font-medium">
-                        <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
-                        <span>{interaction.formattedDate}</span>
-                      </div>
+                      ) : null}
                     </div>
 
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-200 font-medium truncate" title={interaction.acao}>
-                        {interaction.canalIcon === "whatsapp" && <MessageCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                        {interaction.canalIcon === "email" && <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
-                        {interaction.canalIcon === "manual" && <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                        {interaction.canalIcon === "system" && <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                        <span className="truncate">{interaction.acao}</span>
-                      </div>
-                      <span className="text-[11px] text-zinc-400 truncate">{interaction.origem}</span>
-                    </div>
-                  </div>
-
-                  {/* Countdown & Open details arrow */}
-                  <div className="md:col-span-1 w-full border-t border-white/[0.04] pt-2 md:pt-0 md:border-t-0 flex items-center justify-between md:justify-end gap-2">
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${weddingDays.badgeColor}`}>
-                      {weddingDays.label}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition shrink-0" />
+                    <ChevronRight 
+                      className="w-4 h-4 text-slate-400 dark:text-zinc-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition group-hover:translate-x-0.5 shrink-0" 
+                    />
                   </div>
 
                 </div>
               );
             })
           ) : (
+            /* =================================================================
+               EMPTY STATE
+               ================================================================= */
             <div className="p-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-500">
+              <div 
+                className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border"
+                style={{
+                  backgroundColor: "var(--crm-surface-subtle)",
+                  borderColor: "var(--crm-border)",
+                  color: "var(--crm-text-secondary)"
+                }}
+              >
                 <Search className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-zinc-200">Nenhum lead encontrado</p>
-                <p className="text-xs text-zinc-400 mt-0.5">Tente ajustar seus termos de busca ou filtros aplicados.</p>
+                <p className="text-sm font-bold" style={{ color: "var(--crm-text)" }}>
+                  Nenhum lead encontrado com estes filtros
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--crm-text-secondary)" }}>
+                  Tente ajustar seus termos de busca ou remover os filtros aplicados.
+                </p>
               </div>
               {hasActiveFilters && (
-                <Button variant="secondary" size="sm" onClick={handleClearAllFilters}>
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/10 transition cursor-pointer"
+                >
                   Limpar todos os filtros
-                </Button>
+                </button>
               )}
             </div>
           )}
         </div>
 
-        {/* Table Footer Summary */}
-        <div className="px-4 py-3 bg-[#121620]/60 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-medium">
-          <span>Mostrando {filteredLeads.length} de {leads.length} leads cadastrados</span>
-          <span className="text-[11px] text-zinc-500 font-mono">Clique em qualquer linha para abrir a Ficha Completa</span>
+        {/* =========================================================================
+            RODAPÉ DA TABELA (Resumo operacional e escalabilidade)
+            ========================================================================= */}
+        <div 
+          className="px-5 py-3 border-t flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-medium"
+          style={{
+            backgroundColor: "var(--crm-surface-subtle)",
+            borderColor: "var(--crm-border)",
+            color: "var(--crm-text-secondary)"
+          }}
+        >
+          <span className="font-semibold" style={{ color: "var(--crm-text)" }}>
+            Mostrando {filteredLeads.length} de {leads.length} leads cadastrados
+          </span>
+          <span className="text-[11px]" style={{ color: "var(--crm-text-muted)" }}>
+            Clique na linha para abrir a Ficha Completa do Lead
+          </span>
         </div>
 
       </div>
 
-      {/* Add Lead Modal */}
+      {/* =========================================================================
+          MODAL: CADASTRAR NOVO LEAD (Design System Harmonizado)
+          ========================================================================= */}
       <Modal
         isOpen={isAddingLead}
-        onClose={() => setIsAddingLead(false)}
+        onClose={() => !isSubmitting && setIsAddingLead(false)}
         title="Cadastrar Novo Lead"
         size="lg"
       >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Nome do Lead" required>
+            <FormField label="Nome da Noiva / Lead" required>
               <Input
                 required
                 value={formNome}
                 onChange={(e) => setFormNome(e.target.value)}
-                placeholder="Larissa Souza"
+                placeholder="Ex: Larissa Souza"
+                disabled={isSubmitting}
               />
             </FormField>
             <FormField label="E-mail" required>
@@ -1034,7 +1599,8 @@ export default function LeadsList({
                 required
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="larissa@gmail.com"
+                placeholder="larissa@exemplo.com.br"
+                disabled={isSubmitting}
               />
             </FormField>
           </div>
@@ -1045,14 +1611,16 @@ export default function LeadsList({
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
                 placeholder="(13) 99655-1212"
+                disabled={isSubmitting}
               />
             </FormField>
             <FormField label="Número de Convidados (Estimativa)">
               <Input
                 type="number"
-                min="0"
+                min="1"
                 value={formGuests}
                 onChange={(e) => setFormGuests(Number(e.target.value))}
+                disabled={isSubmitting}
               />
             </FormField>
           </div>
@@ -1064,6 +1632,7 @@ export default function LeadsList({
                 onChange={(e) => handleWeddingDateChange(e.target.value)}
                 placeholder="12/10/2026"
                 className="font-mono"
+                disabled={isSubmitting}
               />
             </FormField>
             <FormField label="Mês / Ano do Casamento (Extenso)">
@@ -1071,6 +1640,7 @@ export default function LeadsList({
                 value={formMonth}
                 onChange={(e) => setFormMonth(e.target.value)}
                 placeholder="Outubro de 2026"
+                disabled={isSubmitting}
               />
             </FormField>
           </div>
@@ -1080,13 +1650,15 @@ export default function LeadsList({
               <Input
                 value={formVenue}
                 onChange={(e) => setFormVenue(e.target.value)}
-                placeholder="Recanto dos Sonhos, Santos"
+                placeholder="Espaço Recanto dos Sonhos, Santos"
+                disabled={isSubmitting}
               />
             </FormField>
             <FormField label="Canal Originário">
               <Select
                 value={formPortal}
                 onChange={(e) => setFormPortal(e.target.value)}
+                disabled={isSubmitting}
                 options={
                   portals && portals.length > 0
                     ? portals.filter((p) => p.ativo !== false).map((p) => ({ value: p.nome, label: p.nome }))
@@ -1106,81 +1678,95 @@ export default function LeadsList({
             </FormField>
           </div>
 
-          <FormField label="Serviços Solicitados">
+          <FormField label="Serviços / Produtos Solicitados">
             <Input
               value={formServices}
               onChange={(e) => setFormServices(e.target.value)}
               placeholder="Lembrancinhas Mini Velas, Difusores etc."
+              disabled={isSubmitting}
             />
           </FormField>
 
           <FormField label="Observações Iniciais">
             <Textarea
-              rows={3}
+              rows={2}
               value={formNotes}
               onChange={(e) => setFormNotes(e.target.value)}
-              placeholder="Lead solicitou rótulo personalizado rústico."
+              placeholder="Ex: Noiva busca rótulo personalizado rústico."
+              disabled={isSubmitting}
             />
           </FormField>
 
-          {/* Pergunta: Enviar 1ª mensagem da sequência agora ou agendar para 3 dias */}
-          <div className="p-3.5 bg-[#0B0D12] border border-white/[0.06] rounded-xl space-y-2">
-            <label className="text-zinc-300 font-medium text-xs block">
-              Enviar a 1ª mensagem da sequência de automação agora?
+          {/* Automação de Primeira Mensagem */}
+          <div 
+            className="p-4 rounded-xl border space-y-2.5 transition-colors"
+            style={{
+              backgroundColor: "var(--crm-surface-subtle)",
+              borderColor: "var(--crm-border)"
+            }}
+          >
+            <label className="text-xs font-bold block" style={{ color: "var(--crm-text)" }}>
+              Disparo da 1ª mensagem da sequência de automação:
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setEnviarPrimeiraMensagem(true)}
-                className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                disabled={isSubmitting}
+                className={`px-3 py-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   enviarPrimeiraMensagem
-                    ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/40 font-semibold"
-                    : "bg-[#181C26] text-zinc-400 border-white/[0.06] hover:bg-white/[0.04]"
+                    ? "bg-indigo-50 text-indigo-950 border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-200 dark:border-indigo-500/40"
+                    : "border-transparent text-slate-700 dark:text-zinc-300 hover:text-slate-950 font-semibold"
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                 Sim, enviar agora
               </button>
               <button
                 type="button"
                 onClick={() => setEnviarPrimeiraMensagem(false)}
-                className={`px-3 py-2 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                disabled={isSubmitting}
+                className={`px-3 py-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   !enviarPrimeiraMensagem
-                    ? "bg-amber-500/15 text-amber-300 border-amber-500/40 font-semibold"
-                    : "bg-[#181C26] text-zinc-400 border-white/[0.06] hover:bg-white/[0.04]"
+                    ? "bg-amber-50 text-amber-950 border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40"
+                    : "border-transparent text-slate-700 dark:text-zinc-300 hover:text-slate-950 font-semibold"
                 }`}
               >
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                Não, agendar p/ 3 dias
+                <Clock className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                Agendar para 3 dias
               </button>
             </div>
-            <p className="text-[11px] text-zinc-500 leading-snug">
+            <p className="text-[11px] leading-snug" style={{ color: "var(--crm-text-secondary)" }}>
               {enviarPrimeiraMensagem
-                ? "A 1ª mensagem do fluxo será enviada imediatamente ao cadastrar o lead."
-                : "A 1ª mensagem da sequência será agendada para daqui a 3 dias. O fluxo seguirá o prazo normal a partir de então."}
+                ? "A 1ª mensagem do fluxo será despachada automaticamente assim que o lead for salvo."
+                : "A 1ª mensagem será programada para daqui a 3 dias úteis pelo scheduler."}
             </p>
           </div>
 
-          <div className="p-3 bg-[#0B0D12] border border-white/[0.06] rounded-xl flex items-center gap-2 text-[11px] text-zinc-400">
-            <Calculator className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span>O CRM calculará os orçamentos para {formGuests} convidados de forma automática ao salvar.</span>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-white/[0.06]">
-            <Button
+          {/* Ações do Modal */}
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-zinc-800">
+            <button
               type="button"
-              variant="ghost"
+              disabled={isSubmitting}
               onClick={() => setIsAddingLead(false)}
+              className="px-4 py-2 text-xs font-semibold rounded-xl border transition hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-50 cursor-pointer border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300"
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              variant="primary"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
             >
-              Cadastrar Lead
-            </Button>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Cadastrando...</span>
+                </>
+              ) : (
+                <span>Cadastrar Lead</span>
+              )}
+            </button>
           </div>
         </form>
       </Modal>
